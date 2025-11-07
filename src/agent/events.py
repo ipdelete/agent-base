@@ -5,9 +5,10 @@ It allows middleware to emit events that display components can listen to,
 without creating direct dependencies between them.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
+from uuid import uuid4
 
 
 class EventType(Enum):
@@ -37,10 +38,14 @@ class Event:
     Attributes:
         type: The type of event (from EventType enum)
         data: Dictionary containing event-specific data
+        event_id: Unique identifier for event correlation
+        parent_id: ID of parent event for hierarchical display (optional)
     """
 
     type: EventType
     data: dict[str, Any]
+    event_id: str = field(default_factory=lambda: str(uuid4()))
+    parent_id: str | None = None
 
 
 class EventListener(Protocol):
@@ -158,3 +163,19 @@ def get_event_bus() -> EventBus:
         >>> bus.subscribe(my_listener)
     """
     return EventBus()
+
+
+def get_event_emitter() -> EventBus:
+    """Alias for get_event_bus() for consistency with display module naming.
+
+    This provides compatibility with the butler-agent pattern where
+    get_event_emitter() is used by middleware and display components.
+
+    Returns:
+        The singleton EventBus instance
+
+    Example:
+        >>> emitter = get_event_emitter()
+        >>> emitter.emit(event)
+    """
+    return get_event_bus()

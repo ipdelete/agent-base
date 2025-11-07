@@ -1,11 +1,14 @@
 """Core Agent class with multi-provider LLM support."""
 
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
 from agent.config import AgentConfig
 from agent.tools.hello import HelloTools
 from agent.tools.toolset import AgentToolset
+
+logger = logging.getLogger(__name__)
 
 
 class Agent:
@@ -29,6 +32,7 @@ class Agent:
         config: AgentConfig | None = None,
         chat_client: Any | None = None,
         toolsets: list[AgentToolset] | None = None,
+        middleware: dict[str, list] | None = None,
     ):
         """Initialize Agent.
 
@@ -36,6 +40,7 @@ class Agent:
             config: Agent configuration (required if chat_client not provided)
             chat_client: Chat client for testing (optional, for dependency injection)
             toolsets: List of toolsets (default: HelloTools)
+            middleware: Middleware dict with 'agent' and 'function' lists (optional)
 
         Example:
             # Production use
@@ -46,6 +51,11 @@ class Agent:
             >>> from tests.mocks import MockChatClient
             >>> mock_client = MockChatClient(response="Test response")
             >>> agent = Agent(config=config, chat_client=mock_client)
+
+            # With custom middleware
+            >>> from agent.middleware import create_middleware
+            >>> mw = create_middleware()
+            >>> agent = Agent(config=config, middleware=mw)
         """
         self.config = config or AgentConfig.from_env()
 
@@ -64,6 +74,12 @@ class Agent:
         self.tools = []
         for toolset in self.toolsets:
             self.tools.extend(toolset.get_tools())
+
+        # Initialize middleware (create default if not provided)
+        if middleware is None:
+            from agent.middleware import create_middleware
+            middleware = create_middleware()
+        self.middleware = middleware
 
         # Create agent
         self.agent = self._create_agent()
@@ -112,7 +128,7 @@ class Agent:
             )
 
     def _create_agent(self) -> Any:
-        """Create agent with tools and instructions.
+        """Create agent with tools, instructions, and middleware.
 
         Returns:
             Configured agent instance ready to handle requests
@@ -131,13 +147,33 @@ Be helpful, concise, and clear in your responses."""
             name="Agent",
             instructions=instructions,
             tools=self.tools,
+            middleware=self.middleware,
         )
 
-    async def run(self, prompt: str) -> str:
+    def get_new_thread(self) -> Any:
+        """Create a new conversation thread.
+
+        Returns:
+            New thread instance for maintaining conversation context
+
+        Example:
+            >>> agent = Agent(config)
+            >>> thread = agent.get_new_thread()
+            >>> response = await agent.run("Hello", thread=thread)
+        """
+        if hasattr(self.chat_client, "create_thread"):
+            return self.chat_client.create_thread()
+        else:
+            # Fallback: some providers may not support threads
+            logger.warning("Chat client doesn't support threads, returning None")
+            return None
+
+    async def run(self, prompt: str, thread: Any | None = None) -> str:
         """Run agent with prompt.
 
         Args:
             prompt: User prompt
+            thread: Optional thread for conversation context
 
         Returns:
             Agent response as a string
@@ -147,14 +183,22 @@ Be helpful, concise, and clear in your responses."""
             >>> response = await agent.run("Say hello to Alice")
             >>> print(response)
             Hello, Alice!
-        """
-        return await self.agent.run(prompt)
 
-    async def run_stream(self, prompt: str) -> AsyncIterator[str]:
+            >>> # With thread for context
+            >>> thread = agent.get_new_thread()
+            >>> response = await agent.run("Hello", thread=thread)
+        """
+        if thread:
+            return await self.agent.run(prompt, thread=thread)
+        else:
+            return await self.agent.run(prompt)
+
+    async def run_stream(self, prompt: str, thread: Any | None = None) -> AsyncIterator[str]:
         """Run agent with streaming response.
 
         Args:
             prompt: User prompt
+            thread: Optional thread for conversation context
 
         Yields:
             Response chunks as they become available
@@ -164,6 +208,15 @@ Be helpful, concise, and clear in your responses."""
             >>> async for chunk in agent.run_stream("Say hello"):
             ...     print(chunk, end="")
             Hello! How can I help you?
+
+            >>> # With thread for context
+            >>> thread = agent.get_new_thread()
+            >>> async for chunk in agent.run_stream("Hello", thread=thread):
+            ...     print(chunk, end="")
         """
-        async for chunk in self.agent.run_stream(prompt):
-            yield chunk
+        if thread:
+            async for chunk in self.agent.run_stream(prompt, thread=thread):
+                yield chunk
+        else:
+            async for chunk in self.agent.run_stream(prompt):
+                yield chunk

@@ -1,6 +1,6 @@
 """Unit tests for agent.events module."""
 
-from agent.events import Event, EventBus, EventType, get_event_bus
+from agent.events import Event, EventBus, EventType, get_event_bus, get_event_emitter
 
 
 class MockListener:
@@ -150,6 +150,11 @@ class TestEventBus:
         assert event.type == EventType.TOOL_START
         assert event.data["tool"] == "hello"
         assert event.data["args"]["name"] == "World"
+        # Verify new event correlation fields
+        assert hasattr(event, "event_id")
+        assert hasattr(event, "parent_id")
+        assert event.event_id is not None
+        assert event.parent_id is None
 
     def test_multiple_events_to_same_listener(self):
         """Test listener receives multiple events in order."""
@@ -194,3 +199,32 @@ class TestEventBus:
         assert len(listener.tool_events) == 2
         assert listener.tool_events[0].type == EventType.TOOL_START
         assert listener.tool_events[1].type == EventType.TOOL_COMPLETE
+
+    def test_event_id_is_unique(self):
+        """Test that each event gets a unique event_id."""
+        event1 = Event(EventType.TOOL_START, {"tool": "test1"})
+        event2 = Event(EventType.TOOL_START, {"tool": "test2"})
+
+        assert event1.event_id != event2.event_id
+        # Verify they're UUIDs (string format)
+        assert isinstance(event1.event_id, str)
+        assert len(event1.event_id) == 36  # UUID string length
+
+    def test_event_parent_id_can_be_set(self):
+        """Test that events can have parent_id for hierarchical tracking."""
+        parent_event = Event(EventType.TOOL_START, {"tool": "parent"})
+        child_event = Event(
+            EventType.TOOL_START,
+            {"tool": "child"},
+            parent_id=parent_event.event_id
+        )
+
+        assert child_event.parent_id == parent_event.event_id
+
+    def test_get_event_emitter_returns_event_bus(self):
+        """Test get_event_emitter is an alias for get_event_bus."""
+        bus = get_event_bus()
+        emitter = get_event_emitter()
+
+        assert bus is emitter
+        assert isinstance(emitter, EventBus)
