@@ -1,5 +1,6 @@
 """Integration tests for agent with HelloTools."""
 
+
 import pytest
 
 from agent.agent import Agent
@@ -98,6 +99,15 @@ async def test_agent_with_multiple_provider_configs():
     agent_anthropic = Agent(config=anthropic_config, chat_client=mock_client)
     assert agent_anthropic.config.llm_provider == "anthropic"
 
+    # Azure OpenAI config
+    azure_openai_config = AgentConfig(
+        llm_provider="azure",
+        azure_openai_endpoint="https://test.openai.azure.com",
+        azure_openai_deployment="gpt-5-codex",
+    )
+    agent_azure_openai = Agent(config=azure_openai_config, chat_client=mock_client)
+    assert agent_azure_openai.config.llm_provider == "azure"
+
     # Azure AI Foundry config
     azure_config = AgentConfig(
         llm_provider="azure_ai_foundry",
@@ -150,3 +160,42 @@ async def test_tool_error_handling_integration():
     assert result["success"] is False
     assert result["error"] == "unsupported_language"
     assert "invalid_lang" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_provider_switching_with_mock():
+    """Test switching between providers with mocked client."""
+    mock_client = MockChatClient(response="Provider test response")
+
+    # Test all 4 providers with same mock client
+    providers = [
+        ("openai", AgentConfig(llm_provider="openai", openai_api_key="test")),
+        ("anthropic", AgentConfig(llm_provider="anthropic", anthropic_api_key="test")),
+        (
+            "azure",
+            AgentConfig(
+                llm_provider="azure",
+                azure_openai_endpoint="https://test.openai.azure.com",
+                azure_openai_deployment="gpt-5-codex",
+            ),
+        ),
+        (
+            "azure_ai_foundry",
+            AgentConfig(
+                llm_provider="azure_ai_foundry",
+                azure_project_endpoint="https://test.ai.azure.com",
+                azure_model_deployment="gpt-4o",
+            ),
+        ),
+    ]
+
+    for provider_name, config in providers:
+        # Create agent with mocked client
+        agent = Agent(config=config, chat_client=mock_client)
+
+        # Execute
+        response = await agent.run("test")
+
+        # Verify
+        assert response == "Provider test response"
+        assert agent.config.llm_provider == provider_name

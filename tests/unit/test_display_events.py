@@ -5,7 +5,6 @@ import asyncio
 import pytest
 
 from agent.display.events import (
-    EventEmitter,
     ExecutionEvent,
     LLMRequestEvent,
     LLMResponseEvent,
@@ -68,10 +67,7 @@ class TestToolEvents:
 
     def test_tool_start_event_structure(self):
         """Test ToolStartEvent has correct structure."""
-        event = ToolStartEvent(
-            tool_name="hello_world",
-            arguments={"name": "Alice"}
-        )
+        event = ToolStartEvent(tool_name="hello_world", arguments={"name": "Alice"})
 
         assert event.tool_name == "hello_world"
         assert event.arguments == {"name": "Alice"}
@@ -80,9 +76,7 @@ class TestToolEvents:
     def test_tool_complete_event_structure(self):
         """Test ToolCompleteEvent has correct structure."""
         event = ToolCompleteEvent(
-            tool_name="hello_world",
-            result_summary="Greeted Alice",
-            duration=0.5
+            tool_name="hello_world", result_summary="Greeted Alice", duration=0.5
         )
 
         assert event.tool_name == "hello_world"
@@ -92,9 +86,7 @@ class TestToolEvents:
     def test_tool_error_event_structure(self):
         """Test ToolErrorEvent has correct structure."""
         event = ToolErrorEvent(
-            tool_name="broken_tool",
-            error_message="Something went wrong",
-            duration=0.1
+            tool_name="broken_tool", error_message="Something went wrong", duration=0.1
         )
 
         assert event.tool_name == "broken_tool"
@@ -287,10 +279,7 @@ class TestEventCorrelation:
     def test_nested_tool_events_with_parent_id(self):
         """Test creating nested tool events with parent_id."""
         parent_event = ToolStartEvent(tool_name="parent_tool")
-        child_event = ToolStartEvent(
-            tool_name="child_tool",
-            parent_id=parent_event.event_id
-        )
+        child_event = ToolStartEvent(tool_name="child_tool", parent_id=parent_event.event_id)
 
         assert child_event.parent_id == parent_event.event_id
         assert child_event.event_id != parent_event.event_id
@@ -303,10 +292,7 @@ class TestEventCorrelation:
         set_current_tool_event_id(parent_event.event_id)
 
         # Create child event with context
-        child_event = ToolStartEvent(
-            tool_name="child",
-            parent_id=get_current_tool_event_id()
-        )
+        child_event = ToolStartEvent(tool_name="child", parent_id=get_current_tool_event_id())
 
         assert child_event.parent_id == parent_event.event_id
 

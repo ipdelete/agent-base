@@ -214,9 +214,7 @@ class TestEventBus:
         """Test that events can have parent_id for hierarchical tracking."""
         parent_event = Event(EventType.TOOL_START, {"tool": "parent"})
         child_event = Event(
-            EventType.TOOL_START,
-            {"tool": "child"},
-            parent_id=parent_event.event_id
+            EventType.TOOL_START, {"tool": "child"}, parent_id=parent_event.event_id
         )
 
         assert child_event.parent_id == parent_event.event_id

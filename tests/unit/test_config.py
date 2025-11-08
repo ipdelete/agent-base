@@ -199,3 +199,35 @@ class TestAgentConfig:
         config = AgentConfig(llm_provider="openai", openai_api_key="test")
 
         assert config.openai_model == "gpt-5-mini"
+
+    def test_validate_azure_openai_success(self):
+        """Test validate succeeds for Azure OpenAI with endpoint and deployment."""
+        config = AgentConfig(
+            llm_provider="azure",
+            azure_openai_endpoint="https://test.openai.azure.com/",
+            azure_openai_deployment="gpt-5-codex",
+        )
+        # Should not raise
+        config.validate()
+
+    def test_validate_azure_openai_missing_endpoint(self):
+        """Test validate fails for Azure OpenAI without endpoint."""
+        config = AgentConfig(llm_provider="azure", azure_openai_deployment="gpt-5-codex")
+
+        with pytest.raises(ValueError, match="endpoint"):
+            config.validate()
+
+    def test_validate_azure_openai_missing_deployment(self):
+        """Test validate fails for Azure OpenAI without deployment."""
+        config = AgentConfig(
+            llm_provider="azure", azure_openai_endpoint="https://test.openai.azure.com/"
+        )
+
+        with pytest.raises(ValueError, match="deployment"):
+            config.validate()
+
+    def test_get_model_display_name_azure_openai(self):
+        """Test get_model_display_name for Azure OpenAI."""
+        config = AgentConfig(llm_provider="azure", azure_openai_deployment="gpt-5-codex")
+
+        assert config.get_model_display_name() == "Azure OpenAI/gpt-5-codex"

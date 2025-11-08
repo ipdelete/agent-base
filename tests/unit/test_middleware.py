@@ -1,7 +1,7 @@
 """Unit tests for agent.middleware module."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -17,35 +17,29 @@ from agent.middleware import (
 class TestCreateMiddleware:
     """Tests for middleware factory functions."""
 
-    def test_create_middleware_returns_dict(self):
-        """Test create_middleware returns dict with agent and function keys."""
+    def test_create_middleware_returns_list(self):
+        """Test create_middleware returns list of middleware."""
         middleware = create_middleware()
 
-        assert isinstance(middleware, dict)
-        assert "agent" in middleware
-        assert "function" in middleware
-        assert isinstance(middleware["agent"], list)
-        assert isinstance(middleware["function"], list)
+        assert isinstance(middleware, list)
+        assert len(middleware) == 3  # agent_run_logging, agent_observability, logging_function
 
     def test_create_middleware_has_expected_middleware(self):
         """Test create_middleware includes expected middleware functions."""
         middleware = create_middleware()
 
-        # Agent middleware
-        assert len(middleware["agent"]) == 2
-        assert agent_run_logging_middleware in middleware["agent"]
-        assert agent_observability_middleware in middleware["agent"]
-
-        # Function middleware
-        assert len(middleware["function"]) >= 1
-        # Note: logging_function_middleware is cast to FunctionMiddleware type
+        # Check all middleware are present (framework auto-categorizes by signature)
+        assert agent_run_logging_middleware in middleware
+        assert agent_observability_middleware in middleware
+        assert logging_function_middleware in middleware
 
     def test_create_function_middleware_returns_list(self):
         """Test create_function_middleware returns list (backward compatibility)."""
         function_mw = create_function_middleware()
 
         assert isinstance(function_mw, list)
-        assert len(function_mw) >= 1
+        assert len(function_mw) == 1
+        assert logging_function_middleware in function_mw
 
 
 class TestAgentRunLoggingMiddleware:
@@ -55,6 +49,7 @@ class TestAgentRunLoggingMiddleware:
     def reset_emitter(self):
         """Reset event emitter before each test."""
         from agent.display.events import get_event_emitter
+
         emitter = get_event_emitter()
         emitter.clear()
         emitter.enable()
@@ -81,7 +76,7 @@ class TestAgentRunLoggingMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_emits_llm_request_event_when_visualization_enabled(self):
         """Test middleware emits LLM request event when visualization enabled."""
-        from agent.display import set_execution_context, ExecutionContext
+        from agent.display import ExecutionContext, set_execution_context
         from agent.display.events import get_event_emitter
 
         # Enable visualization
@@ -104,14 +99,15 @@ class TestAgentRunLoggingMiddleware:
 
         assert event is not None
         from agent.display.events import LLMRequestEvent
+
         assert isinstance(event, LLMRequestEvent)
         assert event.message_count == 3
 
     @pytest.mark.asyncio
     async def test_middleware_emits_llm_response_event_on_success(self):
         """Test middleware emits LLM response event on successful completion."""
-        from agent.display import set_execution_context, ExecutionContext
-        from agent.display.events import get_event_emitter, LLMResponseEvent
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import LLMResponseEvent, get_event_emitter
 
         # Enable visualization
         ctx = ExecutionContext(show_visualization=True)
@@ -141,7 +137,7 @@ class TestAgentRunLoggingMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_does_not_emit_when_visualization_disabled(self):
         """Test middleware doesn't emit events when visualization disabled."""
-        from agent.display import set_execution_context, ExecutionContext
+        from agent.display import ExecutionContext, set_execution_context
         from agent.display.events import get_event_emitter
 
         # Disable visualization
@@ -199,6 +195,7 @@ class TestAgentObservabilityMiddleware:
     async def test_middleware_logs_execution_time(self, caplog):
         """Test middleware logs execution duration."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         context = Mock()
@@ -215,6 +212,7 @@ class TestAgentObservabilityMiddleware:
     async def test_middleware_logs_even_on_exception(self, caplog):
         """Test middleware logs duration even if next raises exception."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         context = Mock()
@@ -238,6 +236,7 @@ class TestLoggingFunctionMiddleware:
     def reset_emitter(self):
         """Reset event emitter before each test."""
         from agent.display.events import get_event_emitter, set_current_tool_event_id
+
         emitter = get_event_emitter()
         emitter.clear()
         emitter.enable()
@@ -270,8 +269,8 @@ class TestLoggingFunctionMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_emits_tool_start_event(self):
         """Test middleware emits ToolStartEvent when visualization enabled."""
-        from agent.display import set_execution_context, ExecutionContext
-        from agent.display.events import get_event_emitter, ToolStartEvent
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolStartEvent, get_event_emitter
 
         # Enable visualization
         ctx = ExecutionContext(show_visualization=True)
@@ -300,8 +299,8 @@ class TestLoggingFunctionMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_emits_tool_complete_event(self):
         """Test middleware emits ToolCompleteEvent on success."""
-        from agent.display import set_execution_context, ExecutionContext
-        from agent.display.events import get_event_emitter, ToolCompleteEvent
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolCompleteEvent, get_event_emitter
 
         # Enable visualization
         ctx = ExecutionContext(show_visualization=True)
@@ -335,8 +334,8 @@ class TestLoggingFunctionMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_emits_tool_error_event_on_failure(self):
         """Test middleware emits ToolErrorEvent on exception."""
-        from agent.display import set_execution_context, ExecutionContext
-        from agent.display.events import get_event_emitter, ToolErrorEvent
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolErrorEvent, get_event_emitter
 
         # Enable visualization
         ctx = ExecutionContext(show_visualization=True)
@@ -372,8 +371,8 @@ class TestLoggingFunctionMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_sanitizes_sensitive_arguments(self):
         """Test middleware removes sensitive data from arguments."""
-        from agent.display import set_execution_context, ExecutionContext
-        from agent.display.events import get_event_emitter, ToolStartEvent
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolStartEvent, get_event_emitter
 
         # Enable visualization
         ctx = ExecutionContext(show_visualization=True)
@@ -387,7 +386,7 @@ class TestLoggingFunctionMiddleware:
             "username": "alice",
             "password": "secret123",
             "api_key": "key123",
-            "normal_arg": "value"
+            "normal_arg": "value",
         }
 
         async def mock_next(ctx):
@@ -409,7 +408,7 @@ class TestLoggingFunctionMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_sets_and_clears_tool_context(self):
         """Test middleware sets and clears tool event context."""
-        from agent.display import set_execution_context, ExecutionContext
+        from agent.display import ExecutionContext, set_execution_context
         from agent.display.events import get_current_tool_event_id
 
         # Enable visualization
@@ -443,8 +442,8 @@ class TestLoggingFunctionMiddleware:
     @pytest.mark.asyncio
     async def test_middleware_supports_nested_tools(self):
         """Test middleware supports nested tool calls with parent_id."""
-        from agent.display import set_execution_context, ExecutionContext
-        from agent.display.events import get_event_emitter, ToolStartEvent
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolStartEvent, get_event_emitter
 
         # Enable visualization
         ctx = ExecutionContext(show_visualization=True)

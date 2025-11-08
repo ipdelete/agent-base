@@ -1,312 +1,498 @@
-# Usage Guide
+# Agent Template Usage Guide
 
-Comprehensive guide for using the Agent Template.
+Comprehensive guide for using Agent Template to build AI-powered conversational agents.
 
 ## Table of Contents
 
-1. [Basic Usage](#basic-usage)
-2. [Configuration](#configuration)
-3. [Command Reference](#command-reference)
-4. [Examples](#examples)
-5. [Troubleshooting](#troubleshooting)
+- [Getting Started](#getting-started)
+- [Interactive Mode](#interactive-mode)
+- [Single Prompt Mode](#single-prompt-mode)
+- [Visualization Modes](#visualization-modes)
+- [Session Management](#session-management)
+- [Building Custom Tools](#building-custom-tools)
+- [Examples](#examples)
 
-## Basic Usage
+## Getting Started
 
-### Single Prompt Mode
-
-The simplest way to use the agent is with a single prompt:
-
-```bash
-uv run agent -p "your prompt here"
-```
-
-This will:
-1. Load configuration from environment
-2. Initialize the agent with configured LLM provider
-3. Execute the prompt
-4. Display the response
-5. Exit
-
-**Example:**
-```bash
-uv run agent -p "Say hello to Alice"
-```
-
-### Interactive Mode
-
-Interactive mode is not yet implemented in the MVP. Use single-prompt mode for now.
-
-### Output Modes
-
-The agent supports different verbosity levels (planned for Phase 3):
-
-- **Default**: Summary with timing information
-- **Quiet** (`-q`): Minimal output, response only
-- **Verbose** (`-v`): Full execution tree with tool calls
-
-## Configuration
-
-### Environment Variables
-
-The agent uses environment variables for configuration. Create a `.env` file in the project root:
+### Basic Commands
 
 ```bash
-cp .env.example .env
+# Interactive chat mode
+agent
+
+# Single query execution
+agent -p "say hello to Alice"
+
+# Check system dependencies
+agent --check
+
+# Show configuration
+agent --config
+
+# Get help
+agent --help
 ```
 
-#### LLM Provider Configuration
+### Interactive Mode Commands
 
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `LLM_PROVIDER` | Yes | LLM provider to use | `openai`, `anthropic`, `azure_ai_foundry` |
+```
+/clear               # Clear screen and reset conversation context
+/continue            # Resume a previous session
+/purge               # Delete all saved sessions
+/help                # Show help message
+!command             # Execute shell command (e.g., !ls, !git status)
+exit                 # Exit agent
+```
 
-#### OpenAI Configuration (when `LLM_PROVIDER=openai`)
+## Interactive Mode
 
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key | - |
-| `OPENAI_MODEL` | No | Model to use | `gpt-4o` |
-
-#### Anthropic Configuration (when `LLM_PROVIDER=anthropic`)
-
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Yes | Anthropic API key | - |
-| `ANTHROPIC_MODEL` | No | Model to use | `claude-sonnet-4-5-20250929` |
-
-#### Azure AI Foundry Configuration (when `LLM_PROVIDER=azure_ai_foundry`)
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `AZURE_PROJECT_ENDPOINT` | Yes | Azure AI project endpoint | `https://your-project.services.ai.azure.com/api/projects/your-project-id` |
-| `AZURE_MODEL_DEPLOYMENT` | Yes | Model deployment name | `gpt-4o` |
-
-**Note**: Azure AI Foundry uses `AzureCliCredential` for authentication. You must be logged in via `az login`.
-
-#### Agent Settings
-
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `AGENT_DATA_DIR` | No | Data directory for sessions | `~/.agent` |
-| `LOG_LEVEL` | No | Logging level | `info` |
-
-### Provider Setup
-
-#### OpenAI Setup
-
-1. Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Set environment variables:
-   ```bash
-   LLM_PROVIDER=openai
-   OPENAI_API_KEY=sk-...your-key...
-   OPENAI_MODEL=gpt-4o  # Optional, this is the default
-   ```
-
-#### Anthropic Setup
-
-1. Get API key from [Anthropic Console](https://console.anthropic.com/)
-2. Set environment variables:
-   ```bash
-   LLM_PROVIDER=anthropic
-   ANTHROPIC_API_KEY=sk-ant-...your-key...
-   ANTHROPIC_MODEL=claude-sonnet-4-5-20250929  # Optional, this is the default
-   ```
-
-#### Azure AI Foundry Setup
-
-1. Create Azure AI project in [Azure Portal](https://portal.azure.com/)
-2. Deploy a model to your project
-3. Login with Azure CLI:
-   ```bash
-   az login
-   ```
-4. Set environment variables:
-   ```bash
-   LLM_PROVIDER=azure_ai_foundry
-   AZURE_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project-id
-   AZURE_MODEL_DEPLOYMENT=gpt-4o
-   ```
-
-## Command Reference
-
-### CLI Arguments
+Start an interactive conversation session:
 
 ```bash
-agent [OPTIONS]
+agent
 ```
 
-| Option | Description |
-|--------|-------------|
-| `-p, --prompt TEXT` | Execute a single prompt and exit |
-| `--check` | Run health check for dependencies and configuration |
-| `--config` | Show current configuration |
-| `--version` | Show version number |
-| `-h, --help` | Show help message |
+### Features
 
-### Interactive Commands (Future)
+- **Multi-turn conversations**: Context maintained across messages
+- **Auto-save**: Sessions automatically saved on exit
+- **Command history**: Navigate previous inputs with ↑/↓ arrows
+- **Shell integration**: Execute system commands with `!` prefix
+- **Keyboard shortcuts**: ESC to clear prompt
 
-Interactive mode will support the following commands:
+### Example Session
 
-- `/help` - Show available commands
-- `/exit` or `/quit` - Exit interactive mode
-- `/clear` - Clear screen
-- `/config` - Show configuration
-- `/session` - Session management
+```bash
+$ agent
+
+Agent - AI-powered conversational assistant
+Version 0.1.0 • OpenAI/gpt-5-mini
+
+ ~/project [⎇ main]                              OpenAI/gpt-5-mini · v0.1.0
+────────────────────────────────────────────────────────────────────────
+
+> Say hello to Alice
+✓ Complete (2.0s) - msg:1 tool:1
+
+Hello, Alice! ◉‿◉
+
+────────────────────────────────────────────────────────────────────────
+
+> What tools do you have?
+✓ Complete (1.5s) - msg:2 tool:0
+
+I have two greeting tools available:
+1. hello_world - Say hello to someone
+2. greet_user - Greet in different languages (English, Spanish, French)
+
+────────────────────────────────────────────────────────────────────────
+
+> exit
+
+Session auto-saved as 'auto-2025-11-08-11-15-30'
+Goodbye!
+```
+
+### Shell Commands
+
+Execute system commands without leaving the agent:
+
+```bash
+> !ls -la
+# Shows directory listing
+
+> !git status
+# Shows git status
+
+> !docker ps
+# Shows running containers
+
+> Now analyze those containers
+# Agent can reference previous shell output in conversation
+```
+
+### Keyboard Shortcuts
+
+- **ESC** - Clear current prompt
+- **Ctrl+D** - Exit interactive mode
+- **Ctrl+C** - Interrupt current operation
+- **↑/↓** - Navigate command history
+
+## Single Prompt Mode
+
+Execute a single query and exit:
+
+```bash
+agent -p "your prompt here"
+```
+
+### Basic Examples
+
+```bash
+# Simple greeting
+agent -p "say hello"
+
+# Use tool with parameter
+agent -p "say hello to Bob"
+
+# Multi-language greeting
+agent -p "greet Alice in Spanish"
+```
+
+### Output Format
+
+By default, shows completion summary with timing and tool usage:
+
+```bash
+$ agent -p "say hello to Alice"
+✓ Complete (2.0s) - msg:1 tool:1
+
+Hello, Alice! ◉‿◉
+
+────────────────────────────────────────────────────────────────────────
+```
+
+Where:
+- `✓ Complete` - Execution finished successfully
+- `(2.0s)` - Total execution time
+- `msg:1` - Number of LLM messages
+- `tool:1` - Number of tool calls made
+
+## Visualization Modes
+
+Control execution visualization detail:
+
+### Minimal Mode (Default)
+
+Shows only completion summary:
+
+```bash
+agent -p "say hello"
+# ✓ Complete (2.0s) - msg:1 tool:1
+```
+
+### Verbose Mode
+
+Shows full execution tree with LLM thinking and tool calls:
+
+```bash
+agent -p "say hello to Alice" --verbose
+```
+
+Output:
+```
+• Phase 1: hello_world (6.1s)
+├── • Thinking (1 messages) - Response received (6.2s)
+└── • → hello_world (Alice) - Complete (0.0s)
+
+Hello, Alice! ◉‿◉
+
+────────────────────────────────────────────────────────────────────────
+```
+
+### Quiet Mode
+
+Minimal output, response only:
+
+```bash
+agent -p "say hello" --quiet
+# Hello, World! ◉‿◉
+```
+
+## Session Management
+
+### Auto-Save
+
+Sessions are automatically saved on exit:
+
+```bash
+$ agent
+> say hello
+> exit
+
+Session auto-saved as 'auto-2025-11-08-11-15-30'
+Goodbye!
+```
+
+### Resume Last Session
+
+Resume the most recent session:
+
+```bash
+agent --continue
+```
+
+### Resume Specific Session
+
+Pick from saved sessions:
+
+```bash
+$ agent
+> /continue
+
+Available Sessions:
+  1. auto-2025-11-08-11-15-30 (5m ago) "say hello"
+  2. auto-2025-11-08-10-30-45 (1h ago) "greet Alice"
+
+Select session [1-2]: 1
+✓ Loaded 'auto-2025-11-08-11-15-30' (2 messages)
+
+> continue the conversation...
+```
+
+### Clear Session
+
+Start fresh conversation in current session:
+
+```bash
+> /clear
+# Screen cleared, context reset
+```
+
+### Delete All Sessions
+
+Remove all saved sessions:
+
+```bash
+> /purge
+⚠ This will delete ALL 5 saved sessions.
+Continue? (y/n): y
+✓ Deleted 5 sessions
+```
+
+## Building Custom Tools
+
+Agent Template uses a class-based toolset architecture for building custom tools.
+
+### Create a New Toolset
+
+```python
+from agent.tools.toolset import AgentToolset
+from agent.config import AgentConfig
+from typing import Annotated
+from pydantic import Field
+
+class MyTools(AgentToolset):
+    """My custom tools."""
+
+    def get_tools(self):
+        """Return list of tool functions."""
+        return [self.my_tool]
+
+    async def my_tool(
+        self,
+        arg: Annotated[str, Field(description="Argument description")]
+    ) -> dict:
+        """Tool description for LLM.
+
+        Args:
+            arg: Argument description
+
+        Returns:
+            Structured response with success field
+        """
+        try:
+            result = self._do_work(arg)
+            return self._create_success_response(
+                result=result,
+                message="Operation completed"
+            )
+        except Exception as e:
+            return self._create_error_response(
+                error="execution_failed",
+                message=str(e)
+            )
+```
+
+### Register Toolset
+
+```python
+from agent import Agent, AgentConfig
+from mytools import MyTools
+
+config = AgentConfig.from_env()
+agent = Agent(
+    config=config,
+    toolsets=[HelloTools(config), MyTools(config)]
+)
+```
+
+See [docs/design/architecture.md](docs/design/architecture.md) for detailed tool development patterns.
 
 ## Examples
 
-### Example 1: Basic Hello World
+### Example 1: Basic Usage
 
 ```bash
-uv run agent -p "Say hello"
+agent -p "say hello"
+# ✓ Complete (1.5s) - msg:1 tool:1
+# Hello, World! ◉‿◉
 ```
 
-**Expected output:**
-```
-User: Say hello
-
-Agent: Hello! How can I assist you today?
-```
-
-### Example 2: Using HelloTools
+### Example 2: Custom Name
 
 ```bash
-uv run agent -p "Say hello to Bob"
+agent -p "say hello to Bob"
+# ✓ Complete (2.0s) - msg:1 tool:1
+# Hello, Bob! ◉‿◉
 ```
 
-The agent will use the `hello_world` tool to generate a personalized greeting.
-
-### Example 3: Multi-language Greeting
+### Example 3: Multi-Language Greeting
 
 ```bash
-uv run agent -p "Greet Alice in Spanish"
+agent -p "greet Alice in Spanish"
+# ✓ Complete (2.1s) - msg:1 tool:1
+# ¡Hola, Alice!
+
+agent -p "greet Pierre in French"
+# ✓ Complete (1.9s) - msg:1 tool:1
+# Bonjour, Pierre!
 ```
 
-The agent will use the `greet_user` tool with the Spanish language option.
-
-### Example 4: Configuration Check
+### Example 4: Interactive Conversation
 
 ```bash
-uv run agent --check
+$ agent
+
+> what tools do you have?
+✓ Complete (1.5s) - msg:1 tool:0
+
+I have two greeting tools...
+
+> say hello to everyone
+✓ Complete (2.0s) - msg:2 tool:1
+
+Hello, everyone! ◉‿◉
+
+> exit
 ```
 
-**Expected output:**
-```
-✓ Configuration valid
-  Provider: openai
-  Model: OpenAI/gpt-4o
-```
-
-### Example 5: Show Configuration
+### Example 5: Verbose Execution
 
 ```bash
-uv run agent --config
+agent -p "say hello to Alice" --verbose
+
+• Phase 1: hello_world (6.1s)
+├── • Thinking (1 messages) - Response received (6.2s)
+└── • → hello_world (Alice) - Complete (0.0s)
+
+Hello, Alice! ◉‿◉
 ```
 
-**Expected output:**
+### Example 6: Shell Integration
+
+```bash
+$ agent
+
+> !ls -la
+# Directory listing shown...
+
+> !git status
+# Git status shown...
+
+> what files did I just list?
+# Agent can reference the shell output
 ```
-Agent Configuration
 
-LLM Provider:
- • Provider: openai
- • Model: gpt-4o
- • API Key: ****abc123 (last 6 chars)
+### Example 7: Session Resume
 
-Agent Settings:
- • Data Directory: ~/.agent
- • Session Directory: ~/.agent/sessions
- • Log Level: info
+```bash
+# Day 1
+$ agent
+> say hello to Alice
+> exit
+Session auto-saved as 'auto-2025-11-08-14-30-00'
+
+# Day 2
+$ agent --continue
+✓ Loaded 'auto-2025-11-08-14-30-00' (3 messages)
+
+> continue our conversation
+# Context restored, conversation continues...
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### Configuration Issues
 
-#### Issue: "Configuration validation failed"
+**Issue: "Configuration validation failed"**
 
-**Symptom:**
-```
-Error: Configuration validation failed
-Missing required environment variable: OPENAI_API_KEY
-```
+```bash
+# Check configuration
+agent --check
 
-**Solution:**
-1. Ensure `.env` file exists in project root
-2. Verify `LLM_PROVIDER` is set correctly
-3. Verify provider-specific API keys are set
-4. Run `uv run agent --check` to diagnose
-
-#### Issue: "Unknown LLM provider"
-
-**Symptom:**
-```
-Error: Unknown LLM provider: azure
+# Common fixes:
+# 1. Verify .env file exists
+# 2. Check LLM_PROVIDER is set correctly
+# 3. Verify API keys are set
 ```
 
-**Solution:**
-- Valid providers are: `openai`, `anthropic`, `azure_ai_foundry`
-- Check spelling in `LLM_PROVIDER` environment variable
+**Issue: "Unknown LLM provider"**
 
-#### Issue: "Azure authentication failed"
+Valid providers:
+- `openai` - Direct OpenAI API
+- `anthropic` - Direct Anthropic API
+- `azure` - Azure OpenAI (fastest, supports gpt-5-codex)
+- `azure_ai_foundry` - Azure AI Foundry platform
 
-**Symptom:**
+### Azure Authentication
+
+**Issue: "Azure authentication failed"**
+
+```bash
+# Login with Azure CLI
+az login
+
+# Verify endpoint and deployment name in .env
+AZURE_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-id
+AZURE_MODEL_DEPLOYMENT=gpt-4o
 ```
-Error: Azure authentication failed
-```
-
-**Solution:**
-1. Ensure you're logged in: `az login`
-2. Verify your account has access to the Azure AI project
-3. Check `AZURE_PROJECT_ENDPOINT` is correct
-
-#### Issue: "Module 'agent' has no attribute 'Agent'"
-
-**Symptom:**
-```
-ImportError: cannot import name 'Agent' from 'agent'
-```
-
-**Solution:**
-1. Ensure dependencies are installed: `uv sync`
-2. Verify you're using Python 3.12+: `python --version`
-3. Check package is installed correctly: `uv run python -c "import agent; print(agent.__version__)"`
 
 ### Debug Mode
 
-To enable verbose logging for debugging:
+Enable verbose logging:
 
 ```bash
-LOG_LEVEL=debug uv run agent -p "your prompt"
+LOG_LEVEL=debug agent -p "your prompt"
 ```
 
-This will show detailed information about:
-- Configuration loading
-- LLM provider initialization
-- Tool registration
-- Request/response cycles
+## Tips and Tricks
 
-### Getting Help
+1. **Fast queries**: Use `-p` for quick one-off questions
+2. **Save context**: Use interactive mode for multi-turn conversations
+3. **Shell integration**: Use `!` prefix for quick system checks
+4. **Session management**: Name important sessions with `/save <name>`
+5. **Verbose debugging**: Use `--verbose` to see tool execution flow
+6. **Multiple providers**: Test with different LLM providers for comparison
 
-If you encounter issues:
+## Environment Variables
 
-1. Check the [GitHub Issues](https://github.com/danielscholl/agent-template/issues)
-2. Review the [Architecture Documentation](docs/architecture/tool-architecture.md)
-3. Create a new issue with:
-   - Your environment (OS, Python version)
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Relevant logs (with sensitive data removed)
+Key configuration options:
 
-## Performance Tips
+```bash
+# LLM Provider Selection
+LLM_PROVIDER=openai                  # openai, anthropic, azure, azure_ai_foundry
 
-1. **Use appropriate models**: `gpt-4o` is faster than `gpt-4`, `claude-sonnet` is faster than `claude-opus`
-2. **Minimize tool complexity**: Keep tool functions simple and focused
-3. **Cache when possible**: Future versions will support caching for expensive operations
+# OpenAI
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5-mini              # Default
 
-## Security Considerations
+# Anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4-5-20250929  # Default
 
-1. **Never commit `.env` file**: Contains sensitive API keys
-2. **Use environment variables**: Don't hardcode credentials
-3. **Rotate keys regularly**: If keys are compromised, rotate immediately
-4. **Review tool permissions**: Ensure tools only have necessary access
-5. **Monitor usage**: Track API usage to detect anomalies
+# Azure OpenAI (fastest option!)
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-codex
+AZURE_OPENAI_API_KEY=your-key        # Optional if using az login
+
+# Azure AI Foundry
+AZURE_PROJECT_ENDPOINT=https://...
+AZURE_MODEL_DEPLOYMENT=gpt-4o
+
+# Agent Settings
+AGENT_DATA_DIR=~/.agent              # Session storage
+LOG_LEVEL=info                       # debug, info, warning, error
+```
+
+See [.env.example](.env.example) for complete configuration options.

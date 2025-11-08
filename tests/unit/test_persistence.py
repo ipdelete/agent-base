@@ -1,7 +1,6 @@
 """Unit tests for agent.persistence module."""
 
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -192,7 +191,10 @@ class TestThreadPersistence:
 
         # Verify metadata
         assert "test-session" in persistence.metadata["conversations"]
-        assert persistence.metadata["conversations"]["test-session"]["description"] == "Test description"
+        assert (
+            persistence.metadata["conversations"]["test-session"]["description"]
+            == "Test description"
+        )
 
     @pytest.mark.asyncio
     async def test_save_thread_with_invalid_name_raises_error(self, persistence):

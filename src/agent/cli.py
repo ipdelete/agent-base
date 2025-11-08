@@ -28,6 +28,44 @@ app = typer.Typer(help="Agent - AI-powered conversational assistant with extensi
 console = Console()
 
 
+def _save_last_session(session_name: str) -> None:
+    """Save the last session name for --continue.
+
+    Args:
+        session_name: Name of the session to track
+    """
+    try:
+        last_session_file = Path.home() / ".agent" / "last_session"
+        last_session_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(last_session_file, "w") as f:
+            f.write(session_name)
+
+    except Exception as e:
+        import logging
+
+        logging.warning(f"Failed to save last session marker: {e}")
+
+
+def _get_last_session() -> str | None:
+    """Get the last session name for --continue.
+
+    Returns:
+        Last session name or None if not found
+    """
+    try:
+        last_session_file = Path.home() / ".agent" / "last_session"
+        if last_session_file.exists():
+            with open(last_session_file) as f:
+                return f.read().strip()
+    except Exception as e:
+        import logging
+
+        logging.warning(f"Failed to read last session marker: {e}")
+
+    return None
+
+
 def _render_startup_banner(config: AgentConfig) -> None:
     """Render startup banner with branding.
 
@@ -38,6 +76,47 @@ def _render_startup_banner(config: AgentConfig) -> None:
     console.print("[bold cyan]Agent[/bold cyan] - AI-powered conversational assistant")
     console.print(f"[dim]Version {__version__} • {config.get_model_display_name()}[/dim]")
     console.print()
+
+
+def _get_status_bar_text(config: AgentConfig) -> str:
+    """Get status bar text without printing.
+
+    Args:
+        config: Agent configuration
+
+    Returns:
+        Status bar text as string
+    """
+    # Get current directory
+    cwd = Path.cwd()
+    try:
+        cwd_display = f"~/{cwd.relative_to(Path.home())}"
+    except ValueError:
+        cwd_display = str(cwd)
+
+    # Get git branch
+    try:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            timeout=1,
+            cwd=cwd,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            branch = result.stdout.strip()
+            branch_display = f" [⎇ {branch}]"
+        else:
+            branch_display = ""
+    except Exception:
+        branch_display = ""
+
+    # Format with alignment
+    left = f" {cwd_display}{branch_display}"
+    right = f"{config.get_model_display_name()} · v{__version__}"
+    padding = max(1, console.width - len(left) - len(right))
+
+    return f"{left}{' ' * padding}{right}"
 
 
 def _render_status_bar(config: AgentConfig) -> None:
@@ -103,14 +182,16 @@ async def _auto_save_session(
     thread: Any,
     message_count: int,
     quiet: bool,
+    messages: list[dict] | None = None,
 ) -> None:
     """Auto-save session on exit if it has messages.
 
     Args:
         persistence: ThreadPersistence instance
-        thread: Conversation thread
+        thread: Conversation thread (can be None for some providers)
         message_count: Number of messages in session
         quiet: Whether to suppress output
+        messages: Optional list of tracked messages for providers without thread support
     """
     if message_count > 0:
         try:
@@ -122,7 +203,11 @@ async def _auto_save_session(
                 thread,
                 session_name,
                 description="Auto-saved session",
+                messages=messages,
             )
+
+            # Save as last session for --continue
+            _save_last_session(session_name)
 
             if not quiet:
                 console.print(f"\n[dim]Session auto-saved as '{session_name}'[/dim]")
@@ -137,9 +222,11 @@ def main(
     check: bool = typer.Option(False, "--check", help="Run health check for configuration"),
     config_flag: bool = typer.Option(False, "--config", help="Show current configuration"),
     version_flag: bool = typer.Option(False, "--version", help="Show version"),
-    verbose: bool = typer.Option(False, "--verbose", help="Verbose output with detailed execution tree"),
+    verbose: bool = typer.Option(
+        False, "--verbose", help="Verbose output with detailed execution tree"
+    ),
     quiet: bool = typer.Option(False, "--quiet", help="Minimal output mode"),
-    resume: str = typer.Option(None, "--continue", help="Resume a previous session"),
+    resume: bool = typer.Option(False, "--continue", help="Resume last saved session"),
 ):
     """Agent - Generic chatbot agent with extensible tools.
 
@@ -182,7 +269,14 @@ def main(
         asyncio.run(run_single_prompt(prompt, verbose=verbose, quiet=quiet))
     else:
         # Interactive chat mode
-        asyncio.run(run_chat_mode(quiet=quiet, verbose=verbose, resume_session=resume))
+        # Handle --continue flag: resume last session
+        resume_session = None
+        if resume:
+            resume_session = _get_last_session()
+            if not resume_session:
+                console.print("[yellow]No previous session found. Starting new session.[/yellow]\n")
+
+        asyncio.run(run_chat_mode(quiet=quiet, verbose=verbose, resume_session=resume_session))
 
 
 def run_health_check():
@@ -228,6 +322,11 @@ def show_configuration():
         elif config.llm_provider == "anthropic" and config.anthropic_api_key:
             masked_key = f"****{config.anthropic_api_key[-6:]}"
             console.print(f" • API Key: {masked_key}")
+        elif config.llm_provider == "azure":
+            console.print(f" • Endpoint: {config.azure_openai_endpoint}")
+            if config.azure_openai_api_key:
+                masked_key = f"****{config.azure_openai_api_key[-6:]}"
+                console.print(f" • API Key: {masked_key}")
         elif config.llm_provider == "azure_ai_foundry":
             console.print(f" • Endpoint: {config.azure_project_endpoint}")
 
@@ -255,9 +354,6 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
         config = AgentConfig.from_env()
         config.validate()
 
-        console.print(f"\n[bold]User:[/bold] {prompt}\n")
-        console.print("[bold]Agent:[/bold] ", end="")
-
         agent = Agent(config=config)
 
         # Setup execution context for visualization
@@ -270,7 +366,6 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
         set_execution_context(ctx)
 
         # Use execution tree display if visualization enabled
-        execution_display = None
         if not quiet:
             execution_display = ExecutionTreeDisplay(
                 console=console,
@@ -279,14 +374,26 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
             )
             await execution_display.start()
 
-        try:
-            async for chunk in agent.run_stream(prompt):
-                console.print(chunk, end="")
+            try:
+                # Run agent (non-streaming for better visualization)
+                response = await agent.run(prompt)
 
-            console.print("\n")
-        finally:
-            if execution_display:
+                # Stop display (shows completion summary with timing)
                 await execution_display.stop()
+
+            except KeyboardInterrupt:
+                # User interrupted - stop display cleanly
+                await execution_display.stop()
+                console.print("\n[yellow]Interrupted by user[/yellow]\n")
+                raise typer.Exit(130)
+        else:
+            # Quiet mode - no visualization
+            response = await agent.run(prompt)
+
+        # Display response after completion summary
+        if response:
+            console.print(f"\n{response}\n")
+            console.print(f"[dim]{'─' * console.width}[/dim]")
 
     except ValueError as e:
         console.print(f"\n[red]Configuration error:[/red] {e}")
@@ -310,7 +417,7 @@ async def run_chat_mode(
     Args:
         quiet: Minimal output mode
         verbose: Verbose output mode with detailed execution tree
-        resume_session: Optional session name to resume
+        resume_session: Session name to resume (from --continue flag)
     """
     try:
         # Load configuration
@@ -331,26 +438,27 @@ async def run_chat_mode(
         # Create or resume conversation thread
         thread = None
         message_count = 0
+        conversation_messages: list[dict] = []  # Track messages for providers without thread support
 
         if resume_session:
             try:
                 thread, context_summary = await persistence.load_thread(agent, resume_session)
 
-                # If we have a context summary, restore AI context
+                # If we have a context summary, restore AI context silently
                 if context_summary:
                     if not quiet:
-                        console.print("\n[cyan]Restoring context to AI...[/cyan]")
-
-                    with console.status("[bold blue]Loading context...", spinner="dots"):
-                        # Send context summary to AI to restore understanding
+                        with console.status("[bold blue]Restoring context...", spinner="dots"):
+                            # Send context summary to AI to restore understanding
+                            await agent.run(context_summary, thread=thread)
+                            message_count += 1
+                    else:
                         await agent.run(context_summary, thread=thread)
                         message_count += 1
 
-                    if not quiet:
-                        console.print("[green]✓ Context restored[/green]\n")
-                else:
-                    if not quiet:
-                        console.print(f"\n[green]✓ Resumed session '{resume_session}'[/green]\n")
+                # Show single clean status message after restore
+                if not quiet:
+                    console.print("[green]✓ Ready[/green]\n")
+                    console.print(f"[dim]{'─' * console.width}[/dim]")
 
             except FileNotFoundError:
                 console.print(
@@ -358,7 +466,9 @@ async def run_chat_mode(
                 )
                 thread = agent.get_new_thread()
             except Exception as e:
-                console.print(f"[yellow]Failed to resume session: {e}. Starting new session.[/yellow]\n")
+                console.print(
+                    f"[yellow]Failed to resume session: {e}. Starting new session.[/yellow]\n"
+                )
                 thread = agent.get_new_thread()
 
         if thread is None:
@@ -371,6 +481,7 @@ async def run_chat_mode(
 
         # Setup prompt session with history
         history_file = Path.home() / ".agent_history"
+
         session: PromptSession = PromptSession(
             history=FileHistory(str(history_file)),
             key_bindings=key_bindings,
@@ -411,7 +522,9 @@ async def run_chat_mode(
                     if exit_code == 0:
                         console.print(f"\n[dim][green]Exit code: {exit_code}[/green][/dim]")
                     elif exit_code == TIMEOUT_EXIT_CODE:
-                        console.print(f"\n[dim][yellow]Exit code: {exit_code} (timeout)[/yellow][/dim]")
+                        console.print(
+                            f"\n[dim][yellow]Exit code: {exit_code} (timeout)[/yellow][/dim]"
+                        )
                     else:
                         console.print(f"\n[dim][red]Exit code: {exit_code}[/red][/dim]")
 
@@ -423,7 +536,9 @@ async def run_chat_mode(
 
                 if cmd in ["exit", "quit", "q"]:
                     # Auto-save session before exit
-                    await _auto_save_session(persistence, thread, message_count, quiet)
+                    await _auto_save_session(
+                        persistence, thread, message_count, quiet, conversation_messages
+                    )
                     console.print("[dim]Goodbye![/dim]")
                     break
 
@@ -483,21 +598,27 @@ async def run_chat_mode(
 
                     # Get user selection
                     try:
-                        choice = await session.prompt_async(f"\nSelect session [1-{len(sessions)}]: ")
+                        choice = await session.prompt_async(
+                            f"\nSelect session [1-{len(sessions)}]: "
+                        )
                         choice_num = int(choice.strip())
                         if 1 <= choice_num <= len(sessions):
                             selected = sessions[choice_num - 1]
-                            thread, context_summary = await persistence.load_thread(agent, selected["name"])
+                            thread, context_summary = await persistence.load_thread(
+                                agent, selected["name"]
+                            )
 
                             # Restore context if needed
                             if context_summary:
-                                console.print("\n[cyan]Restoring context to AI...[/cyan]")
-                                with console.status("[bold blue]Loading context...", spinner="dots"):
+                                with console.status(
+                                    "[bold blue]Restoring context...", spinner="dots"
+                                ):
                                     await agent.run(context_summary, thread=thread)
                                     message_count += 1
-                                console.print("[green]✓ Context restored[/green]\n")
-                            else:
-                                console.print(f"\n[green]✓ Loaded '{selected['name']}'[/green]\n")
+
+                            # Show single clean status with separator
+                            console.print("\n[green]✓ Ready[/green]\n")
+                            console.print(f"[dim]{'─' * console.width}[/dim]")
                         else:
                             console.print("[red]Invalid selection[/red]\n")
                     except (ValueError, EOFError, KeyboardInterrupt):
@@ -512,7 +633,9 @@ async def run_chat_mode(
                         continue
 
                     # Confirm deletion
-                    console.print(f"\n[yellow]⚠ This will delete ALL {len(sessions)} saved sessions.[/yellow]")
+                    console.print(
+                        f"\n[yellow]⚠ This will delete ALL {len(sessions)} saved sessions.[/yellow]"
+                    )
                     try:
                         confirm = await session.prompt_async("Continue? (y/n): ")
                         if confirm.strip().lower() == "y":
@@ -522,7 +645,9 @@ async def run_chat_mode(
                                     persistence.delete_session(sess["name"])
                                     deleted += 1
                                 except Exception as e:
-                                    console.print(f"[yellow]Failed to delete {sess['name']}: {e}[/yellow]")
+                                    console.print(
+                                        f"[yellow]Failed to delete {sess['name']}: {e}[/yellow]"
+                                    )
 
                             console.print(f"\n[green]✓ Deleted {deleted} sessions[/green]\n")
                         else:
@@ -530,6 +655,9 @@ async def run_chat_mode(
                     except (EOFError, KeyboardInterrupt):
                         console.print("\n[yellow]Cancelled[/yellow]\n")
                     continue
+
+                # Move past the old status bar with a newline
+                console.print()
 
                 # Execute agent query with visualization
                 display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
@@ -541,38 +669,76 @@ async def run_chat_mode(
                 set_execution_context(ctx)
 
                 # Use execution tree display if visualization enabled
-                execution_display = None
                 if not quiet:
                     execution_display = ExecutionTreeDisplay(
                         console=console,
                         display_mode=display_mode,
-                        show_completion_summary=False,  # Don't show in interactive mode
+                        show_completion_summary=True,  # Show completion summary in interactive mode
                     )
 
-                console.print(f"\n[bold]User:[/bold] {user_input}\n")
-                console.print("[bold]Agent:[/bold] ", end="")
-
-                if execution_display:
                     await execution_display.start()
 
-                try:
-                    # Stream response
-                    async for chunk in agent.run_stream(user_input, thread=thread):
-                        console.print(chunk, end="")
+                    try:
+                        # Run agent (non-streaming for better visualization)
+                        response = await agent.run(user_input, thread=thread)
+                        message_count += 1
 
-                    console.print("\n")
-                    message_count += 1
+                        # Track messages for session persistence
+                        conversation_messages.append({"role": "user", "content": user_input})
+                        response_text = (
+                            response.text if hasattr(response, "text") else str(response)
+                        )
+                        conversation_messages.append(
+                            {"role": "assistant", "content": response_text}
+                        )
 
-                finally:
-                    if execution_display:
+                        # Stop display (shows completion summary)
                         await execution_display.stop()
+
+                        # Print response after completion summary
+                        console.print(f"\n{response}\n")
+
+                        # Add separator line (status bar is sticky at bottom via prompt_toolkit)
+                        console.print(f"[dim]{'─' * console.width}[/dim]")
+
+                    except KeyboardInterrupt:
+                        # User pressed Ctrl+C - cancel operation
+                        await execution_display.stop()
+                        console.print(
+                            "\n[yellow]Operation cancelled[/yellow] - Press Ctrl+C again to exit\n"
+                        )
+                        continue
+                else:
+                    # Quiet mode - no visualization
+                    try:
+                        response = await agent.run(user_input, thread=thread)
+                        message_count += 1
+
+                        # Track messages for session persistence
+                        conversation_messages.append({"role": "user", "content": user_input})
+                        response_text = (
+                            response.text if hasattr(response, "text") else str(response)
+                        )
+                        conversation_messages.append(
+                            {"role": "assistant", "content": response_text}
+                        )
+
+                        console.print(f"\n{response}\n")
+
+                        # Add separator line (status bar is sticky at bottom via prompt_toolkit)
+                        console.print(f"[dim]{'─' * console.width}[/dim]")
+                    except KeyboardInterrupt:
+                        console.print("\n[yellow]Operation cancelled[/yellow]\n")
+                        continue
 
             except KeyboardInterrupt:
                 console.print("\n[yellow]Use Ctrl+D to exit or type 'exit'[/yellow]")
                 continue
             except EOFError:
                 # Ctrl+D - exit gracefully
-                await _auto_save_session(persistence, thread, message_count, quiet)
+                await _auto_save_session(
+                    persistence, thread, message_count, quiet, conversation_messages
+                )
                 console.print("\n[dim]Goodbye![/dim]")
                 break
 

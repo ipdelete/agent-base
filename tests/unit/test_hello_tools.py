@@ -41,7 +41,7 @@ class TestHelloTools:
         result = await hello_tools.hello_world()
 
         assert result["success"] is True
-        assert result["result"] == "Hello, World!"
+        assert result["result"] == "Hello, World! ◉‿◉"
         assert result["message"] == "Greeted World"
 
     @pytest.mark.asyncio
@@ -50,7 +50,7 @@ class TestHelloTools:
         result = await hello_tools.hello_world("Alice")
 
         assert result["success"] is True
-        assert result["result"] == "Hello, Alice!"
+        assert result["result"] == "Hello, Alice! ◉‿◉"
         assert result["message"] == "Greeted Alice"
 
     @pytest.mark.asyncio
@@ -59,7 +59,7 @@ class TestHelloTools:
         result = await hello_tools.hello_world("")
 
         assert result["success"] is True
-        assert result["result"] == "Hello, !"
+        assert result["result"] == "Hello, ! ◉‿◉"
         assert result["message"] == "Greeted "
 
     @pytest.mark.asyncio
@@ -68,7 +68,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("Bob")
 
         assert result["success"] is True
-        assert result["result"] == "Hello, Bob!"
+        assert result["result"] == "Hello, Bob! ◉‿◉"
         assert result["message"] == "Greeted Bob in en"
 
     @pytest.mark.asyncio
@@ -77,7 +77,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("Bob", "en")
 
         assert result["success"] is True
-        assert result["result"] == "Hello, Bob!"
+        assert result["result"] == "Hello, Bob! ◉‿◉"
         assert result["message"] == "Greeted Bob in en"
 
     @pytest.mark.asyncio
@@ -86,7 +86,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("Carlos", "es")
 
         assert result["success"] is True
-        assert result["result"] == "¡Hola, Carlos!"
+        assert result["result"] == "¡Hola, Carlos! ◉‿◉"
         assert result["message"] == "Greeted Carlos in es"
 
     @pytest.mark.asyncio
@@ -95,7 +95,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("Marie", "fr")
 
         assert result["success"] is True
-        assert result["result"] == "Bonjour, Marie!"
+        assert result["result"] == "Bonjour, Marie! ◉‿◉"
         assert result["message"] == "Greeted Marie in fr"
 
     @pytest.mark.asyncio
@@ -123,7 +123,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("", "en")
 
         assert result["success"] is True
-        assert result["result"] == "Hello, !"
+        assert result["result"] == "Hello, ! ◉‿◉"
 
     @pytest.mark.asyncio
     async def test_greet_user_empty_name_spanish(self, hello_tools):
@@ -131,7 +131,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("", "es")
 
         assert result["success"] is True
-        assert result["result"] == "¡Hola, !"
+        assert result["result"] == "¡Hola, ! ◉‿◉"
 
     @pytest.mark.asyncio
     async def test_greet_user_empty_name_french(self, hello_tools):
@@ -139,7 +139,7 @@ class TestHelloTools:
         result = await hello_tools.greet_user("", "fr")
 
         assert result["success"] is True
-        assert result["result"] == "Bonjour, !"
+        assert result["result"] == "Bonjour, ! ◉‿◉"
 
     def test_hello_tools_has_correct_docstrings(self, hello_tools):
         """Test tool functions have docstrings for LLM."""

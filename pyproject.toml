@@ -20,7 +20,7 @@ classifiers = [
 
 dependencies = [
     # Microsoft Agent Framework (latest beta)
-    "agent-framework>=1.0.0b251105",
+    "agent-framework>=1.0.0b251007",
 
     # Core dependencies
     "pydantic>=2.11.10",

@@ -36,9 +36,7 @@ class TestExecutionContext:
     def test_execution_context_with_values(self):
         """Test ExecutionContext can be created with values."""
         ctx = ExecutionContext(
-            is_interactive=True,
-            show_visualization=True,
-            display_mode=DisplayMode.VERBOSE
+            is_interactive=True, show_visualization=True, display_mode=DisplayMode.VERBOSE
         )
 
         assert ctx.is_interactive is True
@@ -63,9 +61,7 @@ class TestContextManagement:
     def test_set_and_get_execution_context(self):
         """Test setting and getting execution context."""
         ctx = ExecutionContext(
-            is_interactive=True,
-            show_visualization=True,
-            display_mode=DisplayMode.VERBOSE
+            is_interactive=True, show_visualization=True, display_mode=DisplayMode.VERBOSE
         )
 
         set_execution_context(ctx)
@@ -86,10 +82,7 @@ class TestContextManagement:
 
     def test_set_execution_context_updates_event_emitter(self):
         """Test set_execution_context updates EventEmitter singleton."""
-        ctx = ExecutionContext(
-            is_interactive=True,
-            show_visualization=True
-        )
+        ctx = ExecutionContext(is_interactive=True, show_visualization=True)
 
         set_execution_context(ctx)
 
@@ -186,9 +179,7 @@ class TestContextIntegration:
     def test_cli_mode_with_verbose(self):
         """Test CLI mode with verbose visualization."""
         ctx = ExecutionContext(
-            is_interactive=False,
-            show_visualization=True,
-            display_mode=DisplayMode.VERBOSE
+            is_interactive=False, show_visualization=True, display_mode=DisplayMode.VERBOSE
         )
         set_execution_context(ctx)
 
@@ -199,9 +190,7 @@ class TestContextIntegration:
     def test_interactive_mode_minimal(self):
         """Test interactive mode with minimal display."""
         ctx = ExecutionContext(
-            is_interactive=True,
-            show_visualization=True,
-            display_mode=DisplayMode.MINIMAL
+            is_interactive=True, show_visualization=True, display_mode=DisplayMode.MINIMAL
         )
         set_execution_context(ctx)
 
@@ -212,9 +201,7 @@ class TestContextIntegration:
     def test_quiet_mode(self):
         """Test quiet mode (no visualization)."""
         ctx = ExecutionContext(
-            is_interactive=False,
-            show_visualization=False,
-            display_mode=DisplayMode.MINIMAL
+            is_interactive=False, show_visualization=False, display_mode=DisplayMode.MINIMAL
         )
         set_execution_context(ctx)
 

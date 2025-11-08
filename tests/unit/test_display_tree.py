@@ -1,7 +1,6 @@
 """Unit tests for agent.display.tree module."""
 
 import asyncio
-from unittest.mock import Mock
 
 import pytest
 from rich.console import Console
@@ -201,10 +200,7 @@ class TestExecutionTreeDisplay:
         await display._handle_event(request_event)
 
         # Then response
-        response_event = LLMResponseEvent(
-            event_id=request_event.event_id,
-            duration=1.5
-        )
+        response_event = LLMResponseEvent(event_id=request_event.event_id, duration=1.5)
         await display._handle_event(response_event)
 
         # Check node was completed
@@ -222,10 +218,7 @@ class TestExecutionTreeDisplay:
         await display._handle_event(llm_event)
 
         # Create tool event
-        tool_event = ToolStartEvent(
-            tool_name="hello_world",
-            arguments={"name": "Alice"}
-        )
+        tool_event = ToolStartEvent(tool_name="hello_world", arguments={"name": "Alice"})
         await display._handle_event(tool_event)
 
         # Check tool node was added to phase
@@ -251,7 +244,7 @@ class TestExecutionTreeDisplay:
             event_id=tool_start.event_id,
             tool_name="test_tool",
             result_summary="Success",
-            duration=0.5
+            duration=0.5,
         )
         await display._handle_event(tool_complete)
 
@@ -278,7 +271,7 @@ class TestExecutionTreeDisplay:
             event_id=tool_start.event_id,
             tool_name="failing_tool",
             error_message="Tool failed",
-            duration=0.2
+            duration=0.2,
         )
         await display._handle_event(tool_error)
 
@@ -302,10 +295,7 @@ class TestExecutionTreeDisplay:
         await display._handle_event(parent_tool)
 
         # Child tool with parent_id
-        child_tool = ToolStartEvent(
-            tool_name="child_tool",
-            parent_id=parent_tool.event_id
-        )
+        child_tool = ToolStartEvent(tool_name="child_tool", parent_id=parent_tool.event_id)
         await display._handle_event(child_tool)
 
         # Check child is nested under parent

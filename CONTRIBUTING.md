@@ -62,10 +62,10 @@ AZURE_MODEL_DEPLOYMENT=gpt-4o
 
 ### Quality Checks
 
-Before submitting PRs, run all quality checks:
+Before submitting a pull request, ensure all quality checks pass:
 
 ```bash
-# Auto-fix formatting
+# Auto-fix formatting and linting
 uv run black src/agent/ tests/
 uv run ruff check --fix src/agent/ tests/
 
@@ -78,51 +78,51 @@ uv run pytest --cov=src/agent --cov-fail-under=85
 
 ### CI Pipeline
 
-Our GitHub Actions CI runs:
+Our GitHub Actions CI runs the following checks:
 
-1. **Black**: Code formatting verification
-2. **Ruff**: Linting and import sorting
+1. **Black**: Code formatting (strict)
+2. **Ruff**: Linting and code quality
 3. **MyPy**: Type checking
-4. **PyTest**: Tests with 85% coverage requirement
-5. **CodeQL**: Security scanning (weekly)
+4. **PyTest**: Test suite with 85% minimum coverage
+5. **CodeQL**: Security scanning
 
-All checks must pass for merge.
+All checks must pass for PRs to be merged.
 
 ### Testing
 
+#### Run All Tests
+
 ```bash
-# Run full test suite
+# Full test suite
 uv run pytest
 
-# Run with coverage report
-uv run pytest --cov=src/agent --cov-report=html
-open htmlcov/index.html
+# With verbose output
+uv run pytest -v
 
-# Run specific test file
-uv run pytest tests/unit/test_agent.py
-
-# Run specific test
-uv run pytest tests/unit/test_agent.py::test_agent_initialization
-
-# Run only unit tests
-uv run pytest tests/unit/
-
-# Run only integration tests
-uv run pytest tests/integration/
+# With coverage report
+uv run pytest --cov=src/agent --cov-report=term-missing
 ```
 
-### Code Coverage
+#### Run Specific Tests
 
-We maintain a minimum of 85% code coverage. When adding new features:
+```bash
+# Test a specific file
+uv run pytest tests/unit/test_agent.py
 
-1. Write tests first (TDD approach recommended)
-2. Ensure new code has test coverage
-3. Run coverage report to verify
-4. Update tests if coverage drops below threshold
+# Test a specific class
+uv run pytest tests/unit/test_cli.py::TestInteractiveMode
 
-Files excluded from coverage:
-- Display logic (`src/agent/display/`) - hard to test, will be addressed in Phase 3
-- Test files themselves
+# Test a specific function
+uv run pytest tests/unit/test_config.py::test_openai_provider_validation
+```
+
+#### Coverage
+
+```bash
+# Generate HTML coverage report
+uv run pytest --cov=src/agent --cov-report=html
+open htmlcov/index.html
+```
 
 ## Commit Guidelines
 
@@ -201,61 +201,78 @@ Update imports from agent.config import AgentConfig."
 
 ## Pull Request Process
 
-### 1. Create Feature Branch
+1. **Create a branch** from `main`:
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
 
-```bash
-git checkout -b feat/your-feature-name
-# or
-git checkout -b fix/bug-description
-```
+2. **Make your changes** following code style guidelines
 
-Branch naming:
-- `feat/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation
-- `refactor/` - Code refactoring
-- `test/` - Test additions/fixes
+3. **Run quality checks**:
+   ```bash
+   uv run black src/agent/ tests/
+   uv run ruff check --fix src/agent/ tests/
+   uv run mypy src/agent/
+   uv run pytest --cov=src/agent
+   ```
 
-### 2. Make Changes
+4. **Commit using aipr** (if available):
+   ```bash
+   git add .
+   git commit -m "$(aipr commit -s -m claude)"
+   ```
 
-1. Write tests first (TDD approach)
-2. Implement feature/fix
-3. Ensure all quality checks pass
-4. Update documentation if needed
+   Or manually with conventional commits:
+   ```bash
+   git commit -m "feat(scope): add new feature"
+   ```
 
-### 3. Commit Changes
+5. **Push and create PR**:
+   ```bash
+   git push -u origin feat/your-feature-name
+   gh pr create --title "feat: add new feature" --body "Description"
+   ```
 
-Use conventional commits:
+6. **Address review comments** and ensure CI passes
 
-```bash
-git add .
-git commit -m "feat(scope): description"
-```
+### Code Review Checklist
 
-### 4. Push and Create PR
+Reviewers will verify:
 
-```bash
-git push origin feat/your-feature-name
-```
+- [ ] All CI checks pass (Black, Ruff, MyPy, PyTest, CodeQL)
+- [ ] Test coverage ≥ 85%
+- [ ] Type hints on all public functions
+- [ ] Docstrings for public APIs
+- [ ] Conventional commit format
+- [ ] No breaking changes without `BREAKING CHANGE:` footer
+- [ ] Documentation updated if needed
 
-Then create a Pull Request on GitHub with:
-- Clear title following conventional commits
-- Description of changes
-- Link to related issues
-- Screenshots/examples if applicable
+## Architecture
 
-### 5. Address Review Feedback
+Agent Template follows a modular architecture built on Microsoft Agent Framework.
 
-1. Make requested changes
-2. Add new commits (don't force push during review)
-3. Re-request review when ready
+### Core Components
 
-### 6. Merge
+#### Agent Layer (`src/agent/`)
+- **agent.py**: Main Agent class with LLM orchestration
+- **config.py**: Multi-provider configuration management
+- **cli.py**: CLI interface and interactive chat mode
+- **middleware.py**: Agent and function-level middleware for event emission
 
-Maintainers will merge when:
-- All CI checks pass
-- Code review approved
-- Conflicts resolved
+#### Tools (`src/agent/tools/`)
+- **toolset.py**: Base class for toolsets
+- **hello.py**: HelloTools (reference implementation)
+
+#### Display & Events
+- **display/**: Execution visualization with Rich Live
+- **events.py**: Event bus for loose coupling
+- **middleware.py**: Event emission during execution
+- **persistence.py**: Session save/load management
+
+#### Utilities
+- **utils/keybindings/**: Extensible keybinding system
+- **utils/terminal.py**: Shell command execution
+- **utils/errors.py**: Custom exception hierarchy
 
 ## Architecture Decision Records
 
@@ -348,247 +365,23 @@ class ToolProvider(Protocol):
     def get_tools(self) -> list[Callable]: ...
 ```
 
-## CLI Development
+## Development Workflows
 
-This project uses **Typer** with **Rich** formatting for all agent CLIs. This provides modern, user-friendly command-line interfaces with automatic help formatting, colored output, and example extraction.
+### Adding a New Tool
 
-### CLI Framework Standards
+1. Create tool class in `src/agent/tools/`
+2. Inherit from `AgentToolset`
+3. Add type hints and comprehensive docstring
+4. Add unit tests in `tests/unit/`
+5. Update documentation
 
-**Default: Typer + Rich** (recommended for all agent CLIs)
-- Modern command-line interface framework
-- Automatic Rich formatting when `rich` is installed
-- Examples extracted from docstrings
-- Type-safe argument parsing with Python type hints
-- See [ADR-0009](docs/decisions/0009-cli-framework-selection.md) for rationale
+### Modifying Display
 
-**Alternative: argparse** (only for specific use cases)
-- Use only when stdlib-only is critical
-- Minimal utility scripts
-- Traditional Unix tool aesthetic required
-- CI/CD tools where dependencies must be minimal
-
-### Creating a New CLI
-
-**1. Basic Typer CLI Structure:**
-
-```python
-"""CLI entry point for YourAgent."""
-
-import typer
-from rich.console import Console
-
-app = typer.Typer(help="YourAgent - Brief description")
-console = Console()
-
-@app.command()
-def main(
-    prompt: str = typer.Option(None, "-p", "--prompt", help="Execute a single prompt"),
-    check: bool = typer.Option(False, "--check", help="Run health check"),
-    config_flag: bool = typer.Option(False, "--config", help="Show configuration"),
-):
-    """YourAgent - Detailed description here.
-
-    Examples:
-        # Run health check
-        youragent --check
-
-        # Execute single prompt
-        youragent -p "Do something"
-
-        # Show configuration
-        youragent --config
-    """
-    if check:
-        run_health_check()
-    elif config_flag:
-        show_configuration()
-    elif prompt:
-        run_single_prompt(prompt)
-
-if __name__ == "__main__":
-    app()
-```
-
-**2. Update pyproject.toml Entry Points:**
-
-```toml
-[project.scripts]
-youragent = "youragent.cli:app"  # Points to Typer app object, not function
-```
-
-**3. Required Dependencies:**
-
-```toml
-dependencies = [
-    "typer>=0.12.0",  # CLI framework
-    "rich>=14.1.0",   # Formatting (auto-detected by Typer)
-]
-```
-
-### Docstring Format for CLI Examples
-
-Typer automatically extracts examples from docstrings. Follow this pattern:
-
-```python
-@app.command()
-def main(
-    option: str = typer.Option(None, "--opt", help="An option"),
-):
-    """Brief one-line description.
-
-    Longer description if needed. Can span multiple lines.
-    Explain what the command does and its purpose.
-
-    Examples:
-        # Example 1: Brief description
-        command --opt value
-
-        # Example 2: Another use case
-        command --other-flag
-
-        # Example 3: Complex example
-        command --opt "value with spaces" --flag
-    """
-    pass
-```
-
-**Best practices:**
-- Start each example with a `#` comment explaining what it does
-- Show real command usage (not pseudo-code)
-- Include common use cases and edge cases
-- Use proper argument formatting (quotes for spaces, etc.)
-- Examples appear in `--help` output automatically
-
-### CLI Options Patterns
-
-**Boolean flags:**
-```python
-verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output")
-```
-
-**String options:**
-```python
-config_path: str = typer.Option("config.yaml", "--config", "-c", help="Config file path")
-```
-
-**Optional strings:**
-```python
-prompt: str = typer.Option(None, "--prompt", "-p", help="Prompt to execute")
-```
-
-**Enums for choices:**
-```python
-from enum import Enum
-
-class Provider(str, Enum):
-    openai = "openai"
-    anthropic = "anthropic"
-
-provider: Provider = typer.Option(Provider.openai, "--provider", help="LLM provider")
-```
-
-### Rich Console Output
-
-Use Rich console for all output:
-
-```python
-from rich.console import Console
-
-console = Console()
-
-# Success messages
-console.print("[green]✓[/green] Operation successful")
-
-# Errors
-console.print("[red]✗[/red] Error occurred")
-
-# Warnings
-console.print("[yellow]⚠[/yellow] Warning message")
-
-# Info
-console.print("[blue]ℹ[/blue] Information")
-
-# Formatted text
-console.print("[bold]Section Title[/bold]")
-console.print("Regular text with [yellow]highlighted[/yellow] parts")
-```
-
-### Exit Codes
-
-Follow standard Unix exit codes:
-
-```python
-import typer
-
-# Success
-return  # or sys.exit(0)
-
-# General error
-raise typer.Exit(1)
-
-# Configuration error
-raise typer.Exit(1)
-
-# User interrupt (Ctrl+C)
-raise typer.Exit(130)
-```
-
-### Testing CLIs
-
-```python
-from typer.testing import CliRunner
-from youragent.cli import app
-
-runner = CliRunner()
-
-def test_help_output():
-    """Test --help displays correctly."""
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-    assert "YourAgent" in result.stdout
-    assert "Examples:" in result.stdout
-
-def test_check_command():
-    """Test --check runs health check."""
-    result = runner.invoke(app, ["--check"])
-    assert result.exit_code == 0
-    assert "Health Check" in result.stdout
-```
-
-### When to Use Argparse
-
-Only use argparse when:
-- **Stdlib-only requirement is critical** (no external dependencies allowed)
-- **Building minimal utility scripts** (not primary agent CLIs)
-- **Traditional Unix tool aesthetic** is explicitly required
-- **CI/CD tools** where dependency management is constrained
-
-If using argparse, document why in code comments:
-
-```python
-# Using argparse instead of Typer due to stdlib-only requirement for CI deployment
-import argparse
-
-def main():
-    parser = argparse.ArgumentParser(description="Utility script")
-    # ... rest of implementation
-```
-
-### CLI Checklist
-
-When creating a new CLI, ensure:
-
-- [ ] Uses Typer framework (unless exception applies)
-- [ ] Rich is in dependencies for automatic formatting
-- [ ] Entry point in `pyproject.toml` points to Typer app object
-- [ ] Function docstring includes `Examples:` section
-- [ ] Examples follow format: `# Comment\n    command args`
-- [ ] All options have clear help text
-- [ ] Boolean flags use `--flag` (not `--flag VALUE`)
-- [ ] Uses Rich console for all output
-- [ ] Proper exit codes (0 for success, >0 for errors)
-- [ ] Tests verify help output and basic functionality
-- [ ] Documented in README.md if user-facing
+Display code is in `src/agent/cli.py` and `src/agent/display/`:
+- Banner and status bar: `_render_startup_banner()`, `_render_status_bar()`
+- Execution tree: `src/agent/display/tree.py`
+- Keep consistent with ◉‿◉ branding
+- Use `highlight=False` to prevent Rich auto-highlighting
 
 ## Testing Guidelines
 
@@ -596,11 +389,11 @@ When creating a new CLI, ensure:
 
 ```
 tests/
-├── unit/              # Unit tests (isolated components)
+├── unit/              # Isolated component tests
 │   ├── test_agent.py
 │   ├── test_config.py
-│   └── test_tools.py
-├── integration/       # Integration tests (full stack)
+│   └── test_hello_tools.py
+├── integration/       # Full stack tests
 │   └── test_hello_integration.py
 ├── mocks/            # Test mocks
 │   └── mock_client.py
@@ -611,13 +404,6 @@ tests/
 
 ```python
 import pytest
-from agent.tools.hello import HelloTools
-from agent.config import AgentConfig
-
-@pytest.fixture
-def hello_tools(mock_config):
-    """Create HelloTools instance for testing."""
-    return HelloTools(mock_config)
 
 @pytest.mark.asyncio
 async def test_hello_world_default(hello_tools):
@@ -625,58 +411,14 @@ async def test_hello_world_default(hello_tools):
     result = await hello_tools.hello_world()
 
     assert result["success"] is True
-    assert result["result"] == "Hello, World!"
-    assert "World" in result["message"]
-
-@pytest.mark.asyncio
-async def test_hello_world_custom_name(hello_tools):
-    """Test hello_world with custom name."""
-    result = await hello_tools.hello_world("Alice")
-
-    assert result["success"] is True
-    assert "Alice" in result["result"]
-
-@pytest.mark.asyncio
-async def test_greet_user_unsupported_language(hello_tools):
-    """Test greet_user with unsupported language returns error."""
-    result = await hello_tools.greet_user("Bob", "de")
-
-    assert result["success"] is False
-    assert result["error"] == "unsupported_language"
-    assert "de" in result["message"]
+    assert result["result"] == "Hello, World! ◉‿◉"
 ```
 
-### Test Coverage Targets
+### Test Coverage
 
-- **Unit tests**: 100% coverage for business logic
-- **Integration tests**: Cover happy path and major error cases
 - **Overall**: Minimum 85% coverage (enforced by CI)
-
-### Mocking Guidelines
-
-```python
-# Use fixtures for common mocks
-@pytest.fixture
-def mock_config():
-    """Mock AgentConfig for testing."""
-    return AgentConfig(
-        llm_provider="openai",
-        openai_api_key="test-key",
-        openai_model="gpt-4o",
-    )
-
-@pytest.fixture
-def mock_chat_client():
-    """Mock chat client."""
-    from tests.mocks.mock_client import MockChatClient
-    return MockChatClient(response="Mock response")
-
-# Use dependency injection
-def test_agent_with_mocks(mock_config, mock_chat_client):
-    """Test agent with mocked dependencies."""
-    agent = Agent(config=mock_config, chat_client=mock_chat_client)
-    assert agent is not None
-```
+- **Unit tests**: 100% for business logic
+- **Integration tests**: Cover happy path and error cases
 
 ## Release Process
 

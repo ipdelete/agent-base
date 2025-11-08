@@ -184,14 +184,12 @@ async def logging_function_middleware(
 
         # Sanitize (remove sensitive keys)
         safe_args = {
-            k: v for k, v in args_dict.items() if k not in ["token", "api_key", "password", "secret"]
+            k: v
+            for k, v in args_dict.items()
+            if k not in ["token", "api_key", "password", "secret"]
         }
 
-        event = ToolStartEvent(
-            tool_name=tool_name,
-            arguments=safe_args,
-            parent_id=parent_id
-        )
+        event = ToolStartEvent(tool_name=tool_name, arguments=safe_args, parent_id=parent_id)
         tool_event_id = event.event_id
         get_event_emitter().emit(event)
 
@@ -239,7 +237,7 @@ async def logging_function_middleware(
         if should_show_visualization():
             set_current_tool_event_id(parent_id)
             if parent_id:
-                logger.debug(f"Restored parent tool context")
+                logger.debug("Restored parent tool context")
             else:
                 logger.debug(f"Cleared tool context: {tool_name}")
 
@@ -284,12 +282,11 @@ def _extract_tool_summary(tool_name: str, result: Any) -> str:
 # ============================================================================
 
 
-def create_middleware() -> dict[str, list]:
+def create_middleware() -> list:
     """Create default middleware for agent and function levels.
 
     Returns:
-        Dict with 'agent' and 'function' middleware lists configured
-        with logging and event emission
+        List of middleware (framework auto-categorizes by type)
 
     Example:
         >>> from agent.middleware import create_middleware
@@ -301,15 +298,11 @@ def create_middleware() -> dict[str, list]:
         ...     middleware=middleware
         ... )
     """
-    return {
-        "agent": [
-            agent_run_logging_middleware,
-            agent_observability_middleware,
-        ],
-        "function": [
-            cast(FunctionMiddleware, logging_function_middleware),
-        ],
-    }
+    return [
+        agent_run_logging_middleware,
+        agent_observability_middleware,
+        logging_function_middleware,
+    ]
 
 
 # Backward compatibility
@@ -325,4 +318,4 @@ def create_function_middleware() -> list[FunctionMiddleware]:
         >>> from agent.middleware import create_function_middleware
         >>> function_mw = create_function_middleware()
     """
-    return create_middleware()["function"]
+    return [cast(FunctionMiddleware, logging_function_middleware)]

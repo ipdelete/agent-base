@@ -485,15 +485,22 @@ class ExecutionTreeDisplay:
             return
 
         # Process any remaining events before stopping
+        events_processed = 0
         while True:
             event = self._event_emitter.get_event_nowait()
             if event is None:
                 break
             await self._handle_event(event)
+            events_processed += 1
+
+        logger.debug(f"Processed {events_processed} remaining events before stop")
 
         # Complete any active phase
         if self._current_phase and self._current_phase.status == "in_progress":
             self._current_phase.complete()
+            logger.debug(
+                f"Completed phase {self._current_phase.phase_number}, show_completion_summary={self.show_completion_summary}"
+            )
 
         self._running = False
 

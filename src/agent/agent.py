@@ -32,7 +32,7 @@ class Agent:
         config: AgentConfig | None = None,
         chat_client: Any | None = None,
         toolsets: list[AgentToolset] | None = None,
-        middleware: dict[str, list] | None = None,
+        middleware: list | None = None,
     ):
         """Initialize Agent.
 
@@ -40,7 +40,7 @@ class Agent:
             config: Agent configuration (required if chat_client not provided)
             chat_client: Chat client for testing (optional, for dependency injection)
             toolsets: List of toolsets (default: HelloTools)
-            middleware: Middleware dict with 'agent' and 'function' lists (optional)
+            middleware: List of middleware (framework auto-categorizes by type)
 
         Example:
             # Production use
@@ -78,6 +78,7 @@ class Agent:
         # Initialize middleware (create default if not provided)
         if middleware is None:
             from agent.middleware import create_middleware
+
             middleware = create_middleware()
         self.middleware = middleware
 
@@ -88,8 +89,9 @@ class Agent:
         """Create chat client based on configuration.
 
         Supports:
-        - openai: OpenAI API (gpt-4o, gpt-4-turbo, etc.)
+        - openai: OpenAI API (gpt-5-mini, gpt-4o, etc.)
         - anthropic: Anthropic API (claude-sonnet-4-5, claude-opus-4, etc.)
+        - azure: Azure OpenAI (gpt-5-codex, gpt-4o, etc.)
         - azure_ai_foundry: Azure AI Foundry with managed models
 
         Returns:
@@ -112,6 +114,43 @@ class Agent:
                 model_id=self.config.anthropic_model,
                 api_key=self.config.anthropic_api_key,
             )
+        elif self.config.llm_provider == "azure":
+            from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
+            from azure.identity import AzureCliCredential, DefaultAzureCredential
+
+            # gpt-5-codex requires the responses endpoint, use AzureOpenAIResponsesClient
+            # gpt-5-mini and others use chat completions endpoint, use AzureOpenAIChatClient
+            deployment_name = self.config.azure_openai_deployment or ""
+            use_responses_client = "codex" in deployment_name.lower()
+            client_class = (
+                AzureOpenAIResponsesClient if use_responses_client else AzureOpenAIChatClient
+            )
+
+            # Use API key if provided, otherwise use Azure CLI credential
+            if self.config.azure_openai_api_key:
+                return client_class(
+                    endpoint=self.config.azure_openai_endpoint,
+                    deployment_name=self.config.azure_openai_deployment,
+                    api_version=self.config.azure_openai_api_version,
+                    api_key=self.config.azure_openai_api_key,
+                )
+            else:
+                try:
+                    credential = AzureCliCredential()
+                    return client_class(
+                        endpoint=self.config.azure_openai_endpoint,
+                        deployment_name=self.config.azure_openai_deployment,
+                        api_version=self.config.azure_openai_api_version,
+                        credential=credential,
+                    )
+                except Exception:
+                    credential = DefaultAzureCredential()
+                    return client_class(
+                        endpoint=self.config.azure_openai_endpoint,
+                        deployment_name=self.config.azure_openai_deployment,
+                        api_version=self.config.azure_openai_api_version,
+                        credential=credential,
+                    )
         elif self.config.llm_provider == "azure_ai_foundry":
             from agent_framework.azure import AzureAIAgentClient
             from azure.identity.aio import AzureCliCredential
@@ -124,7 +163,7 @@ class Agent:
         else:
             raise ValueError(
                 f"Unknown provider: {self.config.llm_provider}. "
-                f"Supported: openai, anthropic, azure_ai_foundry"
+                f"Supported: openai, anthropic, azure, azure_ai_foundry"
             )
 
     def _create_agent(self) -> Any:
@@ -163,10 +202,9 @@ Be helpful, concise, and clear in your responses."""
         """
         if hasattr(self.chat_client, "create_thread"):
             return self.chat_client.create_thread()
-        else:
-            # Fallback: some providers may not support threads
-            logger.warning("Chat client doesn't support threads, returning None")
-            return None
+        # Fallback: some providers may not support explicit threads (e.g., OpenAI)
+        # They manage conversation context automatically through message history
+        return None
 
     async def run(self, prompt: str, thread: Any | None = None) -> str:
         """Run agent with prompt.

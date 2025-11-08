@@ -239,13 +239,16 @@ class ThreadPersistence:
         thread: Any,
         name: str,
         description: str | None = None,
+        messages: list[dict] | None = None,
     ) -> Path:
         """Save a conversation thread.
 
         Args:
-            thread: AgentThread to serialize
+            thread: AgentThread to serialize (can be None for providers without thread support)
             name: Name for this conversation
             description: Optional description
+            messages: Optional list of message dicts for manual tracking
+                     (used when thread is None or doesn't support serialization)
 
         Returns:
             Path to saved conversation file
@@ -291,7 +294,7 @@ class ThreadPersistence:
         serialized = None
         try:
             # Try framework serialization first
-            if hasattr(thread, "serialize"):
+            if thread and hasattr(thread, "serialize"):
                 serialized = await thread.serialize()
                 logger.debug("Used framework serialization")
         except Exception as e:
@@ -299,8 +302,18 @@ class ThreadPersistence:
 
         # Fallback to manual serialization if needed
         if serialized is None:
-            serialized = await self._fallback_serialize(thread)
-            logger.debug("Used fallback serialization")
+            # Use provided messages if available, otherwise extract from thread
+            if messages:
+                logger.debug(
+                    f"Using manually tracked messages for fallback serialization ({len(messages)} messages)"
+                )
+                serialized = {
+                    "messages": messages,
+                    "metadata": {"fallback": True, "version": "1.0", "manual_tracking": True},
+                }
+            else:
+                serialized = await self._fallback_serialize(thread)
+                logger.debug("Used fallback serialization from thread")
 
         # Build conversation data
         conversation_data = {
@@ -361,20 +374,53 @@ class ThreadPersistence:
 
         logger.info(f"Loading conversation '{safe_name}'...")
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             data = json.load(f)
 
         thread_data = data["thread"]
 
+        from rich.console import Console
+        from rich.markdown import Markdown
+
+        console = Console()
+
+        # ALWAYS display conversation history to user (provides context)
+        # Extract messages regardless of serialization method
+        messages = thread_data.get("messages", [])
+
+        if messages:
+            console.print("\n[bold cyan]Previous Session History:[/bold cyan]")
+            console.print(f"[dim]({len(messages)} messages)[/dim]\n")
+
+            for msg in messages:
+                role = msg.get("role", "unknown")
+                content = msg.get("content", "")
+
+                if role == "user":
+                    console.print(f"[bold green]You:[/bold green] {content}")
+                elif role == "assistant":
+                    console.print("[bold cyan]Agent:[/bold cyan]")
+                    console.print(Markdown(content))
+
+                # Show tool calls if present
+                if "tool_calls" in msg:
+                    console.print(f"[dim]  Tools used: {len(msg['tool_calls'])}[/dim]")
+
+                console.print()
+
         # Check if fallback serialization was used
         if thread_data.get("metadata", {}).get("fallback"):
-            logger.info("Loading fallback-serialized session (displaying history to user)")
+            logger.info("Loading fallback-serialized session")
 
             # Generate context summary for AI
-            context_summary = self._generate_context_summary(thread_data["messages"])
+            context_summary = self._generate_context_summary(messages)
 
             # Create new thread (can't deserialize fallback format)
-            thread = agent.chat_client.create_thread() if hasattr(agent.chat_client, "create_thread") else None
+            thread = (
+                agent.chat_client.create_thread()
+                if hasattr(agent.chat_client, "create_thread")
+                else None
+            )
 
             return thread, context_summary
         else:
@@ -383,17 +429,26 @@ class ThreadPersistence:
                 if hasattr(agent.chat_client, "deserialize_thread"):
                     thread = await agent.chat_client.deserialize_thread(thread_data)
                     logger.info("Successfully deserialized thread using framework")
+                    # Thread has full context, no summary needed
                     return thread, None
                 else:
                     # Framework doesn't support deserialization, use fallback
                     logger.warning("Framework doesn't support deserialization, using fallback")
-                    context_summary = self._generate_context_summary(thread_data.get("messages", []))
-                    thread = agent.chat_client.create_thread() if hasattr(agent.chat_client, "create_thread") else None
+                    context_summary = self._generate_context_summary(messages)
+                    thread = (
+                        agent.chat_client.create_thread()
+                        if hasattr(agent.chat_client, "create_thread")
+                        else None
+                    )
                     return thread, context_summary
             except Exception as e:
                 logger.error(f"Deserialization failed: {e}, using fallback")
-                context_summary = self._generate_context_summary(thread_data.get("messages", []))
-                thread = agent.chat_client.create_thread() if hasattr(agent.chat_client, "create_thread") else None
+                context_summary = self._generate_context_summary(messages)
+                thread = (
+                    agent.chat_client.create_thread()
+                    if hasattr(agent.chat_client, "create_thread")
+                    else None
+                )
                 return thread, context_summary
 
     def list_sessions(self) -> list[dict]:

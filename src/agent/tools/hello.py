@@ -76,7 +76,7 @@ class HelloTools(AgentToolset):
             >>> print(result["result"])
             Hello, Alice!
         """
-        greeting = f"Hello, {name}!"
+        greeting = f"Hello, {name}! ◉‿◉"
         return self._create_success_response(result=greeting, message=f"Greeted {name}")
 
     async def greet_user(
@@ -127,9 +127,9 @@ class HelloTools(AgentToolset):
             unsupported_language
         """
         greetings = {
-            "en": f"Hello, {name}!",
-            "es": f"¡Hola, {name}!",
-            "fr": f"Bonjour, {name}!",
+            "en": f"Hello, {name}! ◉‿◉",
+            "es": f"¡Hola, {name}! ◉‿◉",
+            "fr": f"Bonjour, {name}! ◉‿◉",
         }
 
         if language not in greetings:
