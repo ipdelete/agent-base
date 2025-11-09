@@ -74,18 +74,15 @@ def _render_startup_banner(config: AgentConfig) -> None:
     """
     console.print()
     console.print("[bold cyan]Agent[/bold cyan] - AI-powered conversational assistant")
-    console.print(f"[dim]Version {__version__} • {config.get_model_display_name()}[/dim]")
-    console.print()
+    # Use markup=False to prevent Rich from interpreting hyphens in model name as markup
+    console.print(f"Version {__version__} • {config.get_model_display_name()}", style="dim", markup=False)
 
 
-def _get_status_bar_text(config: AgentConfig) -> str:
+def _get_status_bar_text() -> str:
     """Get status bar text without printing.
 
-    Args:
-        config: Agent configuration
-
     Returns:
-        Status bar text as string
+        Status bar text as string (path and branch, right-justified)
     """
     # Get current directory
     cwd = Path.cwd()
@@ -95,6 +92,7 @@ def _get_status_bar_text(config: AgentConfig) -> str:
         cwd_display = str(cwd)
 
     # Get git branch
+    branch_display = ""
     try:
         result = subprocess.run(
             ["git", "branch", "--show-current"],
@@ -106,56 +104,14 @@ def _get_status_bar_text(config: AgentConfig) -> str:
         if result.returncode == 0 and result.stdout.strip():
             branch = result.stdout.strip()
             branch_display = f" [⎇ {branch}]"
-        else:
-            branch_display = ""
     except Exception:
-        branch_display = ""
+        pass
 
-    # Format with alignment
-    left = f" {cwd_display}{branch_display}"
-    right = f"{config.get_model_display_name()} · v{__version__}"
-    padding = max(1, console.width - len(left) - len(right))
+    # Right-justify the path and branch
+    status = f"{cwd_display}{branch_display}"
+    padding = max(0, console.width - len(status))
 
-    return f"{left}{' ' * padding}{right}"
-
-
-def _render_status_bar(config: AgentConfig) -> None:
-    """Render status bar with context information.
-
-    Args:
-        config: Agent configuration
-    """
-    # Get current directory
-    cwd = Path.cwd()
-    try:
-        cwd_display = f"~/{cwd.relative_to(Path.home())}"
-    except ValueError:
-        cwd_display = str(cwd)
-
-    # Get git branch
-    try:
-        result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            capture_output=True,
-            text=True,
-            timeout=1,
-            cwd=cwd,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            branch = result.stdout.strip()
-            branch_display = f" [⎇ {branch}]"
-        else:
-            branch_display = ""
-    except Exception:
-        branch_display = ""
-
-    # Format with alignment
-    left = f" {cwd_display}{branch_display}"
-    right = f"{config.get_model_display_name()} · v{__version__}"
-    padding = max(1, console.width - len(left) - len(right))
-
-    console.print(f"[dim]{left}[/dim]{' ' * padding}[cyan]{right}[/cyan]")
-    console.print(f"[dim]{'─' * console.width}[/dim]")
+    return f"{' ' * padding}{status}"
 
 
 def _show_help() -> None:
@@ -197,7 +153,7 @@ async def _auto_save_session(
         try:
             # Generate auto-save name with timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-            session_name = f"auto-{timestamp}"
+            session_name = timestamp
 
             await persistence.save_thread(
                 thread,
@@ -210,7 +166,7 @@ async def _auto_save_session(
             _save_last_session(session_name)
 
             if not quiet:
-                console.print(f"\n[dim]Session auto-saved as '{session_name}'[/dim]")
+                console.print(f"[dim]Session auto-saved as '{session_name}'[/dim]")
         except Exception as e:
             if not quiet:
                 console.print(f"\n[yellow]Failed to auto-save session: {e}[/yellow]")
@@ -424,10 +380,9 @@ async def run_chat_mode(
         config = AgentConfig.from_env()
         config.validate()
 
-        # Show startup banner and status
+        # Show startup banner
         if not quiet:
             _render_startup_banner(config)
-            _render_status_bar(config)
 
         # Create agent
         agent = Agent(config=config)
@@ -490,8 +445,14 @@ async def run_chat_mode(
         # Interactive loop
         while True:
             try:
+                # Print status bar before prompt
+                if not quiet:
+                    status_text = _get_status_bar_text()
+                    console.print(f"\n[dim]{status_text}[/dim]")
+                    console.print(f"[dim]{'─' * console.width}[/dim]")
+
                 # Get user input
-                user_input = await session.prompt_async("\n> ")
+                user_input = await session.prompt_async("> ")
 
                 if not user_input or not user_input.strip():
                     continue
@@ -539,7 +500,7 @@ async def run_chat_mode(
                     await _auto_save_session(
                         persistence, thread, message_count, quiet, conversation_messages
                     )
-                    console.print("[dim]Goodbye![/dim]")
+                    console.print("\n[dim]Goodbye![/dim]")
                     break
 
                 if cmd in ["help", "?", "/help"]:
@@ -554,11 +515,6 @@ async def run_chat_mode(
                     # Reset conversation context
                     thread = agent.get_new_thread()
                     message_count = 0
-
-                    # Display header and status bar
-                    if not quiet:
-                        console.print()
-                        _render_status_bar(config)
 
                     continue
 
@@ -696,10 +652,7 @@ async def run_chat_mode(
                         await execution_display.stop()
 
                         # Print response after completion summary
-                        console.print(f"\n{response}\n")
-
-                        # Add separator line (status bar is sticky at bottom via prompt_toolkit)
-                        console.print(f"[dim]{'─' * console.width}[/dim]")
+                        console.print(f"{response}")
 
                     except KeyboardInterrupt:
                         # User pressed Ctrl+C - cancel operation
@@ -723,10 +676,7 @@ async def run_chat_mode(
                             {"role": "assistant", "content": response_text}
                         )
 
-                        console.print(f"\n{response}\n")
-
-                        # Add separator line (status bar is sticky at bottom via prompt_toolkit)
-                        console.print(f"[dim]{'─' * console.width}[/dim]")
+                        console.print(f"{response}")
                     except KeyboardInterrupt:
                         console.print("\n[yellow]Operation cancelled[/yellow]\n")
                         continue

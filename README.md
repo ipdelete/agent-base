@@ -32,6 +32,7 @@ agent  # Interactive mode with auto-save sessions
 - **Execution visualization**: Real-time display of thinking and tool calls
 - **Conversation history**: Resume sessions with `--continue`
 - **Keyboard shortcuts**: ESC to clear, shell commands with `!`
+- **Context status bar**: Right-aligned path and branch display before each prompt
 
 ### ⌨️ Keyboard Shortcuts
 - **Shell commands**: Execute system commands with `!` (e.g., `!ls`, `!git status`)
