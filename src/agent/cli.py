@@ -24,7 +24,7 @@ from agent.persistence import ThreadPersistence
 from agent.utils.keybindings import ClearPromptHandler, KeybindingManager
 from agent.utils.terminal import TIMEOUT_EXIT_CODE, clear_screen, execute_shell_command
 
-app = typer.Typer(help="Agent - AI-powered conversational assistant with extensible tools")
+app = typer.Typer(help="Agent - Conversational Assistant")
 console = Console()
 
 
@@ -73,9 +73,9 @@ def _render_startup_banner(config: AgentConfig) -> None:
         config: Agent configuration
     """
     console.print()
-    console.print("[bold cyan]Agent[/bold cyan] - AI-powered conversational assistant")
-    # Use markup=False to prevent Rich from interpreting hyphens in model name as markup
-    console.print(f"Version {__version__} • {config.get_model_display_name()}", style="dim", markup=False)
+    console.print("[bold cyan]Agent[/bold cyan] - Conversational Assistant")
+    # Disable both markup and highlighting to prevent Rich from coloring numbers
+    console.print(f"Version {__version__} • {config.get_model_display_name()}", style="dim", markup=False, highlight=False)
 
 
 def _get_status_bar_text() -> str:
