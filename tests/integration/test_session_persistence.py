@@ -8,6 +8,9 @@ from typing import Any
 
 import pytest
 
+# Module-level marker for all tests in this file
+pytestmark = [pytest.mark.integration, pytest.mark.persistence]
+
 from agent.agent import Agent
 from agent.config import AgentConfig
 from agent.persistence import ThreadPersistence

@@ -17,6 +17,8 @@ from agent.display.events import (
 from agent.display.tree import ExecutionPhase, ExecutionTreeDisplay, TreeNode
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestTreeNode:
     """Tests for TreeNode class."""
 
@@ -68,6 +70,8 @@ class TestTreeNode:
         assert node.metadata["duration"] == 0.5
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestExecutionPhase:
     """Tests for ExecutionPhase class."""
 
@@ -141,6 +145,8 @@ class TestExecutionPhase:
         assert phase2.has_nodes is True
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestExecutionTreeDisplay:
     """Tests for ExecutionTreeDisplay class."""
 

@@ -7,6 +7,9 @@ integration points rather than full end-to-end LLM execution.
 import asyncio
 
 import pytest
+
+# Module-level marker for all tests in this file
+pytestmark = [pytest.mark.integration, pytest.mark.middleware]
 from rich.console import Console
 
 from agent.agent import Agent

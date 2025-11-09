@@ -17,6 +17,8 @@ from agent.display.events import (
 )
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestExecutionEvent:
     """Tests for ExecutionEvent base class."""
 
@@ -43,6 +45,8 @@ class TestExecutionEvent:
         assert child.parent_id == parent.event_id
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestLLMEvents:
     """Tests for LLM event types."""
 
@@ -62,6 +66,8 @@ class TestLLMEvents:
         assert event.event_id is not None
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestToolEvents:
     """Tests for tool event types."""
 
@@ -94,6 +100,8 @@ class TestToolEvents:
         assert event.duration == 0.1
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestEventEmitter:
     """Tests for EventEmitter class."""
 
@@ -245,6 +253,8 @@ class TestEventEmitter:
         assert emitter.should_show_visualization() is False
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestToolEventContext:
     """Tests for tool event context tracking."""
 
@@ -273,6 +283,8 @@ class TestToolEventContext:
         assert retrieved is None
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestEventCorrelation:
     """Tests for event correlation functionality."""
 

@@ -13,6 +13,8 @@ from agent.display.context import (
 from agent.display.events import get_event_emitter
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestDisplayMode:
     """Tests for DisplayMode enum."""
 
@@ -22,6 +24,8 @@ class TestDisplayMode:
         assert DisplayMode.VERBOSE.value == "verbose"
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestExecutionContext:
     """Tests for ExecutionContext dataclass."""
 
@@ -44,6 +48,8 @@ class TestExecutionContext:
         assert ctx.display_mode == DisplayMode.VERBOSE
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestContextManagement:
     """Tests for context management functions."""
 
@@ -164,6 +170,8 @@ class TestContextManagement:
         assert should_show_visualization() is False
 
 
+@pytest.mark.unit
+@pytest.mark.display
 class TestContextIntegration:
     """Integration tests for context management."""
 

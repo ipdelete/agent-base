@@ -183,19 +183,42 @@ tests/
 - All tests must pass
 - No flaky tests allowed
 
-## Future Testing Enhancements
+## Testing Enhancements (Updated 2025-11-09)
 
-**Phase 2:**
-- CLI tests with captured output
-- Display tests with mock console
+**Implemented**:
+- ✅ Hierarchical test organization by component (unit/core/, unit/tools/, etc.)
+- ✅ Real LLM integration tests in tests/integration/llm/ (opt-in, with cost controls)
+- ✅ Comprehensive pytest markers for flexible test selection
+- ✅ Test templates for consistent patterns (tests/templates/)
+- ✅ Test helpers and utilities (tests/helpers/)
+- ✅ Modular fixture organization (tests/fixtures/)
+- ✅ CLI validation tests with YAML configuration
+- ✅ Total: 246 tests (199 unit, 25 integration, 22 LLM)
 
-**Phase 3:**
-- E2E tests with real LLM (optional)
-- Performance tests
-- Load tests
+**Pytest Markers Added**:
+- Test types: `unit`, `integration`, `validation`, `llm`
+- Feature areas: `agent`, `tools`, `display`, `cli`, `middleware`, `persistence`, `config`, `events`
+- Speed: `fast`, `slow`
+- Providers: `requires_openai`, `requires_anthropic`, `requires_azure`
 
-**Phase 4:**
+**New Test Structure**:
+```
+tests/
+├── unit/{core,tools,display,cli,middleware,persistence}/  # Organized by component
+├── integration/                                            # Mocked LLM integration
+├── integration/llm/                                        # Real LLM tests (⚠️ costs money)
+├── validation/                                             # CLI validation
+├── fixtures/                                               # Modular fixtures
+├── helpers/                                                # Test utilities
+└── templates/                                              # Test templates
+```
+
+See [tests/README.md](../../tests/README.md) for comprehensive guide.
+
+**Future Enhancements**:
 - Property-based tests (hypothesis)
+- Performance benchmarking framework
+- Load testing (concurrent agents)
 - Mutation testing
 - Snapshot tests for output
 
@@ -204,6 +227,7 @@ tests/
 - [pytest documentation](https://docs.pytest.org/)
 - [pytest-cov documentation](https://pytest-cov.readthedocs.io/)
 - [pytest-asyncio documentation](https://pytest-asyncio.readthedocs.io/)
+- [Test Infrastructure Guide](../../tests/README.md)
 
 ## Related Decisions
 

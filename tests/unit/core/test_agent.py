@@ -7,6 +7,8 @@ from agent.config import AgentConfig
 from agent.tools.hello import HelloTools
 
 
+@pytest.mark.unit
+@pytest.mark.agent
 class TestAgent:
     """Tests for Agent class."""
 

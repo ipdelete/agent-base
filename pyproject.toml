@@ -37,9 +37,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    # Testing framework
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.5.0",        # Parallel test execution
+    "pytest-timeout>=2.2.0",       # Test timeout enforcement
+    "pytest-mock>=3.12.0",         # Enhanced mocking utilities
+
+    # Code quality
     "ruff>=0.10.0",
     "black>=25.1.0",
     "mypy>=1.14.1",
@@ -67,8 +73,32 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+norecursedirs = ["templates"]
 markers = [
-    "integration: Integration tests",
+    # Test types
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (components working together)",
+    "validation: CLI validation tests via subprocess",
+    "llm: Tests requiring real LLM API calls (opt-in, costs money)",
+
+    # Speed markers
+    "slow: Slow tests (>1s execution time)",
+    "fast: Fast tests (<100ms execution time)",
+
+    # Feature areas
+    "agent: Core agent functionality tests",
+    "tools: Tool-related tests",
+    "display: Display and rendering tests",
+    "cli: CLI interface tests",
+    "middleware: Middleware tests",
+    "persistence: Session persistence tests",
+    "config: Configuration tests",
+    "events: Event bus tests",
+
+    # LLM providers (for real API integration tests)
+    "requires_openai: Tests requiring OpenAI API key",
+    "requires_anthropic: Tests requiring Anthropic API key",
+    "requires_azure: Tests requiring Azure credentials",
 ]
 
 [tool.mypy]

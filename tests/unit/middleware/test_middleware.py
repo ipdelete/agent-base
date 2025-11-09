@@ -14,6 +14,8 @@ from agent.middleware import (
 )
 
 
+@pytest.mark.unit
+@pytest.mark.middleware
 class TestCreateMiddleware:
     """Tests for middleware factory functions."""
 
@@ -42,6 +44,8 @@ class TestCreateMiddleware:
         assert logging_function_middleware in function_mw
 
 
+@pytest.mark.unit
+@pytest.mark.middleware
 class TestAgentRunLoggingMiddleware:
     """Tests for agent_run_logging_middleware."""
 
@@ -174,6 +178,8 @@ class TestAgentRunLoggingMiddleware:
             await agent_run_logging_middleware(context, mock_next_that_fails)
 
 
+@pytest.mark.unit
+@pytest.mark.middleware
 class TestAgentObservabilityMiddleware:
     """Tests for agent_observability_middleware."""
 
@@ -229,6 +235,8 @@ class TestAgentObservabilityMiddleware:
         assert any("Agent execution took" in record.message for record in caplog.records)
 
 
+@pytest.mark.unit
+@pytest.mark.middleware
 class TestLoggingFunctionMiddleware:
     """Tests for logging_function_middleware."""
 

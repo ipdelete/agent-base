@@ -1,5 +1,7 @@
 """Unit tests for agent.events module."""
 
+import pytest
+
 from agent.events import Event, EventBus, EventType, get_event_bus, get_event_emitter
 
 
@@ -14,6 +16,8 @@ class MockListener:
         self.events_received.append(event)
 
 
+@pytest.mark.unit
+@pytest.mark.events
 class TestEventBus:
     """Tests for EventBus class."""
 

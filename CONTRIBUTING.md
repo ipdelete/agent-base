@@ -385,40 +385,69 @@ Display code is in `src/agent/cli.py` and `src/agent/display/`:
 
 ## Testing Guidelines
 
+**📖 See [tests/README.md](tests/README.md) for comprehensive testing guide**
+
+### Quick Start
+
+```bash
+# Run all tests (excludes real LLM tests)
+pytest
+
+# Run unit tests only (fast)
+pytest -m unit
+
+# Run tests for specific feature area
+pytest -m tools          # Tool tests
+pytest -m middleware     # Middleware tests
+
+# Run with coverage
+pytest --cov=src/agent --cov-fail-under=85
+
+# Run in parallel (faster)
+pytest -n auto
+```
+
 ### Test Organization
+
+Tests are organized by component and test type:
 
 ```
 tests/
-├── unit/              # Isolated component tests
-│   ├── test_agent.py
-│   ├── test_config.py
-│   └── test_hello_tools.py
-├── integration/       # Full stack tests
-│   └── test_hello_integration.py
-├── mocks/            # Test mocks
-│   └── mock_client.py
-└── conftest.py       # Shared fixtures
+├── unit/                      # Fast, isolated tests
+│   ├── core/                  # Agent, config, events
+│   ├── tools/                 # Tool implementations
+│   ├── display/               # Display system
+│   ├── cli/                   # CLI interface
+│   ├── middleware/            # Middleware
+│   └── persistence/           # Session management
+├── integration/               # Component integration (mocked LLM)
+├── integration/llm/           # Real LLM tests (opt-in, costs money)
+├── validation/                # CLI validation
+├── fixtures/                  # Shared fixtures
+├── helpers/                   # Test utilities
+└── templates/                 # Templates for new tests
 ```
 
-### Writing Tests
+### Writing New Tests
 
-```python
-import pytest
+1. **Choose appropriate template** from `tests/templates/`
+2. **Copy to correct directory** based on test type
+3. **Add pytest markers** (unit, integration, llm, feature area)
+4. **Follow existing patterns** in similar tests
 
-@pytest.mark.asyncio
-async def test_hello_world_default(hello_tools):
-    """Test hello_world with default name."""
-    result = await hello_tools.hello_world()
-
-    assert result["success"] is True
-    assert result["result"] == "Hello, World! ◉‿◉"
-```
+See test templates and [tests/README.md](tests/README.md) for detailed examples.
 
 ### Test Coverage
 
 - **Overall**: Minimum 85% coverage (enforced by CI)
 - **Unit tests**: 100% for business logic
 - **Integration tests**: Cover happy path and error cases
+- **LLM tests**: Optional (opt-in, costs money)
+
+**Check coverage**:
+```bash
+pytest --cov=src/agent --cov-report=term-missing --cov-report=html
+```
 
 ## Release Process
 

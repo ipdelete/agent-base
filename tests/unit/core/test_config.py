@@ -9,6 +9,8 @@ import pytest
 from agent.config import AgentConfig
 
 
+@pytest.mark.unit
+@pytest.mark.config
 class TestAgentConfig:
     """Tests for AgentConfig class."""
 

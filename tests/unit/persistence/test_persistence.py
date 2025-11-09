@@ -8,6 +8,8 @@ import pytest
 from agent.persistence import ThreadPersistence, _sanitize_conversation_name
 
 
+@pytest.mark.unit
+@pytest.mark.persistence
 class TestSanitizeConversationName:
     """Tests for conversation name sanitization."""
 
@@ -55,6 +57,8 @@ class TestSanitizeConversationName:
             _sanitize_conversation_name("CON")  # case insensitive
 
 
+@pytest.mark.unit
+@pytest.mark.persistence
 class TestThreadPersistence:
     """Tests for ThreadPersistence class."""
 

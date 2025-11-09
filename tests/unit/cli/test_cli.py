@@ -10,6 +10,8 @@ from typer.testing import CliRunner
 from agent.cli import app
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 class TestCLIFramework:
     """Tests for CLI framework and structure."""
 
@@ -23,6 +25,8 @@ class TestCLIFramework:
         assert "Agent" in app.info.help or "assistant" in app.info.help.lower()
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 class TestCLIHelpOutput:
     """Tests for CLI help output format and content."""
 
@@ -87,6 +91,8 @@ class TestCLIHelpOutput:
         assert "config" in result.stdout.lower()
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 class TestCLIRichFormatting:
     """Tests for Rich formatting in CLI output."""
 
@@ -109,6 +115,8 @@ class TestCLIRichFormatting:
         assert has_rich_boxes or has_plain_format
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 class TestCLIExecution:
     """Tests for CLI command execution."""
 
@@ -138,6 +146,8 @@ class TestCLIExecution:
         assert result.stdout  # Should have some output
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 class TestCLIIntegration:
     """Integration tests for CLI via subprocess."""
 
@@ -170,6 +180,8 @@ class TestCLIIntegration:
         assert result.stdout.strip()  # Not empty
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 class TestCLIDocumentation:
     """Tests for CLI documentation consistency."""
 

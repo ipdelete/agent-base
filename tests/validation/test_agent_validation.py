@@ -14,6 +14,9 @@ from typing import Any
 import pytest
 import yaml
 
+# Module-level marker for all tests in this file
+pytestmark = [pytest.mark.integration, pytest.mark.validation]
+
 
 class AgentValidator:
     """Real-world validation tests for agent CLI."""

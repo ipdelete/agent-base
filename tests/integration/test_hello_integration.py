@@ -8,6 +8,9 @@ from agent.config import AgentConfig
 from agent.tools.hello import HelloTools
 from tests.mocks.mock_client import MockChatClient
 
+# Module-level marker for all tests in this file
+pytestmark = [pytest.mark.integration, pytest.mark.tools]
+
 
 @pytest.mark.asyncio
 async def test_agent_with_hello_tools():

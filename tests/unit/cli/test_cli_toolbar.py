@@ -8,6 +8,9 @@ import pytest
 
 from agent.cli.app import _get_status_bar_text
 
+# Module-level markers for all tests in this file
+pytestmark = [pytest.mark.unit, pytest.mark.cli]
+
 
 def test_status_bar_returns_string():
     """Test that status bar function returns a string."""

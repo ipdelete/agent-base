@@ -18,6 +18,8 @@ def hello_tools(mock_config):
     return HelloTools(mock_config)
 
 
+@pytest.mark.unit
+@pytest.mark.tools
 class TestHelloTools:
     """Tests for HelloTools class."""
 
