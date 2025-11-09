@@ -144,9 +144,11 @@ class TestEventEmitter:
         assert event is None
 
     @pytest.mark.asyncio
+    @pytest.mark.timeout(2)
     async def test_get_event_waits_for_event(self):
         """Test get_event waits for an event to be available."""
         emitter = get_event_emitter()
+        emitter.clear()  # Extra clear to ensure clean state
         event = ToolStartEvent(tool_name="async_test")
 
         # Emit event in background
@@ -156,11 +158,17 @@ class TestEventEmitter:
 
         task = asyncio.create_task(emit_later())
 
-        # This should block until event is emitted
-        retrieved = await emitter.get_event()
+        try:
+            # This should block until event is emitted
+            retrieved = await asyncio.wait_for(emitter.get_event(), timeout=1.0)
 
-        assert retrieved.tool_name == "async_test"
-        await task
+            assert retrieved.tool_name == "async_test"
+        finally:
+            # Ensure background task completes
+            try:
+                await asyncio.wait_for(task, timeout=0.5)
+            except asyncio.TimeoutError:
+                task.cancel()
 
     def test_disable_prevents_emission(self):
         """Test disabling emitter prevents event emission."""

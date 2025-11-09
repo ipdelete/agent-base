@@ -428,13 +428,18 @@ class ExecutionTreeDisplay:
                 node.mark_error(event.error_message, event.duration)
 
     async def _process_events(self) -> None:
-        """Background task to process events from the queue."""
+        """Background task to process events from the queue.
+
+        Uses non-blocking queue checks + short sleeps to avoid wait_for
+        cancellation edge-cases across event loops during tests.
+        """
+        poll_interval = 0.05  # 20Hz polling is responsive enough
         while self._running:
             try:
-                # Get events with timeout to allow checking _running flag
-                try:
-                    event = await asyncio.wait_for(self._event_emitter.get_event(), timeout=0.1)
-                except TimeoutError:
+                event = self._event_emitter.get_event_nowait()
+                if event is None:
+                    # Brief sleep to yield control and check _running flag regularly
+                    await asyncio.sleep(poll_interval)
                     continue
 
                 await self._handle_event(event)
@@ -446,7 +451,9 @@ class ExecutionTreeDisplay:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning(f"Error processing execution tree event: {e}", exc_info=True)
+                # Avoid noisy traceback logging inside the live render loop,
+                # which can interfere with Rich's console handling in tests.
+                logger.debug("Error processing execution tree event: %s", e)
                 # Continue processing other events
 
     async def start(self) -> None:

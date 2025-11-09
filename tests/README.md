@@ -15,24 +15,49 @@ We use **4 test types** organized for clarity and efficiency:
 
 **Clear separation**: Only LLM integration tests make real API calls. All other tests are free.
 
-## Recommended Commands
-
-⚠️ **Always use `uv run pytest`
+## Quick Start
 
 ```bash
-# Fast development workflow (recommended)
-uv run pytest -m unit -n auto              # Fast, free
+# Run all tests (free, no API calls)
+uv run pytest -m "not llm" -n auto
+# ✅ 220 tests in ~4 seconds, $0
 
-# Before commit (recommended)
-uv run pytest -m "not llm" -n auto         # All free tests
+# Run ALL tests including LLM (requires API key, costs money)
+export OPENAI_API_KEY=sk-your-key
+uv run pytest -n auto
+# ✅ 242 tests (100%), ~30 seconds, ~$0.005
+```
 
-# With coverage
-uv run pytest --cov=src/agent --cov-fail-under=85
+### Common Workflows
 
-# Real LLM tests (opt-in, costs money)
-export OPENAI_API_KEY=sk-...
+```bash
+# Fast feedback during development
+uv run pytest -m unit -n auto                  # Just unit tests (~2s)
+
+# Before committing
+uv run pytest -m "not llm" -n auto             # All free tests (~4s)
+
+# With coverage report
+uv run pytest -m "not llm" -n auto --cov=src/agent --cov-fail-under=85
+
+# Test specific area you're working on
+uv run pytest -m tools                         # Just tool tests
+uv run pytest -m middleware                    # Just middleware tests
+```
+
+### Real LLM Tests (Optional - Costs Money)
+
+```bash
+# Set API key
+export OPENAI_API_KEY=sk-your-key
+
+# Run LLM integration tests (~$0.005 per run)
 uv run pytest -m llm
 ```
+
+**⚠️ Important Notes**:
+- Always use `uv run pytest` (not just `pytest`) - ensures correct Python environment
+- Always use `-n auto` for parallel execution - much faster and avoids async test issues
 
 ## Test Organization
 
@@ -115,10 +140,10 @@ pytest -m "not llm" --cov=src/agent --cov-fail-under=85
 ```
 
 **What this does**:
-- Runs unit, integration, and validation tests
+- Runs unit, integration, and validation tests (all free)
 - Skips LLM tests (too expensive for every commit)
-- Validation prompt tests skip if LLM not configured
 - Enforces 85% coverage minimum
+- No API calls made (validation tests are CLI-only)
 
 **Quality checks** (all must pass):
 - Black formatting

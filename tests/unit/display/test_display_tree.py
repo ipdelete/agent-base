@@ -151,13 +151,29 @@ class TestExecutionTreeDisplay:
     """Tests for ExecutionTreeDisplay class."""
 
     @pytest.fixture(autouse=True)
-    def reset_emitter(self):
+    async def reset_emitter(self):
         """Reset event emitter before each test."""
         emitter = get_event_emitter()
         emitter.clear()
         emitter.enable()
+
+        # Cancel any lingering tasks
+        import asyncio
+        tasks = [t for t in asyncio.all_tasks() if not t.done()]
+
         yield
+
+        # Cleanup after test
         emitter.clear()
+
+        # Cancel any tasks created during test
+        for task in asyncio.all_tasks():
+            if not task.done() and task != asyncio.current_task():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
     def test_execution_tree_display_initialization(self):
         """Test ExecutionTreeDisplay initializes correctly."""
@@ -333,27 +349,33 @@ class TestExecutionTreeDisplay:
         """Test start() initializes display state."""
         display = ExecutionTreeDisplay()
 
-        await display.start()
+        try:
+            await display.start()
 
-        assert display._running is True
-        assert display._live is not None
-        assert display._task is not None
-        assert display._phases == []
-
-        # Cleanup
-        await display.stop()
+            assert display._running is True
+            assert display._live is not None
+            assert display._task is not None
+            assert display._phases == []
+        finally:
+            # Ensure cleanup even if assertions fail
+            await display.stop()
 
     @pytest.mark.asyncio
     async def test_stop_cleans_up_display(self):
         """Test stop() cleans up display resources."""
         display = ExecutionTreeDisplay()
 
-        await display.start()
-        await display.stop()
+        try:
+            await display.start()
+            await display.stop()
 
-        assert display._running is False
-        # Task should be cancelled
-        assert display._task is not None
+            assert display._running is False
+            # Task should be cancelled
+            assert display._task is not None
+        finally:
+            # Extra safety: ensure stopped even if test fails
+            if display._running:
+                await display.stop()
 
     @pytest.mark.asyncio
     async def test_async_context_manager(self):
@@ -375,21 +397,24 @@ class TestExecutionTreeDisplay:
         set_execution_context(ctx)
 
         display = ExecutionTreeDisplay()
-        await display.start()
 
-        # Emit events
-        emitter = get_event_emitter()
-        llm_event = LLMRequestEvent(message_count=5)
-        emitter.emit(llm_event)
+        try:
+            await display.start()
 
-        # Give time for event processing
-        await asyncio.sleep(0.2)
+            # Emit events
+            emitter = get_event_emitter()
+            llm_event = LLMRequestEvent(message_count=5)
+            emitter.emit(llm_event)
 
-        # Check event was processed
-        assert len(display._phases) == 1
-        assert display._current_phase is not None
+            # Give time for event processing
+            await asyncio.sleep(0.2)
 
-        await display.stop()
+            # Check event was processed
+            assert len(display._phases) == 1
+            assert display._current_phase is not None
+        finally:
+            # Ensure cleanup even if assertions fail
+            await display.stop()
 
     @pytest.mark.asyncio
     async def test_display_with_minimal_mode(self):

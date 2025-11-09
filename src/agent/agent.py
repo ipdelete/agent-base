@@ -229,9 +229,18 @@ Be helpful, concise, and clear in your responses."""
             >>> response = await agent.run("Hello", thread=thread)
         """
         if thread:
-            return cast(str, await self.agent.run(prompt, thread=thread))
+            result = await self.agent.run(prompt, thread=thread)
         else:
-            return cast(str, await self.agent.run(prompt))
+            result = await self.agent.run(prompt)
+
+        # Handle different provider return types
+        # OpenAI returns str, Anthropic returns AgentRunResponse with .text
+        if isinstance(result, str):
+            return result
+        elif hasattr(result, "text"):
+            return result.text
+        else:
+            return cast(str, result)
 
     async def run_stream(self, prompt: str, thread: Any | None = None) -> AsyncIterator[str]:
         """Run agent with streaming response.
@@ -255,8 +264,16 @@ Be helpful, concise, and clear in your responses."""
             ...     print(chunk, end="")
         """
         if thread:
-            async for chunk in self.agent.run_stream(prompt, thread=thread):
-                yield chunk
+            stream = self.agent.run_stream(prompt, thread=thread)
         else:
-            async for chunk in self.agent.run_stream(prompt):
+            stream = self.agent.run_stream(prompt)
+
+        async for chunk in stream:
+            # Handle different provider chunk types
+            # OpenAI returns str, Anthropic returns AgentRunResponseUpdate with .text
+            if isinstance(chunk, str):
                 yield chunk
+            elif hasattr(chunk, "text"):
+                yield chunk.text
+            else:
+                yield str(chunk)

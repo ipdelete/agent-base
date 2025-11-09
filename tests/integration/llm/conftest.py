@@ -35,7 +35,8 @@ def openai_agent():
     config = AgentConfig(
         llm_provider="openai",
         openai_api_key=os.getenv("OPENAI_API_KEY"),
-        openai_model="gpt-4o-mini",  # Cheaper model for testing
+        # Use env var if set, otherwise use same default as main config
+        openai_model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
     )
 
     return Agent(config=config)
@@ -59,7 +60,8 @@ def anthropic_agent():
     config = AgentConfig(
         llm_provider="anthropic",
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-        anthropic_model="claude-sonnet-4-5-20250929",  # Latest Sonnet model
+        # Use env var if set, otherwise use same default as main config
+        anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
     )
 
     return Agent(config=config)
@@ -83,10 +85,11 @@ def azure_openai_agent():
     config = AgentConfig(
         llm_provider="azure",
         azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        azure_openai_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
-        azure_openai_api_version=os.getenv(
-            "AZURE_OPENAI_API_VERSION", "2024-10-01-preview"
-        ),
+        # Support both naming conventions
+        azure_openai_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT")
+            or os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-codex"),
+        azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+            or os.getenv("AZURE_OPENAI_VERSION", "2025-03-01-preview"),
     )
 
     return Agent(config=config)
@@ -97,6 +100,9 @@ def azure_ai_foundry_agent():
     """Create agent with real Azure AI Foundry client.
 
     Automatically skips if Azure AI Foundry credentials are not set.
+
+    Note: Requires full project endpoint like:
+    https://<workspace>.services.ai.azure.com/api/projects/<project-id>
 
     Example:
         @pytest.mark.llm
