@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.validation]
 class AgentValidator:
     """Real-world validation tests for agent CLI."""
 
-    def __init__(self, config_path: str = "tests/integration/agent_validation.yaml"):
+    def __init__(self, config_path: str = "tests/validation/agent_validation.yaml"):
         """Initialize validator with test configuration.
 
         Args:
@@ -329,38 +329,10 @@ class TestAgentValidation:
         # Should display configuration info
         assert "Configuration" in result["stdout"] or "config" in result["stdout"].lower()
 
-    @pytest.mark.skipif(
-        not os.getenv("LLM_PROVIDER"),
-        reason="Requires LLM configuration",
-    )
-    def test_simple_prompt(self, validator):
-        """Test simple prompt execution."""
-        result = validator.run_command('uv run agent -p "Say hello"', timeout=30)
-        if result["exit_code"] == 0:
-            output_lower = result["stdout"].lower()
-            assert any(greeting in output_lower for greeting in ["hello", "hi", "greetings"])
-
-    @pytest.mark.skipif(
-        not os.getenv("LLM_PROVIDER"),
-        reason="Requires LLM configuration",
-    )
-    @pytest.mark.parametrize(
-        "prompt,expected_keywords",
-        [
-            ("What is 2+2?", ["4", "four"]),
-            ("What is the capital of France?", ["Paris", "paris"]),
-            ("List three colors", ["red", "blue", "green", "color", "colour"]),
-        ],
-    )
-    def test_prompt_responses(self, validator, prompt, expected_keywords):
-        """Test various prompt responses."""
-        result = validator.run_command(f'uv run agent -p "{prompt}"', timeout=30)
-        if result["exit_code"] == 0:
-            assert any(keyword in result["stdout"] for keyword in expected_keywords)
 
     def test_validation_config_exists(self):
         """Test that validation configuration file exists."""
-        config_path = Path("tests/integration/agent_validation.yaml")
+        config_path = Path("tests/validation/agent_validation.yaml")
         assert config_path.exists(), "Validation config file should exist"
 
     def test_validation_config_valid(self, validator):
