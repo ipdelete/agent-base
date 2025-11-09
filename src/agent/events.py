@@ -1,13 +1,31 @@
-"""Event bus for loose coupling between agent components.
+"""Event systems for agent execution transparency.
 
-This module provides an event bus implementation using the observer pattern.
-It allows middleware to emit events that display components can listen to,
-without creating direct dependencies between them.
+This module provides two event implementations:
+
+1. **EventEmitter** (PRIMARY - from display.events):
+   - Task-safe using asyncio.Queue
+   - Used for runtime execution visualization
+   - Preferred for new code
+
+2. **EventBus** (LEGACY - maintained for backward compatibility):
+   - Simple observer pattern
+   - Used in tests and documentation
+   - Consider using EventEmitter for new implementations
+
+Recommended Usage:
+    >>> from agent.events import get_event_emitter  # Primary API
+    >>> emitter = get_event_emitter()
+    >>> emitter.emit(LLMRequestEvent())
+
+Legacy Usage (maintained for tests):
+    >>> from agent.events import Event, EventType, get_event_bus
+    >>> bus = get_event_bus()
+    >>> bus.subscribe(my_listener)
 """
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 from uuid import uuid4
 
 
@@ -87,9 +105,10 @@ class EventBus:
         Received: EventType.TOOL_START
     """
 
-    _instance = None
+    _instance: ClassVar["EventBus | None"] = None
+    _listeners: list[EventListener]
 
-    def __new__(cls):
+    def __new__(cls) -> "EventBus":
         """Create or return the singleton instance."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -179,3 +198,55 @@ def get_event_emitter() -> EventBus:
         >>> emitter.emit(event)
     """
     return get_event_bus()
+
+
+# ============================================================================
+# Re-exports from display.events (Primary API)
+# ============================================================================
+# These re-exports provide convenient access to the task-safe EventEmitter
+# implementation which is the recommended approach for new code.
+
+try:
+    from agent.display.events import (
+        EventEmitter,
+        ExecutionEvent,
+        LLMRequestEvent,
+        LLMResponseEvent,
+        ToolCompleteEvent,
+        ToolErrorEvent,
+        ToolStartEvent,
+        get_current_tool_event_id,
+        get_event_emitter as get_display_event_emitter,
+        set_current_tool_event_id,
+    )
+
+    __all__ = [
+        # Legacy EventBus API (backward compatibility)
+        "Event",
+        "EventType",
+        "EventListener",
+        "EventBus",
+        "get_event_bus",
+        "get_event_emitter",
+        # Primary EventEmitter API (recommended)
+        "EventEmitter",
+        "ExecutionEvent",
+        "LLMRequestEvent",
+        "LLMResponseEvent",
+        "ToolStartEvent",
+        "ToolCompleteEvent",
+        "ToolErrorEvent",
+        "get_display_event_emitter",
+        "get_current_tool_event_id",
+        "set_current_tool_event_id",
+    ]
+except ImportError:
+    # Handle circular import during initialization
+    __all__ = [
+        "Event",
+        "EventType",
+        "EventListener",
+        "EventBus",
+        "get_event_bus",
+        "get_event_emitter",
+    ]

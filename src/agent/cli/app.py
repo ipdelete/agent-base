@@ -1,8 +1,11 @@
 """CLI entry point for Agent."""
 
 import asyncio
+import logging
+import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import typer
 from prompt_toolkit import PromptSession
@@ -28,6 +31,7 @@ from agent.cli.session import (
     auto_save_session,
     get_last_session,
     restore_session_context,
+    setup_session_logging,
     track_conversation,
 )
 from agent.config import AgentConfig
@@ -103,7 +107,7 @@ def main(
     ),
     quiet: bool = typer.Option(False, "--quiet", help="Minimal output mode"),
     resume: bool = typer.Option(False, "--continue", help="Resume last saved session"),
-):
+) -> None:
     """Agent - Generic chatbot agent with extensible tools.
 
     Examples:
@@ -155,7 +159,7 @@ def main(
         asyncio.run(run_chat_mode(quiet=quiet, verbose=verbose, resume_session=resume_session))
 
 
-def run_health_check():
+def run_health_check() -> None:
     """Run health check for dependencies and configuration."""
     console.print("\n[bold]Agent Health Check[/bold]\n")
 
@@ -181,7 +185,7 @@ def run_health_check():
         raise typer.Exit(ExitCodes.GENERAL_ERROR)
 
 
-def show_configuration():
+def show_configuration() -> None:
     """Show current configuration."""
     console.print("\n[bold]Agent Configuration[/bold]\n")
 
@@ -218,7 +222,7 @@ def show_configuration():
         raise typer.Exit(ExitCodes.GENERAL_ERROR)
 
 
-async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = False):
+async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = False) -> None:
     """Run single prompt and display response.
 
     Args:
@@ -229,6 +233,11 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
     try:
         config = AgentConfig.from_env()
         config.validate()
+
+        # Setup session-specific logging (follows copilot pattern: ~/.agent/logs/session-{timestamp}.log)
+        from datetime import datetime
+        session_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        setup_session_logging(session_name, config)
 
         agent = Agent(config=config)
 
@@ -283,6 +292,14 @@ async def run_chat_mode(
         config = AgentConfig.from_env()
         config.validate()
 
+        # Generate session name for this session (used for both logging and saving)
+        from datetime import datetime
+        session_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+
+        # Setup session-specific logging (follows copilot pattern: ~/.agent/logs/session-{name}.log)
+        # Logs go to file, not console, to keep output clean
+        setup_session_logging(session_name, config)
+
         # Show startup banner
         if not quiet:
             _render_startup_banner(config)
@@ -299,6 +316,9 @@ async def run_chat_mode(
         conversation_messages: list[dict] = []  # Track messages for providers without thread support
 
         if resume_session:
+            # When resuming, use the resumed session name for logging
+            setup_session_logging(resume_session, config)
+            session_name = resume_session
             thread, _, message_count = await restore_session_context(
                 agent, persistence, resume_session, console, quiet
             )
@@ -312,7 +332,8 @@ async def run_chat_mode(
         key_bindings = keybinding_manager.create_keybindings()
 
         # Setup prompt session with history
-        history_file = config.agent_data_dir / ".agent_history"
+        data_dir = config.agent_data_dir or Path.home() / ".agent"
+        history_file = data_dir / ".agent_history"
 
         session: PromptSession = PromptSession(
             history=FileHistory(str(history_file)),
@@ -343,23 +364,23 @@ async def run_chat_mode(
                 # Handle special commands
                 cmd = user_input.strip().lower()
 
+                # Check for exit first (needs special handling to break loop)
                 if cmd in Commands.EXIT:
                     # Auto-save session before exit
                     await auto_save_session(
-                        persistence, thread, message_count, quiet, conversation_messages, console
+                        persistence, thread, message_count, quiet, conversation_messages, console, session_name
                     )
                     console.print("\n[dim]Goodbye![/dim]")
                     break
 
+                # Dispatch other commands - cleaner than if/elif chain
                 if cmd in Commands.HELP:
                     show_help(console)
                     continue
-
-                if cmd in Commands.CLEAR:
+                elif cmd in Commands.CLEAR:
                     thread, message_count = await handle_clear_command(agent, console)
                     continue
-
-                if cmd in Commands.CONTINUE:
+                elif cmd in Commands.CONTINUE:
                     result_thread, result_count = await handle_continue_command(
                         agent, persistence, session, console
                     )
@@ -367,8 +388,7 @@ async def run_chat_mode(
                         thread = result_thread
                         message_count = result_count
                     continue
-
-                if cmd in Commands.PURGE:
+                elif cmd in Commands.PURGE:
                     await handle_purge_command(persistence, session, console)
                     continue
 
@@ -393,7 +413,7 @@ async def run_chat_mode(
             except EOFError:
                 # Ctrl+D - exit gracefully
                 await auto_save_session(
-                    persistence, thread, message_count, quiet, conversation_messages, console
+                    persistence, thread, message_count, quiet, conversation_messages, console, session_name
                 )
                 console.print("\n[dim]Goodbye![/dim]")
                 break
@@ -407,7 +427,14 @@ async def run_chat_mode(
         raise typer.Exit(ExitCodes.GENERAL_ERROR)
 
 
-async def _execute_agent_query(agent, user_input, thread, quiet, verbose, console):
+async def _execute_agent_query(
+    agent: Agent,
+    user_input: str,
+    thread: Any,
+    quiet: bool,
+    verbose: bool,
+    console: Console,
+) -> str:
     """Execute agent query with appropriate visualization.
 
     Args:

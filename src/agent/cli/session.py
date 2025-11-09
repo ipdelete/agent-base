@@ -1,5 +1,7 @@
 """Session management helpers for CLI."""
 
+import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -8,7 +10,61 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 
 from agent.agent import Agent
+from agent.config import AgentConfig
 from agent.persistence import ThreadPersistence
+
+
+def setup_session_logging(session_name: str | None = None, config: AgentConfig | None = None) -> str:
+    """Setup session-specific logging to file (not console).
+
+    Follows copilot pattern: ~/.agent/logs/session-{name}.log
+
+    Args:
+        session_name: Session identifier (timestamp or custom name)
+        config: Agent configuration (optional, will load if not provided)
+
+    Returns:
+        Path to log file as string
+
+    Example:
+        >>> setup_session_logging("2025-11-09-13-16-20")
+        '/Users/user/.agent/logs/session-2025-11-09-13-16-20.log'
+    """
+    # Load config if not provided
+    if config is None:
+        config = AgentConfig.from_env()
+
+    # Create logs directory
+    log_dir = config.agent_data_dir or Path.home() / ".agent"
+    log_dir = log_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate session name if not provided
+    if session_name is None:
+        session_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+
+    # Create log file path (follow copilot pattern: session-{name}.log)
+    log_file = log_dir / f"session-{session_name}.log"
+
+    # Configure logging
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    numeric_level = getattr(logging, log_level, logging.INFO)
+
+    # Clear any existing handlers to avoid duplicates
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Setup file handler (not stdout/stderr)
+    logging.basicConfig(
+        level=numeric_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        filename=str(log_file),
+        filemode="a",  # Append mode
+        force=True,  # Reconfigure if already configured
+    )
+
+    return str(log_file)
 
 
 async def auto_save_session(
@@ -18,6 +74,7 @@ async def auto_save_session(
     quiet: bool,
     messages: list[dict] | None = None,
     console: Console | None = None,
+    session_name: str | None = None,
 ) -> None:
     """Auto-save session on exit if it has messages.
 
@@ -28,12 +85,14 @@ async def auto_save_session(
         quiet: Whether to suppress output
         messages: Optional list of tracked messages for providers without thread support
         console: Console for output (optional)
+        session_name: Optional session name (if not provided, generates timestamp)
     """
     if message_count > 0:
         try:
-            # Generate auto-save name with timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-            session_name = timestamp
+            # Use provided session name or generate one with timestamp
+            if session_name is None:
+                timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+                session_name = timestamp
 
             await persistence.save_thread(
                 thread,

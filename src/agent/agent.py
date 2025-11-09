@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, cast
 
 from agent.config import AgentConfig
 from agent.tools.hello import HelloTools
@@ -135,6 +135,8 @@ class Agent:
                     api_key=self.config.azure_openai_api_key,
                 )
             else:
+                # Try AzureCliCredential first, fall back to DefaultAzureCredential
+                credential: AzureCliCredential | DefaultAzureCredential
                 try:
                     credential = AzureCliCredential()
                     return client_class(
@@ -153,12 +155,12 @@ class Agent:
                     )
         elif self.config.llm_provider == "azure_ai_foundry":
             from agent_framework.azure import AzureAIAgentClient
-            from azure.identity.aio import AzureCliCredential
+            from azure.identity.aio import AzureCliCredential as AsyncAzureCliCredential
 
             return AzureAIAgentClient(
                 project_endpoint=self.config.azure_project_endpoint,
                 model_deployment_name=self.config.azure_model_deployment,
-                async_credential=AzureCliCredential(),
+                async_credential=AsyncAzureCliCredential(),
             )
         else:
             raise ValueError(
@@ -227,9 +229,9 @@ Be helpful, concise, and clear in your responses."""
             >>> response = await agent.run("Hello", thread=thread)
         """
         if thread:
-            return await self.agent.run(prompt, thread=thread)
+            return cast(str, await self.agent.run(prompt, thread=thread))
         else:
-            return await self.agent.run(prompt)
+            return cast(str, await self.agent.run(prompt))
 
     async def run_stream(self, prompt: str, thread: Any | None = None) -> AsyncIterator[str]:
         """Run agent with streaming response.

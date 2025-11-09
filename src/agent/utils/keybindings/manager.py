@@ -4,6 +4,8 @@ Provides centralized registry for keybinding handlers.
 Adapted from butler-agent for agent-template.
 """
 
+from typing import Any, Callable
+
 from prompt_toolkit.key_binding import KeyBindings
 
 from agent.utils.keybindings.handler import KeybindingHandler
@@ -19,7 +21,7 @@ class KeybindingManager:
         >>> session = PromptSession(key_bindings=key_bindings)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize keybinding manager."""
         self._handlers: list[KeybindingHandler] = []
 
@@ -48,9 +50,9 @@ class KeybindingManager:
 
         for handler in self._handlers:
             # Create closure to capture handler (prevents late-binding issues)
-            def make_handler(h: KeybindingHandler):
+            def make_handler(h: KeybindingHandler) -> Callable[[Any], None]:
                 @kb.add(h.trigger_key)
-                def _(event):
+                def _(event: Any) -> None:
                     h.handle(event)
 
                 return _

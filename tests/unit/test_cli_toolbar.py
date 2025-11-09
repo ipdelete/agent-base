@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from agent.cli import _get_status_bar_text
+from agent.cli.app import _get_status_bar_text
 from agent.config import AgentConfig
 
 

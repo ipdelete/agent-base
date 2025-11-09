@@ -10,6 +10,8 @@ Adapted from butler-agent for agent-template.
 import asyncio
 import logging
 from datetime import datetime
+from types import TracebackType
+from typing import Type
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -533,7 +535,12 @@ class ExecutionTreeDisplay:
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Async context manager exit.
 
         Args:

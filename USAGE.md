@@ -461,7 +461,7 @@ LOG_LEVEL=debug agent -p "your prompt"
 1. **Fast queries**: Use `-p` for quick one-off questions
 2. **Save context**: Use interactive mode for multi-turn conversations
 3. **Shell integration**: Use `!` prefix for quick system checks
-4. **Session management**: Name important sessions with `/save <name>`
+4. **Session management**: Sessions auto-save on exit; resume with `agent --continue`
 5. **Verbose debugging**: Use `--verbose` to see tool execution flow
 6. **Multiple providers**: Test with different LLM providers for comparison
 

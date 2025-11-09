@@ -1,5 +1,7 @@
 """Display helpers for CLI."""
 
+import asyncio
+import signal
 from typing import Any
 
 from rich.console import Console
@@ -34,7 +36,7 @@ async def execute_with_visualization(
     console: Console,
     display_mode: DisplayMode,
 ) -> str:
-    """Execute agent with display visualization.
+    """Execute agent with display visualization (cancellable with Ctrl+C or ESC).
 
     Args:
         agent: Agent instance
@@ -47,7 +49,8 @@ async def execute_with_visualization(
         Agent response
 
     Raises:
-        KeyboardInterrupt: If user interrupts execution
+        KeyboardInterrupt: If user interrupts execution (Ctrl+C)
+        asyncio.CancelledError: If task is cancelled (ESC or Ctrl+C)
     """
     execution_display = ExecutionTreeDisplay(
         console=console,
@@ -58,18 +61,22 @@ async def execute_with_visualization(
     await execution_display.start()
 
     try:
-        # Run agent (non-streaming for better visualization)
-        response = await agent.run(prompt, thread=thread)
+        # Run agent as a cancellable task (allows interruption)
+        task = asyncio.create_task(agent.run(prompt, thread=thread))
+
+        # Wait for completion (can be cancelled by signal handler)
+        response = await task
 
         # Stop display (shows completion summary)
         await execution_display.stop()
 
         return response
 
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
         # User interrupted - stop display cleanly
         await execution_display.stop()
-        raise
+        # Re-raise as KeyboardInterrupt for consistent handling
+        raise KeyboardInterrupt()
 
 
 async def execute_quiet_mode(agent: Agent, prompt: str, thread: Any | None) -> str:

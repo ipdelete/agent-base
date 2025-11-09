@@ -122,11 +122,17 @@ async def test_middleware_config_integration(agent_with_middleware: Agent):
     """Test that agent is created with middleware configuration."""
     # Verify agent has middleware
     assert hasattr(agent_with_middleware, "middleware"), "Agent should have middleware"
-    assert isinstance(agent_with_middleware.middleware, dict), "Middleware should be dict"
+    assert isinstance(agent_with_middleware.middleware, list), "Middleware should be list"
 
-    # Verify middleware has expected keys
-    assert "agent" in agent_with_middleware.middleware, "Should have agent middleware"
-    assert "function" in agent_with_middleware.middleware, "Should have function middleware"
+    # Verify middleware contains expected functions
+    # Framework auto-categorizes by signature, so we store as list
+    assert len(agent_with_middleware.middleware) > 0, "Should have middleware functions"
+
+    # Verify we have both agent and function level middleware
+    # (agent-level takes AgentRunContext, function-level takes FunctionInvocationContext)
+    middleware_names = [m.__name__ for m in agent_with_middleware.middleware]
+    assert any("agent" in name for name in middleware_names), "Should have agent middleware"
+    assert any("function" in name for name in middleware_names), "Should have function middleware"
 
 
 @pytest.mark.asyncio
