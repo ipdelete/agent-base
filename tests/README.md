@@ -2,45 +2,61 @@
 
 Comprehensive guide to testing in agent-template.
 
+## ⚠️ Important: Always Use `uv run`
+
+**All pytest commands must be prefixed with `uv run`** to use the project's virtual environment:
+
+```bash
+✅ CORRECT:   uv run pytest -m unit
+❌ INCORRECT: pytest -m unit  # Will fail with "ModuleNotFoundError: No module named 'agent'"
+```
+
+This ensures pytest uses the correct Python environment with the `agent` package installed.
+
+**💡 Tip: Use `-n auto` for parallel execution** (much faster):
+```bash
+uv run pytest -m unit -n auto  # Uses all CPU cores, ~3-5x faster
+```
+
 ## Quick Reference
 
 ```bash
 # Run all tests (excludes LLM by default)
-pytest
+uv run pytest
 
 # Run by test type
-pytest -m unit              # Unit tests (fast, isolated) - 199 tests
-pytest -m integration       # Integration tests (mocked LLM) - 25 tests
-pytest -m validation        # CLI validation (subprocess) - 11 tests
-pytest -m llm              # Real LLM tests (⚠️ costs money) - 22 tests
+uv run pytest -m unit              # Unit tests (fast, isolated) - 199 tests
+uv run pytest -m integration       # Integration tests (mocked LLM) - 25 tests
+uv run pytest -m validation        # CLI validation (subprocess) - 11 tests
+uv run pytest -m llm              # Real LLM tests (⚠️ costs money) - 22 tests
 
 # Run tests for specific feature area
-pytest -m tools            # Tool tests
-pytest -m display          # Display tests
-pytest -m middleware       # Middleware tests
-pytest -m cli              # CLI tests
+uv run pytest -m tools            # Tool tests
+uv run pytest -m display          # Display tests
+uv run pytest -m middleware       # Middleware tests
+uv run pytest -m cli              # CLI tests
 
 # Run validation tests via subprocess
-pytest -m validation       # Via pytest
-python tests/validation/run_validation.py  # Standalone runner with YAML
+uv run pytest -m validation       # Via pytest
+uv run python tests/validation/run_validation.py  # Standalone runner with YAML
 
 # Run LLM tests (requires API keys, costs ~$0.005)
 export OPENAI_API_KEY=your-key
-pytest -m llm
+uv run pytest -m llm
 
 # Speed-based selection
-pytest -m fast             # Fast tests only
-pytest -m "not slow"       # Exclude slow tests
+uv run pytest -m fast             # Fast tests only
+uv run pytest -m "not slow"       # Exclude slow tests
 
 # Combined markers
-pytest -m "unit and tools"          # Unit tests for tools only
-pytest -m "integration and not llm" # Integration without real LLM
+uv run pytest -m "unit and tools"          # Unit tests for tools only
+uv run pytest -m "integration and not llm" # Integration without real LLM
 
 # Run tests in parallel (faster)
-pytest -n auto
+uv run pytest -n auto
 
 # Run with coverage
-pytest --cov=src/agent --cov-report=term-missing
+uv run pytest --cov=src/agent --cov-report=term-missing
 ```
 
 ## Test Type Summary
@@ -49,9 +65,11 @@ pytest --cov=src/agent --cov-report=term-missing
 |------|-------|-------|-----------|---------|
 | **Unit** | 199 | Fast (~5s) | No | Test code logic in isolation |
 | **Integration** | 25 | Moderate (~10s) | No (mocked) | Test components together |
-| **Validation** | 11 | Moderate (~5s) | Optional | Test CLI via subprocess |
+| **Validation** | 11 | Moderate (~5s) | **Some** (⚠️ 7/11 cost $) | Test CLI via subprocess |
 | **LLM Integration** | 22 | Slow (~30s) | Yes (⚠️ costs $) | Test with real LLMs |
 | **Total** | 246 | ~50s (no LLM) | Varies | Complete coverage |
+
+**Note on Validation Tests**: 4 tests are free (--help, --version, --check, --config), but 7 tests execute prompts via subprocess and will make real LLM API calls if `LLM_PROVIDER` is configured. They automatically skip if no LLM is configured.
 
 ## Test Organization
 
@@ -218,7 +236,10 @@ Validation tests execute the actual CLI as a subprocess (like a user would) and 
 - Tests via `subprocess.run("uv run agent ...")`
 - Real process execution (not Python imports)
 - YAML-based test configuration
-- Can test with or without real LLM (configurable)
+- **Mixed cost**: Some tests free (CLI commands), some cost money (prompt execution)
+  - Free tests (4): `--help`, `--version`, `--check`, `--config`
+  - Paid tests (7): Tests that execute prompts (⚠️ make real LLM API calls if configured)
+  - Paid tests automatically skip if `LLM_PROVIDER` not set
 
 **When to use**:
 - Testing CLI commands (`--help`, `--version`, `--check`, `--config`)
@@ -281,9 +302,11 @@ pytest tests/validation/test_agent_validation.py -v
 |--------|-----------|------------------|-----------------|
 | **Execution** | `subprocess.run()` | Python `import` | Python `import` |
 | **Tests** | CLI process | Code logic | AI behavior |
-| **API Calls** | Optional (can mock) | No (mocked) | Yes (real) |
+| **API Calls** | **Mixed** (4 free, 7 paid*) | No (mocked) | Yes (real) |
 | **Speed** | Moderate | Fast | Slow |
 | **Verifies** | User experience | Code correctness | AI integration |
+
+\* Validation tests that execute prompts make real LLM API calls if `LLM_PROVIDER` is configured. They skip automatically if not configured.
 
 **Example Comparison**:
 

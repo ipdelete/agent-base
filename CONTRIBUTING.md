@@ -389,22 +389,24 @@ Display code is in `src/agent/cli.py` and `src/agent/display/`:
 
 ### Quick Start
 
+⚠️ **Always use `uv run pytest`** (not just `pytest`) to use the project's virtual environment.
+
 ```bash
 # Run all tests (excludes real LLM tests)
-pytest
+uv run pytest
 
 # Run unit tests only (fast)
-pytest -m unit
+uv run pytest -m unit
 
 # Run tests for specific feature area
-pytest -m tools          # Tool tests
-pytest -m middleware     # Middleware tests
+uv run pytest -m tools          # Tool tests
+uv run pytest -m middleware     # Middleware tests
 
 # Run with coverage
-pytest --cov=src/agent --cov-fail-under=85
+uv run pytest --cov=src/agent --cov-fail-under=85
 
 # Run in parallel (faster)
-pytest -n auto
+uv run pytest -n auto
 ```
 
 ### Test Organization
