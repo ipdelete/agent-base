@@ -48,8 +48,14 @@ These tests complement mocked tests by verifying real-world behavior.
 # Set API keys for providers you want to test
 export OPENAI_API_KEY=sk-your-key-here
 export ANTHROPIC_API_KEY=sk-ant-your-key-here
-export AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com
-export AZURE_OPENAI_DEPLOYMENT=gpt-4o
+
+# Azure OpenAI
+export AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+export AZURE_OPENAI_DEPLOYMENT=gpt-5-codex
+
+# Azure AI Foundry
+export AZURE_PROJECT_ENDPOINT=https://your-account.services.ai.azure.com/api/projects/your-project
+export AZURE_MODEL_DEPLOYMENT=gpt-4o
 ```
 
 ### Run Tests

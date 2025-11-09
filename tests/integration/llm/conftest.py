@@ -102,7 +102,11 @@ def azure_ai_foundry_agent():
     Automatically skips if Azure AI Foundry credentials are not set.
 
     Note: Requires full project endpoint like:
-    https://<workspace>.services.ai.azure.com/api/projects/<project-id>
+    https://<account-name>.services.ai.azure.com/api/projects/<project-name>
+
+    Example:
+    export AZURE_PROJECT_ENDPOINT=https://dasch-m8kjif04-eastus2.services.ai.azure.com/api/projects/spi-agent
+    export AZURE_MODEL_DEPLOYMENT=gpt-4o
 
     Example:
         @pytest.mark.llm
