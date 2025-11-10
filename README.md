@@ -113,7 +113,7 @@ AGENT_DATA_DIR=~/.agent              # Session storage location
 LOG_LEVEL=info                       # Logging verbosity
 ```
 
-See [.env.example](.env.example) for all available configuration options.
+See [.env.example](.env.example) for all available configuration options, including custom system prompt support via `AGENT_SYSTEM_PROMPT`.
 
 ## Extending Agent Base
 

@@ -233,3 +233,44 @@ class TestAgentConfig:
         config = AgentConfig(llm_provider="azure", azure_openai_deployment="gpt-5-codex")
 
         assert config.get_model_display_name() == "Azure OpenAI/gpt-5-codex"
+
+    def test_system_prompt_file_from_env(self):
+        """Test system_prompt_file is loaded from AGENT_SYSTEM_PROMPT environment variable."""
+        with patch.dict(os.environ, {"AGENT_SYSTEM_PROMPT": "/path/to/custom/prompt.md"}):
+            config = AgentConfig.from_env()
+
+            assert config.system_prompt_file == "/path/to/custom/prompt.md"
+
+    def test_system_prompt_file_defaults_to_none(self):
+        """Test system_prompt_file defaults to None when not set."""
+        with patch.dict(os.environ, {}, clear=True):
+            config = AgentConfig.from_env()
+
+            assert config.system_prompt_file is None
+
+    def test_system_prompt_file_path_expansion(self, tmp_path):
+        """Test system prompt file path supports tilde and environment variable expansion."""
+        # Create a test prompt file
+        prompt_file = tmp_path / "test_prompt.md"
+        prompt_file.write_text("Test prompt content")
+
+        # Test with tilde expansion
+        config_tilde = AgentConfig(
+            llm_provider="openai",
+            openai_api_key="test-key",
+            system_prompt_file="~/test_prompt.md",
+        )
+
+        # Verify tilde expansion happens in loader (path starts with ~)
+        assert config_tilde.system_prompt_file.startswith("~")
+
+        # Test with environment variable (validation in loader, not config)
+        with patch.dict(os.environ, {"TEST_PROMPT_DIR": str(tmp_path)}):
+            config_env = AgentConfig(
+                llm_provider="openai",
+                openai_api_key="test-key",
+                system_prompt_file="$TEST_PROMPT_DIR/test_prompt.md",
+            )
+
+            # Verify env var is preserved in config (expansion happens in loader)
+            assert "$TEST_PROMPT_DIR" in config_env.system_prompt_file

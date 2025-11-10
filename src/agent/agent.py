@@ -1,7 +1,11 @@
 """Core Agent class with multi-provider LLM support."""
 
 import logging
+import os
+import re
 from collections.abc import AsyncIterator
+from importlib import resources
+from pathlib import Path
 from typing import Any, cast
 
 from agent.config import AgentConfig
@@ -181,13 +185,47 @@ class Agent:
                 f"Supported: openai, anthropic, azure, foundry"
             )
 
-    def _create_agent(self) -> Any:
-        """Create agent with tools, instructions, and middleware.
+    def _load_system_prompt(self) -> str:
+        """Load system prompt with three-tier fallback and placeholder replacement.
+
+        Loading priority:
+        1. Custom file from config.system_prompt_file (if specified)
+        2. Package default from prompts/system.md
+        3. Hardcoded fallback (if file loading fails)
 
         Returns:
-            Configured agent instance ready to handle requests
+            System prompt string with placeholders replaced and YAML front matter stripped
         """
-        instructions = """You are a helpful AI assistant that can use tools to assist with various tasks.
+        prompt_content = ""
+
+        # Tier 1: Try custom file if specified
+        if self.config.system_prompt_file:
+            try:
+                # Expand environment variables and user home directory
+                expanded_path = os.path.expandvars(self.config.system_prompt_file)
+                custom_path = Path(expanded_path).expanduser()
+                prompt_content = custom_path.read_text(encoding="utf-8")
+                logger.info(f"Loaded system prompt from custom file: {self.config.system_prompt_file}")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to load custom system prompt from {self.config.system_prompt_file}: {e}. "
+                    "Falling back to default prompt."
+                )
+
+        # Tier 2: Try package default if no custom file or custom file failed
+        if not prompt_content:
+            try:
+                # Use importlib.resources for package resource loading
+                prompt_files = resources.files("agent.prompts")
+                prompt_file = prompt_files.joinpath("system.md")
+                prompt_content = prompt_file.read_text(encoding="utf-8")
+                logger.info("Loaded system prompt from package default: prompts/system.md")
+            except Exception as e:
+                logger.warning(f"Failed to load default system prompt: {e}. Using hardcoded fallback.")
+
+        # Tier 3: Hardcoded fallback
+        if not prompt_content:
+            prompt_content = """You are a helpful AI assistant that can use tools to assist with various tasks.
 
 You help users with:
 - Natural language interactions
@@ -196,6 +234,40 @@ You help users with:
 - Context-aware conversations
 
 Be helpful, concise, and clear in your responses."""
+            logger.warning("Using hardcoded fallback system prompt")
+
+        # Strip YAML front matter if present (more robust regex-based approach)
+        yaml_pattern = r'^---\s*\n.*?\n---\s*\n'
+        if re.match(yaml_pattern, prompt_content, re.DOTALL):
+            prompt_content = re.sub(yaml_pattern, '', prompt_content, flags=re.DOTALL)
+            logger.info("Stripped YAML front matter from system prompt")
+
+        # Replace placeholders with config values
+        replacements = {
+            "{{DATA_DIR}}": str(self.config.agent_data_dir) if self.config.agent_data_dir else "N/A",
+            "{{SESSION_DIR}}": str(self.config.agent_session_dir) if self.config.agent_session_dir else "N/A",
+            "{{MODEL}}": self.config.get_model_display_name(),
+            "{{PROVIDER}}": self.config.llm_provider,
+            "{{MEMORY_ENABLED}}": str(self.config.memory_enabled),
+        }
+
+        for placeholder, value in replacements.items():
+            prompt_content = prompt_content.replace(placeholder, value)
+
+        # Warn if any unresolved placeholders remain
+        unresolved = re.findall(r"\{\{[^}]+\}\}", prompt_content)
+        if unresolved:
+            logger.warning(f"Unresolved placeholders in system prompt: {', '.join(set(unresolved))}")
+
+        return prompt_content
+
+    def _create_agent(self) -> Any:
+        """Create agent with tools, instructions, and middleware.
+
+        Returns:
+            Configured agent instance ready to handle requests
+        """
+        instructions = self._load_system_prompt()
 
         # Create context providers for memory
         context_providers = []

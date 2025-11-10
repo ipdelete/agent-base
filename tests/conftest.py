@@ -10,6 +10,8 @@ discovered by pytest through this conftest.py file.
 # Import all fixtures from organized modules
 from tests.fixtures.agent import agent_instance, mock_chat_client  # noqa: F401
 from tests.fixtures.config import (  # noqa: F401
+    custom_prompt_config,
+    custom_prompt_file,
     mock_anthropic_config,
     mock_azure_foundry_config,
     mock_config,

@@ -41,7 +41,7 @@ class TestAgent:
         assert len(mock_chat_client.created_agents) == 1
         created = mock_chat_client.created_agents[0]
         assert created["name"] == "Agent"
-        assert "helpful AI assistant" in created["instructions"]
+        assert "Helpful AI assistant" in created["instructions"]
         assert len(created["tools"]) == 2
 
     def test_agent_with_custom_toolsets(self, mock_config, mock_chat_client):
@@ -109,3 +109,84 @@ class TestAgent:
     def test_agent_toolsets_is_list(self, agent_instance):
         """Test Agent.toolsets is a list."""
         assert isinstance(agent_instance.toolsets, list)
+
+
+@pytest.mark.unit
+@pytest.mark.agent
+class TestAgentSystemPrompt:
+    """Integration tests for agent creation with different prompt configurations."""
+
+    def test_agent_uses_default_prompt(self, mock_config, mock_chat_client):
+        """Test agent gets default prompt when no custom file specified."""
+        agent = Agent(config=mock_config, chat_client=mock_chat_client)
+
+        # Verify agent was created with default prompt
+        assert len(mock_chat_client.created_agents) == 1
+        created = mock_chat_client.created_agents[0]
+
+        # Should contain default prompt content
+        assert "<agent>" in created["instructions"]
+        assert "Helpful AI assistant" in created["instructions"]
+
+    def test_agent_uses_custom_prompt(self, custom_prompt_config, mock_chat_client, custom_prompt_file):
+        """Test agent gets custom prompt from file specified in config."""
+        agent = Agent(config=custom_prompt_config, chat_client=mock_chat_client)
+
+        # Verify agent was created with custom prompt
+        assert len(mock_chat_client.created_agents) == 1
+        created = mock_chat_client.created_agents[0]
+
+        # Should contain custom prompt content
+        assert "Custom Test Prompt" in created["instructions"]
+        assert "test assistant" in created["instructions"]
+
+    def test_agent_instructions_have_placeholders_replaced(self, custom_prompt_config, mock_chat_client):
+        """Test placeholders are replaced correctly in agent instructions."""
+        agent = Agent(config=custom_prompt_config, chat_client=mock_chat_client)
+
+        created = mock_chat_client.created_agents[0]
+        instructions = created["instructions"]
+
+        # Verify placeholders are replaced
+        assert "{{MODEL}}" not in instructions
+        assert "{{PROVIDER}}" not in instructions
+        assert "{{DATA_DIR}}" not in instructions
+        assert "{{MEMORY_ENABLED}}" not in instructions
+
+        # Verify actual values appear
+        assert "OpenAI/gpt-5-mini" in instructions
+        assert "openai" in instructions
+
+    def test_agent_creation_succeeds_on_prompt_load_failure(self, mock_config, mock_chat_client, caplog):
+        """Test agent creation succeeds even if prompt loading fails."""
+        # Set invalid custom prompt file
+        mock_config.system_prompt_file = "/nonexistent/prompt.md"
+
+        # Agent should still be created (using fallback)
+        agent = Agent(config=mock_config, chat_client=mock_chat_client)
+
+        assert len(mock_chat_client.created_agents) == 1
+        created = mock_chat_client.created_agents[0]
+
+        # Should have some instructions (from fallback)
+        assert len(created["instructions"]) > 0
+
+        # Should log warning
+        assert "Failed to load custom system prompt" in caplog.text
+
+    def test_multiple_agents_with_different_configs(self, mock_config, custom_prompt_config, mock_chat_client):
+        """Test multiple agents can have different prompt configurations."""
+        # Create agent with default config
+        agent1 = Agent(config=mock_config, chat_client=mock_chat_client)
+
+        # Create agent with custom config
+        agent2 = Agent(config=custom_prompt_config, chat_client=mock_chat_client)
+
+        # Verify both were created
+        assert len(mock_chat_client.created_agents) == 2
+
+        # First should have default prompt
+        assert "<agent>" in mock_chat_client.created_agents[0]["instructions"]
+
+        # Second should have custom prompt
+        assert "Custom Test Prompt" in mock_chat_client.created_agents[1]["instructions"]

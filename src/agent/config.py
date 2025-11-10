@@ -51,6 +51,9 @@ class AgentConfig:
     memory_dir: Path | None = None
     memory_history_limit: int = 20  # Max memories to inject as context
 
+    # System prompt configuration
+    system_prompt_file: str | None = None
+
     @classmethod
     def from_env(cls) -> "AgentConfig":
         """Load configuration from environment variables.
@@ -101,6 +104,9 @@ class AgentConfig:
         else:
             config.memory_dir = config.agent_data_dir / "memory"
 
+        # System prompt configuration
+        config.system_prompt_file = os.getenv("AGENT_SYSTEM_PROMPT")
+
         return config
 
     def validate(self) -> None:
@@ -148,6 +154,16 @@ class AgentConfig:
                 f"Unknown LLM provider: {self.llm_provider}. "
                 "Supported providers: openai, anthropic, azure, foundry"
             )
+
+        # Validate system prompt file if specified
+        if self.system_prompt_file:
+            # Expand environment variables and user home directory (same as loader)
+            expanded = os.path.expandvars(self.system_prompt_file)
+            prompt_path = Path(expanded).expanduser()
+            if not prompt_path.exists():
+                raise ValueError(
+                    f"System prompt file not found: {self.system_prompt_file}"
+                )
 
     def get_model_display_name(self) -> str:
         """Get display name for current model configuration.

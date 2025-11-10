@@ -1,5 +1,7 @@
 """Configuration fixtures for testing."""
 
+from pathlib import Path
+
 import pytest
 
 from agent.config import AgentConfig
@@ -39,3 +41,47 @@ def mock_azure_foundry_config():
 def mock_config(mock_openai_config):
     """Default mock configuration (OpenAI)."""
     return mock_openai_config
+
+
+@pytest.fixture
+def custom_prompt_file(tmp_path):
+    """Create a temporary custom prompt file for testing.
+
+    Yields:
+        Path to temporary prompt file with custom content and placeholders
+    """
+    prompt_content = """# Custom Test Prompt
+
+You are a test assistant.
+
+Configuration:
+- Model: {{MODEL}}
+- Provider: {{PROVIDER}}
+- Data Dir: {{DATA_DIR}}
+- Session Dir: {{SESSION_DIR}}
+- Memory: {{MEMORY_ENABLED}}
+
+Be helpful and test-friendly."""
+
+    prompt_file = tmp_path / "custom_prompt.md"
+    prompt_file.write_text(prompt_content, encoding="utf-8")
+    yield prompt_file
+
+
+@pytest.fixture
+def custom_prompt_config(custom_prompt_file):
+    """Create config with custom system prompt file.
+
+    Args:
+        custom_prompt_file: Path to custom prompt file
+
+    Returns:
+        AgentConfig with system_prompt_file set
+    """
+    config = AgentConfig(
+        llm_provider="openai",
+        openai_api_key="test-key",
+        openai_model="gpt-5-mini",
+        system_prompt_file=str(custom_prompt_file),
+    )
+    return config
