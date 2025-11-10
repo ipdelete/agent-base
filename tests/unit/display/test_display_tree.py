@@ -158,9 +158,7 @@ class TestExecutionTreeDisplay:
         emitter.enable()
 
         # Cancel any lingering tasks
-        import asyncio
-
-        [t for t in asyncio.all_tasks() if not t.done()]
+        _ = [t for t in asyncio.all_tasks() if not t.done()]
 
         yield
 
@@ -174,6 +172,7 @@ class TestExecutionTreeDisplay:
                 try:
                     await task
                 except asyncio.CancelledError:
+                    # Expected when cancelling tasks
                     pass
 
     def test_execution_tree_display_initialization(self):

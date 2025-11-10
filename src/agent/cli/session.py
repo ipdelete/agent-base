@@ -289,9 +289,7 @@ def _save_last_session(session_name: str) -> None:
             f.write(session_name)
 
     except Exception as e:
-        import logging
-
-        logging.warning(f"Failed to save last session marker: {e}")
+        logger.warning(f"Failed to save last session marker: {e}")
 
 
 def get_last_session() -> str | None:
@@ -306,8 +304,6 @@ def get_last_session() -> str | None:
             with open(last_session_file) as f:
                 return f.read().strip()
     except Exception as e:
-        import logging
-
-        logging.warning(f"Failed to read last session marker: {e}")
+        logger.warning(f"Failed to read last session marker: {e}")
 
     return None

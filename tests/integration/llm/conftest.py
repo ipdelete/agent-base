@@ -12,9 +12,6 @@ import pytest
 from agent.agent import Agent
 from agent.config import AgentConfig
 
-# Cost tracking (simple implementation)
-_test_costs = {}
-
 
 @pytest.fixture
 def openai_agent():
