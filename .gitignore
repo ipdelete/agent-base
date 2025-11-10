@@ -69,7 +69,6 @@ dmypy.json
 # Agent specific
 .local/
 .agent/
-uv.lock
 
 # Kubernetes
 kubeconfig
