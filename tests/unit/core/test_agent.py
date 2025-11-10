@@ -110,6 +110,40 @@ class TestAgent:
         """Test Agent.toolsets is a list."""
         assert isinstance(agent_instance.toolsets, list)
 
+    @pytest.mark.asyncio
+    async def test_agent_run_handles_string_response(self, agent_instance):
+        """Test agent.run handles string responses from LLM."""
+
+        # Mock agent returns a plain string (like OpenAI)
+        async def mock_run(prompt, thread=None):
+            return "Test response"
+
+        agent_instance.agent.run = mock_run
+
+        result = await agent_instance.run("test prompt")
+
+        assert result == "Test response"
+        assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_agent_run_handles_object_with_text_attribute(self, agent_instance):
+        """Test agent.run handles response objects with text attribute (like Anthropic)."""
+
+        # Mock response object with .text attribute
+        class MockResponse:
+            def __init__(self):
+                self.text = "Response from object"
+
+        async def mock_run(prompt, thread=None):
+            return MockResponse()
+
+        agent_instance.agent.run = mock_run
+
+        result = await agent_instance.run("test prompt")
+
+        assert result == "Response from object"
+        assert isinstance(result, str)
+
 
 @pytest.mark.unit
 @pytest.mark.agent

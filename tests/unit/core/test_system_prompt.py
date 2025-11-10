@@ -252,6 +252,34 @@ Model: {{MODEL}}
         assert "Test content" in prompt
         assert "OpenAI/gpt-5-mini" in prompt  # Placeholder replaced
 
+    def test_user_default_load_exception_handling(self, mock_config, tmp_path, caplog, monkeypatch):
+        """Test exception handling when loading user default system prompt fails."""
+        # Set up agent_data_dir but make file.read_text() raise an error
+        mock_config.agent_data_dir = tmp_path
+        mock_config.system_prompt_file = None  # Will try user default
+
+        # Create the file so exists() returns True
+        user_default = tmp_path / "system.md"
+        user_default.write_text("test content")
+
+        # Mock read_text to raise an exception
+        original_read_text = type(user_default).read_text
+
+        def mock_read_text(self, *args, **kwargs):
+            if "system.md" in str(self):
+                raise PermissionError("Cannot read file")
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(type(user_default), "read_text", mock_read_text)
+
+        agent = Agent(mock_config)
+        prompt = agent._load_system_prompt()
+
+        # Should eventually fall back (user default fails, then package default, then hardcoded)
+        assert prompt is not None
+        assert len(prompt) > 0
+        assert "Failed to load user default system prompt" in caplog.text
+
 
 class TestConfigValidation:
     """Test configuration validation for system prompt file."""
