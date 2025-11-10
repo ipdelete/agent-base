@@ -24,13 +24,13 @@ class TestAgentConfig:
             assert config.openai_api_key is None
 
     def test_from_env_loads_openai_config(self):
-        """Test from_env loads OpenAI configuration from environment."""
+        """Test from_env loads OpenAI configuration with AGENT_MODEL override."""
         with patch.dict(
             os.environ,
             {
                 "LLM_PROVIDER": "openai",
                 "OPENAI_API_KEY": "test-key-123",
-                "OPENAI_MODEL": "gpt-4-turbo",
+                "AGENT_MODEL": "gpt-4-turbo",
             },
             clear=True,
         ):
@@ -41,13 +41,13 @@ class TestAgentConfig:
             assert config.openai_model == "gpt-4-turbo"
 
     def test_from_env_loads_anthropic_config(self):
-        """Test from_env loads Anthropic configuration from environment."""
+        """Test from_env loads Anthropic configuration with AGENT_MODEL override."""
         with patch.dict(
             os.environ,
             {
                 "LLM_PROVIDER": "anthropic",
                 "ANTHROPIC_API_KEY": "sk-ant-test-456",
-                "ANTHROPIC_MODEL": "claude-opus-4-20250514",
+                "AGENT_MODEL": "claude-opus-4-20250514",
             },
             clear=True,
         ):

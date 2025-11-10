@@ -216,7 +216,7 @@ class Agent:
                 )
 
         # Tier 2: Try user's default custom prompt (~/.agent/system.md)
-        if not prompt_content:
+        if not prompt_content and self.config.agent_data_dir:
             try:
                 user_default_path = self.config.agent_data_dir / "system.md"
                 if user_default_path.exists():
@@ -224,7 +224,7 @@ class Agent:
                     logger.info(f"Loaded system prompt from user default: {user_default_path}")
             except Exception as e:
                 logger.warning(
-                    f"Failed to load user default system prompt from {user_default_path}: {e}. "
+                    f"Failed to load user default system prompt: {e}. "
                     "Trying next fallback."
                 )
 

@@ -172,7 +172,7 @@ class TestAgentSystemPrompt:
         assert len(created["instructions"]) > 0
 
         # Should log warning
-        assert "Failed to load custom system prompt" in caplog.text
+        assert "Failed to load system prompt from AGENT_SYSTEM_PROMPT" in caplog.text
 
     def test_multiple_agents_with_different_configs(self, mock_config, custom_prompt_config, mock_chat_client):
         """Test multiple agents can have different prompt configurations."""

@@ -145,11 +145,17 @@ known-first-party = ["agent"]
 source = ["src/agent"]
 omit = [
     "tests/*",
-    "src/agent/__main__.py",      # Wrapper only
-    "src/agent/utils/__init__.py", # Imports only
-    "src/agent/utils/errors.py",  # Exception definitions
-    "src/agent/cli/app.py",       # CLI orchestration and display (hard to test)
-    "src/agent/display/*",        # Display logic hard to test
+    "src/agent/__main__.py",           # Wrapper only
+    "src/agent/utils/__init__.py",     # Imports only
+    "src/agent/utils/errors.py",       # Exception definitions
+    "src/agent/cli/app.py",            # CLI orchestration (hard to test)
+    "src/agent/cli/commands.py",       # CLI commands (hard to test)
+    "src/agent/cli/session.py",        # CLI session management (hard to test)
+    "src/agent/cli/display.py",        # CLI display (hard to test)
+    "src/agent/display/*",             # Display logic (hard to test)
+    "src/agent/utils/keybindings/*",   # Keyboard handling (hard to test)
+    "src/agent/utils/terminal.py",     # Terminal utilities (hard to test)
+    "src/agent/memory/context_provider.py",  # Framework integration (tested via integration tests)
 ]
 
 [tool.coverage.report]

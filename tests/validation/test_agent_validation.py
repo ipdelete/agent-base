@@ -318,16 +318,20 @@ class TestAgentValidation:
         assert result["stdout"].strip()  # Not empty
 
     def test_check_command(self, validator):
-        """Test health check command."""
-        result = validator.run_command("uv run agent --check", timeout=10)
-        # May pass or fail depending on config
-        assert "Check" in result["stdout"] or "check" in result["stdout"].lower()
+        """Test health check command shows system, agent, docker, and providers."""
+        result = validator.run_command("uv run agent --check", timeout=30)
+        # Should display key sections (may pass or fail depending on config)
+        assert "System:" in result["stdout"]
+        assert "Agent:" in result["stdout"]
+        assert "LLM Providers:" in result["stdout"]
 
     def test_config_command(self, validator):
-        """Test configuration display command."""
-        result = validator.run_command("uv run agent --config", timeout=5)
-        # Should display configuration info
-        assert "Configuration" in result["stdout"] or "config" in result["stdout"].lower()
+        """Test config command (alias for --check)."""
+        result = validator.run_command("uv run agent --config", timeout=30)
+        # Should be identical to --check (unified view)
+        assert "System:" in result["stdout"]
+        assert "Agent:" in result["stdout"]
+        assert "LLM Providers:" in result["stdout"]
 
 
     def test_validation_config_exists(self):

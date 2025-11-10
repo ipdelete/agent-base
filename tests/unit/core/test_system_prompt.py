@@ -88,6 +88,21 @@ class TestSystemPromptLoading:
         # Unknown placeholder should remain
         assert "{{UNKNOWN_PLACEHOLDER}}" in prompt
 
+    def test_user_default_system_prompt(self, mock_config, tmp_path):
+        """Test loading from ~/.agent/system.md (user default tier)."""
+        # Create user default prompt
+        user_default = tmp_path / "system.md"
+        user_default.write_text("User default system prompt for testing", encoding="utf-8")
+
+        mock_config.agent_data_dir = tmp_path
+        mock_config.system_prompt_file = None  # No explicit override
+
+        agent = Agent(mock_config)
+        prompt = agent._load_system_prompt()
+
+        # Should load from user default
+        assert "User default system prompt for testing" in prompt
+
     def test_fallback_on_missing_custom_file(self, mock_config, caplog):
         """Test fallback to default when custom file doesn't exist."""
         mock_config.system_prompt_file = "/nonexistent/prompt.md"
@@ -99,7 +114,7 @@ class TestSystemPromptLoading:
         assert "<agent>" in prompt
 
         # Should log warning about failed custom file load
-        assert "Failed to load custom system prompt" in caplog.text
+        assert "Failed to load system prompt from AGENT_SYSTEM_PROMPT" in caplog.text
 
     def test_fallback_on_corrupt_prompt_file(self, mock_config, tmp_path, caplog):
         """Test fallback when prompt file is unreadable."""
@@ -112,7 +127,7 @@ class TestSystemPromptLoading:
 
         # Should fall back to default or hardcoded
         assert len(prompt) > 0
-        assert "Failed to load custom system prompt" in caplog.text
+        assert "Failed to load system prompt from AGENT_SYSTEM_PROMPT" in caplog.text
 
     def test_hardcoded_fallback_on_package_failure(self, mock_config, caplog):
         """Test hardcoded fallback when package resource loading fails."""
@@ -170,7 +185,7 @@ class TestSystemPromptLoading:
 
         # Should replace only the placeholders
         assert "OpenAI/gpt-5-mini" in prompt
-        assert "True" in prompt
+        assert "False" in prompt  # memory_enabled defaults to False now
         assert "No placeholders here" in prompt
         assert "{{MODEL}}" not in prompt
         assert "{{MEMORY_ENABLED}}" not in prompt
