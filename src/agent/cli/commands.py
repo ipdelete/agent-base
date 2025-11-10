@@ -9,6 +9,8 @@ from agent.agent import Agent
 from agent.cli.session import pick_session, restore_session_context
 from agent.persistence import ThreadPersistence
 from agent.utils.terminal import TIMEOUT_EXIT_CODE, clear_screen, execute_shell_command
+import subprocess
+import time
 
 
 async def handle_shell_command(command: str, console: Console) -> None:
@@ -140,17 +142,170 @@ def show_help(console: Console) -> None:
         console: Console for output
     """
     console.print("\n[bold]Available Commands:[/bold]")
-    console.print("  [cyan]/clear[/cyan]     - Clear screen and start new conversation")
-    console.print("  [cyan]/continue[/cyan]  - Resume a previous session")
-    console.print("  [cyan]/purge[/cyan]     - Delete all saved sessions")
-    console.print("  [cyan]/help[/cyan]      - Show this help message")
-    console.print("  [cyan]exit[/cyan]       - Exit interactive mode")
+    console.print("  [cyan]/clear[/cyan]      - Clear screen and start new conversation")
+    console.print("  [cyan]/continue[/cyan]   - Resume a previous session")
+    console.print("  [cyan]/purge[/cyan]      - Delete all saved sessions")
+    console.print("  [cyan]/telemetry[/cyan]  - Manage local observability dashboard")
+    console.print("  [cyan]/help[/cyan]       - Show this help message")
+    console.print("  [cyan]exit[/cyan]        - Exit interactive mode")
     console.print()
     console.print("[bold]Shell Commands:[/bold]")
-    console.print("  [cyan]!<command>[/cyan] - Execute shell command")
+    console.print("  [cyan]!<command>[/cyan]  - Execute shell command")
     console.print()
     console.print("[bold]Keyboard Shortcuts:[/bold]")
-    console.print("  [cyan]ESC[/cyan]        - Clear current prompt")
-    console.print("  [cyan]Ctrl+D[/cyan]     - Exit interactive mode")
-    console.print("  [cyan]Ctrl+C[/cyan]     - Interrupt current operation")
+    console.print("  [cyan]ESC[/cyan]         - Clear current prompt")
+    console.print("  [cyan]Ctrl+D[/cyan]      - Exit interactive mode")
+    console.print("  [cyan]Ctrl+C[/cyan]      - Interrupt current operation")
     console.print()
+
+
+async def handle_telemetry_command(user_input: str, console: Console) -> None:
+    """Handle /telemetry command for managing telemetry dashboard.
+
+    Args:
+        user_input: Full user input (e.g., "/telemetry start")
+        console: Console for output
+
+    Commands:
+        /telemetry start  - Start telemetry dashboard
+        /telemetry stop   - Stop telemetry dashboard
+        /telemetry status - Check if running
+        /telemetry url    - Show dashboard URL and setup
+    """
+    parts = user_input.strip().split()
+    action = parts[1].lower() if len(parts) > 1 else "help"
+
+    CONTAINER_NAME = "aspire-dashboard"
+    DASHBOARD_URL = "http://localhost:18888"
+    OTLP_ENDPOINT = "http://localhost:4317"
+
+    try:
+        if action == "start":
+            # Check if Docker is available
+            try:
+                subprocess.run(
+                    ["docker", "--version"],
+                    capture_output=True,
+                    check=True,
+                    timeout=5,
+                )
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                console.print("\n[red]Error: Docker is not installed or not running[/red]")
+                console.print(
+                    "[yellow]Install Docker from: https://docs.docker.com/get-docker/[/yellow]\n"
+                )
+                return
+
+            # Check if already running
+            result = subprocess.run(
+                ["docker", "ps", "--filter", f"name={CONTAINER_NAME}", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if CONTAINER_NAME in result.stdout:
+                console.print(f"\n[yellow]Telemetry dashboard is already running![/yellow]")
+                console.print(f"[cyan]Dashboard:[/cyan] {DASHBOARD_URL}")
+                console.print(f"[cyan]OTLP Endpoint:[/cyan] {OTLP_ENDPOINT}\n")
+                return
+
+            # Start telemetry dashboard
+            console.print("\n[dim]Starting telemetry dashboard...[/dim]")
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-d",
+                    "-p",
+                    "18888:18888",
+                    "-p",
+                    "4317:18889",
+                    "--name",
+                    CONTAINER_NAME,
+                    "-e",
+                    "DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true",
+                    "mcr.microsoft.com/dotnet/aspire-dashboard:latest",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+
+            # Wait for startup
+            time.sleep(3)
+
+            console.print("\n[green]✓ Telemetry dashboard started successfully![/green]\n")
+            console.print(f"  Dashboard: {DASHBOARD_URL}\n")
+            console.print("[bold]To enable telemetry:[/bold]")
+            console.print(f"  export ENABLE_OTEL=true\n")
+
+        elif action == "stop":
+            # Stop the container
+            result = subprocess.run(
+                ["docker", "stop", CONTAINER_NAME],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
+                console.print(f"\n[green]✓ Telemetry dashboard stopped[/green]\n")
+            else:
+                console.print(f"\n[yellow]Telemetry dashboard was not running[/yellow]\n")
+
+        elif action == "status":
+            # Check if running
+            result = subprocess.run(
+                ["docker", "ps", "--filter", f"name={CONTAINER_NAME}", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if CONTAINER_NAME in result.stdout:
+                # Get uptime
+                uptime_result = subprocess.run(
+                    [
+                        "docker",
+                        "ps",
+                        "--filter",
+                        f"name={CONTAINER_NAME}",
+                        "--format",
+                        "{{.Status}}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+
+                console.print(f"\n[green]✓ Telemetry dashboard is running[/green]")
+                console.print(f"[dim]Status: {uptime_result.stdout.strip()}[/dim]")
+                console.print(f"[cyan]Dashboard:[/cyan] {DASHBOARD_URL}")
+                console.print(f"[cyan]OTLP Endpoint:[/cyan] {OTLP_ENDPOINT}\n")
+            else:
+                console.print(f"\n[yellow]Telemetry dashboard is not running[/yellow]")
+                console.print(f"[dim]Start with: /telemetry start[/dim]\n")
+
+        elif action == "url":
+            console.print(f"\n[bold]Telemetry Dashboard:[/bold]")
+            console.print(f"  {DASHBOARD_URL}\n")
+            console.print(f"[bold]Enable telemetry:[/bold]")
+            console.print(f"  export ENABLE_OTEL=true\n")
+
+        else:
+            # Show help
+            console.print("\n[bold]Telemetry Commands:[/bold]")
+            console.print("  [cyan]/telemetry start[/cyan]  - Start telemetry dashboard")
+            console.print("  [cyan]/telemetry stop[/cyan]   - Stop telemetry dashboard")
+            console.print("  [cyan]/telemetry status[/cyan] - Check if running")
+            console.print("  [cyan]/telemetry url[/cyan]    - Show URLs and setup")
+            console.print()
+
+    except subprocess.TimeoutExpired:
+        console.print("\n[red]Error: Docker command timed out[/red]\n")
+    except subprocess.CalledProcessError as e:
+        console.print(f"\n[red]Error: {e}[/red]\n")
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error: {e}[/red]\n")

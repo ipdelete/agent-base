@@ -9,6 +9,7 @@ class Commands:
     CLEAR = ["/clear", "clear"]
     CONTINUE = ["/continue"]
     PURGE = ["/purge"]
+    TELEMETRY = ["/telemetry", "/aspire"]
 
 
 class ExitCodes:

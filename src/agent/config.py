@@ -119,7 +119,7 @@ class AgentConfig:
         config.applicationinsights_connection_string = os.getenv(
             "APPLICATIONINSIGHTS_CONNECTION_STRING"
         )
-        config.otlp_endpoint = os.getenv("OTLP_ENDPOINT")
+        config.otlp_endpoint = os.getenv("OTLP_ENDPOINT", "http://localhost:4317")
 
         return config
 

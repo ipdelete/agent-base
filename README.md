@@ -19,6 +19,16 @@ agent  # Interactive mode with auto-save sessions
 
 ## Features
 
+### Observability & Monitoring
+- **OpenTelemetry Integration**: Built-in telemetry with Azure Application Insights and Aspire Dashboard support
+- **Local Development**: `/telemetry start` command for instant local observability (no Azure required!)
+- **Session Tracking**: Correlate telemetry with log files via `session.id`
+- **Token Metrics**: Track token usage and costs by model
+- **Tool Tracing**: See full execution hierarchy including tool calls
+- **Cross-Platform**: Works on Windows, Mac, and Linux
+
+### Core Capabilities
+
 **Multi-Provider LLM Support**
 - OpenAI (gpt-5-mini, gpt-4o)
 - Anthropic (claude-sonnet-4-5, claude-opus-4)
@@ -75,27 +85,19 @@ az login
 **Verification**
 
 ```bash
-uv run agent --check    # Validate configuration
+uv run agent --check    # Validate configuration (includes Docker check)
 uv run agent --config   # Display current settings
 ```
 
-## Usage
-
-Basic commands:
+**Optional: Enable Local Observability**
 
 ```bash
-agent                          # Start interactive mode
-agent -p "your question"       # Single query
-agent --continue               # Resume last session
-agent --help                   # Show all options
+# Start telemetry dashboard
+export ENABLE_OTEL=true
+uv run agent --telemetry start
 ```
 
-Interactive mode supports:
-- Natural language queries with automatic tool selection
-- Shell command execution via `!` prefix (e.g., `!git status`, `!ls`)
-- Session persistence (automatically saved on exit)
-- ESC to clear the current prompt
-- `/continue` to switch between saved sessions
+
 
 See [USAGE.md](USAGE.md) for detailed examples and usage patterns.
 
@@ -115,35 +117,8 @@ LOG_LEVEL=info                       # Logging verbosity
 
 See [.env.example](.env.example) for all available configuration options, including custom system prompt support via `AGENT_SYSTEM_PROMPT`.
 
-## Extending Agent Base
 
-Add custom tools by creating toolsets:
 
-```python
-from agent.tools.toolset import AgentToolset
-
-class MyTools(AgentToolset):
-    def get_tools(self):
-        return [self.my_tool]
-
-    async def my_tool(self, arg: str) -> dict:
-        """Your custom tool."""
-        return self._create_success_response(result="...")
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guide.
-
-## Development
-
-```bash
-uv sync --all-extras              # Install dev dependencies
-uv run pytest --cov=src/agent     # Run tests with coverage
-uv run black src/ tests/          # Format code
-uv run ruff check --fix src/      # Lint code
-uv run mypy src/agent/            # Type check
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 

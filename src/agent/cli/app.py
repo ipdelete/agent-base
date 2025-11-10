@@ -1,7 +1,9 @@
 """CLI entry point for Agent."""
 
 import asyncio
+import json
 import os
+import platform
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,7 @@ from agent.cli.commands import (
     handle_continue_command,
     handle_purge_command,
     handle_shell_command,
+    handle_telemetry_command,
     show_help,
 )
 from agent.cli.constants import Commands, ExitCodes
@@ -101,6 +104,9 @@ def main(
     check: bool = typer.Option(False, "--check", help="Run health check for configuration"),
     config_flag: bool = typer.Option(False, "--config", help="Show current configuration"),
     version_flag: bool = typer.Option(False, "--version", help="Show version"),
+    telemetry: str = typer.Option(
+        None, "--telemetry", help="Manage telemetry dashboard (start|stop|status|url)"
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", help="Verbose output with detailed execution tree"
     ),
@@ -113,7 +119,7 @@ def main(
         # Interactive mode
         agent
 
-        # Run health check
+        # Run health check (includes Docker check for observability)
         agent --check
 
         # Show configuration
@@ -130,6 +136,8 @@ def main(
 
         # Show version
         agent --version
+
+    Note: When in interactive mode, type /help to see available commands.
     """
     if version_flag:
         console.print(f"Agent version {__version__}")
@@ -141,6 +149,11 @@ def main(
 
     if config_flag:
         show_configuration()
+        return
+
+    if telemetry:
+        # Run telemetry command and exit
+        asyncio.run(_run_telemetry_cli(telemetry))
         return
 
     if prompt:
@@ -163,15 +176,67 @@ def run_health_check() -> None:
     console.print("\n[bold]Agent Health Check[/bold]\n")
 
     try:
+        # System Information
+        console.print("[bold]System:[/bold]")
+        console.print(f"  Platform: {platform.platform()}")
+        cpu_count = os.cpu_count() or 0
+        console.print(f"  CPU Cores: {cpu_count}")
+
+        # Configuration
         config = AgentConfig.from_env()
         config.validate()
 
-        console.print("[green]✓[/green] Configuration valid")
-        console.print(f"  Provider: {config.llm_provider}")
+        console.print("\n[bold]Configuration:[/bold]")
+        console.print(f"[green]✓[/green] Provider: {config.llm_provider}")
         console.print(f"  Model: {config.get_model_display_name()}")
-
         if config.agent_data_dir:
             console.print(f"  Data Dir: {config.agent_data_dir}")
+
+        # Docker
+        console.print("\n[bold]Docker:[/bold]")
+        docker_available = False
+        try:
+            # Check Docker version
+            result = subprocess.run(
+                ["docker", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip().replace("Docker version ", "")
+                console.print(f"[green]✓[/green] Version: {version}")
+                docker_available = True
+
+                # Get Docker info
+                try:
+                    info_result = subprocess.run(
+                        ["docker", "info", "--format", "{{json .}}"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if info_result.returncode == 0:
+                        docker_info = json.loads(info_result.stdout)
+
+                        # CPU info
+                        ncpu = docker_info.get("NCPU", 0)
+                        if ncpu > 0:
+                            console.print(f"[green]✓[/green] CPU Limit: {ncpu} cores")
+
+                        # Memory info
+                        mem_total = docker_info.get("MemTotal", 0)
+                        if mem_total > 0:
+                            mem_gb = mem_total / (1024**3)
+                            console.print(f"[green]✓[/green] Memory Limit: {mem_gb:.1f} GiB")
+
+                except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError):
+                    pass  # Skip detailed info if not available
+
+            else:
+                console.print("[yellow]✗[/yellow] Not available")
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            console.print("[yellow]✗[/yellow] Not installed")
 
         console.print("\n[green]✓ All checks passed![/green]\n")
 
@@ -182,6 +247,15 @@ def run_health_check() -> None:
     except Exception as e:
         console.print(f"[red]✗[/red] Unexpected error: {e}")
         raise typer.Exit(ExitCodes.GENERAL_ERROR)
+
+
+async def _run_telemetry_cli(action: str) -> None:
+    """Run telemetry command from CLI flag.
+
+    Args:
+        action: Telemetry action (start, stop, status, url)
+    """
+    await handle_telemetry_command(f"/telemetry {action}", console)
 
 
 def show_configuration() -> None:
@@ -463,6 +537,9 @@ async def run_chat_mode(
                     continue
                 elif cmd in Commands.PURGE:
                     await handle_purge_command(persistence, session, console)
+                    continue
+                elif any(user_input.strip().startswith(c) for c in Commands.TELEMETRY):
+                    await handle_telemetry_command(user_input, console)
                     continue
 
                 # Move past the old status bar with a newline
