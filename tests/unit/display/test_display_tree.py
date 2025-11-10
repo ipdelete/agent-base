@@ -157,9 +157,6 @@ class TestExecutionTreeDisplay:
         emitter.clear()
         emitter.enable()
 
-        # Cancel any lingering tasks
-        _ = [t for t in asyncio.all_tasks() if not t.done()]
-
         yield
 
         # Cleanup after test
