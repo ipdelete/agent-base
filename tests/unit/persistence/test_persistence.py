@@ -99,6 +99,40 @@ class TestThreadPersistence:
 
         assert persistence.metadata == test_metadata
 
+    def test_metadata_handles_corrupted_file(self, temp_storage, caplog):
+        """Test ThreadPersistence handles corrupted metadata gracefully."""
+        # Create sessions directory
+        sessions_dir = temp_storage / "sessions"
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create corrupted metadata file
+        metadata_file = sessions_dir / "index.json"
+        with open(metadata_file, "w") as f:
+            f.write("{ invalid json }")
+
+        # Should start fresh instead of crashing
+        persistence = ThreadPersistence(storage_dir=sessions_dir)
+
+        assert persistence.metadata == {"conversations": {}}
+        assert "Failed to load metadata" in caplog.text
+
+    def test_save_metadata_handles_write_error(self, persistence, monkeypatch):
+        """Test _save_metadata handles write errors."""
+        import builtins
+
+        original_open = builtins.open
+
+        def mock_open(*args, **kwargs):
+            if "index.json" in str(args[0]) and "w" in str(kwargs.get("mode", args[1] if len(args) > 1 else "")):
+                raise PermissionError("Cannot write metadata")
+            return original_open(*args, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", mock_open)
+
+        # Should raise the exception
+        with pytest.raises(PermissionError):
+            persistence._save_metadata()
+
     def test_generate_context_summary_empty_messages(self, persistence):
         """Test context summary generation with empty messages."""
         summary = persistence._generate_context_summary([])
