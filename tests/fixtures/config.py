@@ -1,6 +1,5 @@
 """Configuration fixtures for testing."""
 
-
 import pytest
 
 from agent.config import AgentConfig

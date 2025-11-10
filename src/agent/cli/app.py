@@ -270,13 +270,9 @@ def run_health_check() -> None:
         if config.system_prompt_file:
             prompt_display = str(config.system_prompt_file)
         else:
-            user_default = (
-                config.agent_data_dir / "system.md" if config.agent_data_dir else None
-            )
+            user_default = config.agent_data_dir / "system.md" if config.agent_data_dir else None
             prompt_display = (
-                "Default"
-                if not user_default or not user_default.exists()
-                else str(user_default)
+                "Default" if not user_default or not user_default.exists() else str(user_default)
             )
 
         console.print(f"  [magenta]◉[/magenta] System Prompt: [magenta]{prompt_display}[/magenta]")
@@ -434,9 +430,7 @@ def show_configuration() -> None:
         if config.system_prompt_file:
             console.print(f" • System Prompt: [magenta]{config.system_prompt_file}[/magenta]")
         else:
-            user_default = (
-                config.agent_data_dir / "system.md" if config.agent_data_dir else None
-            )
+            user_default = config.agent_data_dir / "system.md" if config.agent_data_dir else None
             if user_default and user_default.exists():
                 console.print(f" • System Prompt: [magenta]{user_default}[/magenta]")
             else:

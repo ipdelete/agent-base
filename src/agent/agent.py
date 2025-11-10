@@ -125,7 +125,7 @@ class Agent:
                 api_key=self.config.openai_api_key,
             )
         elif self.config.llm_provider == "anthropic":
-            from agent_framework.anthropic import AnthropicClient  # type: ignore[import-not-found]
+            from agent_framework.anthropic import AnthropicClient
 
             return AnthropicClient(
                 model_id=self.config.anthropic_model,
