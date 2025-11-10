@@ -261,8 +261,11 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
 
         # Display response after completion summary
         if response:
-            console.print(f"\n{response}\n")
-            console.print(f"[dim]{'─' * console.width}[/dim]")
+            if quiet:
+                console.print(response)
+            else:
+                console.print(f"\n{response}\n")
+                console.print(f"[dim]{'─' * console.width}[/dim]")
 
     except ValueError as e:
         console.print(f"\n[red]Configuration error:[/red] {e}")
