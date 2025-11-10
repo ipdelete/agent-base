@@ -205,7 +205,9 @@ class Agent:
                 expanded_path = os.path.expandvars(self.config.system_prompt_file)
                 custom_path = Path(expanded_path).expanduser()
                 prompt_content = custom_path.read_text(encoding="utf-8")
-                logger.info(f"Loaded system prompt from custom file: {self.config.system_prompt_file}")
+                logger.info(
+                    f"Loaded system prompt from custom file: {self.config.system_prompt_file}"
+                )
             except Exception as e:
                 logger.warning(
                     f"Failed to load custom system prompt from {self.config.system_prompt_file}: {e}. "
@@ -221,7 +223,9 @@ class Agent:
                 prompt_content = prompt_file.read_text(encoding="utf-8")
                 logger.info("Loaded system prompt from package default: prompts/system.md")
             except Exception as e:
-                logger.warning(f"Failed to load default system prompt: {e}. Using hardcoded fallback.")
+                logger.warning(
+                    f"Failed to load default system prompt: {e}. Using hardcoded fallback."
+                )
 
         # Tier 3: Hardcoded fallback
         if not prompt_content:
@@ -237,15 +241,19 @@ Be helpful, concise, and clear in your responses."""
             logger.warning("Using hardcoded fallback system prompt")
 
         # Strip YAML front matter if present (more robust regex-based approach)
-        yaml_pattern = r'^---\s*\n.*?\n---\s*\n'
+        yaml_pattern = r"^---\s*\n.*?\n---\s*\n"
         if re.match(yaml_pattern, prompt_content, re.DOTALL):
-            prompt_content = re.sub(yaml_pattern, '', prompt_content, flags=re.DOTALL)
+            prompt_content = re.sub(yaml_pattern, "", prompt_content, flags=re.DOTALL)
             logger.info("Stripped YAML front matter from system prompt")
 
         # Replace placeholders with config values
         replacements = {
-            "{{DATA_DIR}}": str(self.config.agent_data_dir) if self.config.agent_data_dir else "N/A",
-            "{{SESSION_DIR}}": str(self.config.agent_session_dir) if self.config.agent_session_dir else "N/A",
+            "{{DATA_DIR}}": (
+                str(self.config.agent_data_dir) if self.config.agent_data_dir else "N/A"
+            ),
+            "{{SESSION_DIR}}": (
+                str(self.config.agent_session_dir) if self.config.agent_session_dir else "N/A"
+            ),
             "{{MODEL}}": self.config.get_model_display_name(),
             "{{PROVIDER}}": self.config.llm_provider,
             "{{MEMORY_ENABLED}}": str(self.config.memory_enabled),
@@ -257,7 +265,9 @@ Be helpful, concise, and clear in your responses."""
         # Warn if any unresolved placeholders remain
         unresolved = re.findall(r"\{\{[^}]+\}\}", prompt_content)
         if unresolved:
-            logger.warning(f"Unresolved placeholders in system prompt: {', '.join(set(unresolved))}")
+            logger.warning(
+                f"Unresolved placeholders in system prompt: {', '.join(set(unresolved))}"
+            )
 
         return prompt_content
 
@@ -280,13 +290,87 @@ Be helpful, concise, and clear in your responses."""
             context_providers.append(memory_provider)
             logger.info("Memory context provider enabled")
 
+        # Normalize middleware into the structure expected by the client
+        middleware_config = self._prepare_middleware(self.middleware)
+
         return self.chat_client.create_agent(
             name="Agent",
             instructions=instructions,
             tools=self.tools,
-            middleware=self.middleware,
+            middleware=middleware_config,
             context_providers=context_providers if context_providers else None,
         )
+
+    def _prepare_middleware(self, middleware: Any) -> dict:
+        """Normalize middleware into a dict keyed by stage.
+
+        Some chat clients expect middleware in the form:
+        {"agent": [...], "function": [...]}.
+        Our project often stores middleware as a flat list and relies on
+        the framework to categorize. To be robust across clients, this
+        helper groups middleware by signature when a list is provided.
+
+        Args:
+            middleware: List or dict of middleware callables
+
+        Returns:
+            Dict with keys "agent" and "function" when possible.
+        """
+        # If already a dict, assume caller provided correct shape
+        if isinstance(middleware, dict):
+            return middleware
+
+        # Otherwise, attempt to categorize a flat list by signature
+        try:
+            from inspect import signature
+            from typing import get_type_hints
+
+            # Agent Framework context types (only used for isinstance checks)
+            from agent_framework import AgentRunContext, FunctionInvocationContext
+
+            agent_mw: list = []
+            function_mw: list = []
+
+            for mw in middleware or []:
+                try:
+                    # Prefer explicit type hints on the first parameter
+                    hints = get_type_hints(mw)
+                    ctx_type = hints.get("context")
+                except Exception:
+                    ctx_type = None
+
+                if ctx_type is None:
+                    # Fallback: infer from parameter annotations directly
+                    try:
+                        params = signature(mw).parameters
+                        if "context" in params:
+                            ctx_type = params["context"].annotation
+                    except Exception:
+                        ctx_type = None
+
+                # Classify based on context type when available
+                try:
+                    if ctx_type is AgentRunContext:
+                        agent_mw.append(mw)
+                        continue
+                    if ctx_type is FunctionInvocationContext:
+                        function_mw.append(mw)
+                        continue
+                except Exception:
+                    pass
+
+                # Last resort: name heuristic
+                name = getattr(mw, "__name__", "")
+                if "function" in name or "tool" in name:
+                    function_mw.append(mw)
+                else:
+                    agent_mw.append(mw)
+
+            return {"agent": agent_mw, "function": function_mw}
+        except Exception:
+            # If anything goes wrong, pass through in a backward-compatible way
+            # letting the client categorize or ignore as needed.
+            return {"agent": list(middleware or [])}
 
     def get_new_thread(self) -> Any:
         """Create a new conversation thread.

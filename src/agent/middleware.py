@@ -93,10 +93,10 @@ async def agent_observability_middleware(
     context: AgentRunContext,
     next: Callable[[AgentRunContext], Awaitable[None]],
 ) -> None:
-    """Track agent execution metrics and timing.
+    """Track agent execution duration with logging.
 
-    This middleware logs execution duration and can be extended to send
-    metrics to observability platforms (Application Insights, Prometheus, etc.).
+    This middleware logs execution duration for all agent runs.
+    The agent-framework handles OpenTelemetry instrumentation automatically.
 
     Args:
         context: Agent run context
@@ -114,10 +114,6 @@ async def agent_observability_middleware(
         duration = time.time() - start_time
         logger.info(f"Agent execution took {duration:.2f}s")
 
-        # Future: Send to observability platform
-        # if config.applicationinsights_connection_string:
-        #     track_metric("agent_execution_duration", duration)
-
 
 # ============================================================================
 # Function-Level Middleware
@@ -128,7 +124,7 @@ async def logging_function_middleware(
     context: FunctionInvocationContext,
     next: Callable,
 ) -> Any:
-    """Middleware to log function/tool calls and emit execution events.
+    """Middleware to log function/tool calls and emit execution events with OpenTelemetry.
 
     This middleware:
     - Logs tool execution start/complete/error
@@ -136,6 +132,7 @@ async def logging_function_middleware(
     - Emits ToolCompleteEvent on success with result summary
     - Emits ToolErrorEvent on failure
     - Sets tool context for nested event tracking
+    - Creates OpenTelemetry spans for tool execution (when enabled)
     - Only emits events if should_show_visualization() is True
 
     Args:
@@ -149,6 +146,10 @@ async def logging_function_middleware(
         >>> middleware = {"function": [logging_function_middleware]}
         >>> agent = chat_client.create_agent(..., middleware=middleware)
     """
+    from agent.config import AgentConfig
+    from agent.observability import get_current_agent_span
+    from agent_framework.observability import OtelAttr, get_meter, get_tracer
+    from opentelemetry import trace as ot_trace
     from agent.display import (
         ToolCompleteEvent,
         ToolErrorEvent,
@@ -158,6 +159,7 @@ async def logging_function_middleware(
         set_current_tool_event_id,
         should_show_visualization,
     )
+    from agent.observability import get_current_agent_span
 
     tool_name = context.function.name
     args = context.arguments
@@ -197,49 +199,155 @@ async def logging_function_middleware(
         set_current_tool_event_id(tool_event_id)
         logger.debug(f"Set tool context: {tool_name} (event_id: {tool_event_id[:8]}...)")
 
+    # Check if observability is enabled
+    config = AgentConfig.from_env()
+    tracer = get_tracer(__name__) if config.enable_otel else None
+    meter = get_meter(__name__) if config.enable_otel else None
+
     start_time = time.time()
 
-    try:
-        result = await next(context)
-        duration = time.time() - start_time
-        logger.info(f"Tool call {tool_name} completed successfully ({duration:.2f}s)")
+    # Create span context manager (no-op if observability disabled)
+    # Prepare parent context for robust nesting
+    parent_context = None
+    if tracer:
+        try:
+            from opentelemetry import trace as ot_trace
 
-        # Emit tool complete event
-        if should_show_visualization() and tool_event_id:
-            # Extract summary from result
-            summary = _extract_tool_summary(tool_name, result)
-            complete_event = ToolCompleteEvent(
-                tool_name=tool_name,
-                result_summary=summary,
-                duration=duration,
-                event_id=tool_event_id,
-            )
-            get_event_emitter().emit(complete_event)
+            current_span = ot_trace.get_current_span()
+            # If current span looks invalid, try the saved agent span
+            if current_span is None or not getattr(current_span, "is_recording", lambda: False)():
+                saved_agent_span = get_current_agent_span()
+                if saved_agent_span is not None:
+                    parent_context = ot_trace.set_span_in_context(saved_agent_span)
+        except Exception:
+            parent_context = None
 
-        return result
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(f"Tool call {tool_name} failed: {e}")
+    span_context = (
+        tracer.start_as_current_span(f"tool.{tool_name}", context=parent_context)
+        if tracer
+        else _noop_context_manager()
+    )
 
-        # Emit tool error event
-        if should_show_visualization() and tool_event_id:
-            error_event = ToolErrorEvent(
-                tool_name=tool_name,
-                error_message=str(e),
-                duration=duration,
-                event_id=tool_event_id,
-            )
-            get_event_emitter().emit(error_event)
+    with span_context as span:
+        try:
+            # Set span attributes if observability enabled
+            if span and config.enable_otel:
+                # Set GenAI span type
+                span.set_attribute("span_type", "GenAI")
 
-        raise
-    finally:
-        # Clear tool context when exiting tool (restore parent)
-        if should_show_visualization():
-            set_current_tool_event_id(parent_id)
-            if parent_id:
-                logger.debug("Restored parent tool context")
-            else:
-                logger.debug(f"Cleared tool context: {tool_name}")
+                # Set operation name and tool info
+                span.set_attribute("gen_ai.operation.name", OtelAttr.TOOL_EXECUTION_OPERATION)
+                span.set_attribute(OtelAttr.TOOL_NAME, tool_name)
+
+                # Add tool description if available
+                if hasattr(context.function, "description"):
+                    span.set_attribute(OtelAttr.TOOL_DESCRIPTION, context.function.description)
+
+                # Add tool parameters if sensitive data enabled
+                if config.enable_sensitive_data and args:
+                    # Convert args to dict for serialization
+                    if hasattr(args, "model_dump"):
+                        args_dict = args.model_dump()
+                    elif hasattr(args, "dict"):
+                        args_dict = args.dict()
+                    elif isinstance(args, dict):
+                        args_dict = args
+                    else:
+                        args_dict = str(args)
+
+                    import json
+
+                    span.set_attribute(OtelAttr.TOOL_ARGUMENTS, json.dumps(args_dict))
+
+            result = await next(context)
+            duration = time.time() - start_time
+            logger.info(f"Tool call {tool_name} completed successfully ({duration:.2f}s)")
+
+            # Record metrics if observability enabled
+            if meter and config.enable_otel:
+                duration_histogram = meter.create_histogram(
+                    name="tool.execution.duration",
+                    description="Tool execution duration in seconds",
+                    unit="s",
+                )
+                duration_histogram.record(duration, {"tool": tool_name, "status": "success"})
+
+            # Set tool result if sensitive data enabled
+            if span and config.enable_otel and config.enable_sensitive_data:
+                import json
+
+                result_str = json.dumps(result) if isinstance(result, (dict, list)) else str(result)
+                # Truncate to 1000 chars to avoid excessive data
+                span.set_attribute(OtelAttr.TOOL_RESULT, result_str[:1000])
+
+            # Emit tool complete event
+            if should_show_visualization() and tool_event_id:
+                # Extract summary from result
+                summary = _extract_tool_summary(tool_name, result)
+                complete_event = ToolCompleteEvent(
+                    tool_name=tool_name,
+                    result_summary=summary,
+                    duration=duration,
+                    event_id=tool_event_id,
+                )
+                get_event_emitter().emit(complete_event)
+
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"Tool call {tool_name} failed: {e}")
+
+            # Record error metrics if observability enabled
+            if meter and config.enable_otel:
+                duration_histogram = meter.create_histogram(
+                    name="tool.execution.duration",
+                    description="Tool execution duration in seconds",
+                    unit="s",
+                )
+                duration_histogram.record(duration, {"tool": tool_name, "status": "error"})
+
+            # Capture exception in span
+            if span and config.enable_otel:
+                span.record_exception(e)
+                from opentelemetry.trace import Status, StatusCode
+
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+
+            # Emit tool error event
+            if should_show_visualization() and tool_event_id:
+                error_event = ToolErrorEvent(
+                    tool_name=tool_name,
+                    error_message=str(e),
+                    duration=duration,
+                    event_id=tool_event_id,
+                )
+                get_event_emitter().emit(error_event)
+
+            raise
+        finally:
+            # Clear tool context when exiting tool (restore parent)
+            if should_show_visualization():
+                set_current_tool_event_id(parent_id)
+                if parent_id:
+                    logger.debug("Restored parent tool context")
+                else:
+                    logger.debug(f"Cleared tool context: {tool_name}")
+
+
+def _noop_context_manager() -> Any:
+    """No-op context manager for when observability is disabled.
+
+    Returns:
+        Context manager that does nothing
+
+    Example:
+        >>> with _noop_context_manager() as span:
+        ...     # span is None, no telemetry recorded
+        ...     pass
+    """
+    from contextlib import nullcontext
+
+    return nullcontext(None)
 
 
 def _extract_tool_summary(tool_name: str, result: Any) -> str:

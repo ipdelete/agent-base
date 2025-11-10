@@ -54,6 +54,12 @@ class AgentConfig:
     # System prompt configuration
     system_prompt_file: str | None = None
 
+    # Observability configuration
+    enable_otel: bool = False
+    enable_sensitive_data: bool = False
+    applicationinsights_connection_string: str | None = None
+    otlp_endpoint: str | None = None
+
     @classmethod
     def from_env(cls) -> "AgentConfig":
         """Load configuration from environment variables.
@@ -106,6 +112,14 @@ class AgentConfig:
 
         # System prompt configuration
         config.system_prompt_file = os.getenv("AGENT_SYSTEM_PROMPT")
+
+        # Observability configuration
+        config.enable_otel = os.getenv("ENABLE_OTEL", "false").lower() == "true"
+        config.enable_sensitive_data = os.getenv("ENABLE_SENSITIVE_DATA", "false").lower() == "true"
+        config.applicationinsights_connection_string = os.getenv(
+            "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        )
+        config.otlp_endpoint = os.getenv("OTLP_ENDPOINT")
 
         return config
 
@@ -161,9 +175,7 @@ class AgentConfig:
             expanded = os.path.expandvars(self.system_prompt_file)
             prompt_path = Path(expanded).expanduser()
             if not prompt_path.exists():
-                raise ValueError(
-                    f"System prompt file not found: {self.system_prompt_file}"
-                )
+                raise ValueError(f"System prompt file not found: {self.system_prompt_file}")
 
     def get_model_display_name(self) -> str:
         """Get display name for current model configuration.

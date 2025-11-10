@@ -1,7 +1,6 @@
 """CLI entry point for Agent."""
 
 import asyncio
-import logging
 import os
 import subprocess
 from pathlib import Path
@@ -234,6 +233,16 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
         config = AgentConfig.from_env()
         config.validate()
 
+        # Setup observability if enabled
+        if config.enable_otel:
+            from agent_framework.observability import setup_observability
+
+            setup_observability(
+                enable_sensitive_data=config.enable_sensitive_data,
+                otlp_endpoint=config.otlp_endpoint,
+                applicationinsights_connection_string=config.applicationinsights_connection_string,
+            )
+
         # Setup session-specific logging (follows copilot pattern: ~/.agent/logs/session-{timestamp}.log)
         from datetime import datetime
 
@@ -246,18 +255,53 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
         ctx = create_execution_context(verbose, quiet, is_interactive=False)
         set_execution_context(ctx)
 
-        # Execute with or without visualization
-        if not quiet:
-            display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
-            try:
-                response = await execute_with_visualization(
-                    agent, prompt, None, console, display_mode
-                )
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Interrupted by user[/yellow]\n")
-                raise typer.Exit(ExitCodes.INTERRUPTED)
+        # Wrap execution in observability span with custom attributes if enabled
+        if config.enable_otel:
+            from agent_framework.observability import get_tracer
+            from opentelemetry.trace import SpanKind
+
+            tracer = get_tracer()
+            with tracer.start_as_current_span(
+                "agent-base.cli.single-prompt", kind=SpanKind.CLIENT
+            ) as span:
+                # Add custom attributes
+                span.set_attribute("session.id", session_name)
+                span.set_attribute("mode", "single-prompt")
+                span.set_attribute("gen_ai.system", config.llm_provider)
+                if config.llm_provider == "openai":
+                    span.set_attribute("gen_ai.request.model", config.openai_model)
+                elif config.llm_provider == "anthropic":
+                    span.set_attribute("gen_ai.request.model", config.anthropic_model)
+                elif config.llm_provider == "azure":
+                    span.set_attribute("gen_ai.request.model", config.azure_openai_deployment)
+                elif config.llm_provider == "foundry":
+                    span.set_attribute("gen_ai.request.model", config.azure_model_deployment)
+
+                # Execute with or without visualization
+                if not quiet:
+                    display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
+                    try:
+                        response = await execute_with_visualization(
+                            agent, prompt, None, console, display_mode
+                        )
+                    except KeyboardInterrupt:
+                        console.print("\n[yellow]Interrupted by user[/yellow]\n")
+                        raise typer.Exit(ExitCodes.INTERRUPTED)
+                else:
+                    response = await execute_quiet_mode(agent, prompt, None)
         else:
-            response = await execute_quiet_mode(agent, prompt, None)
+            # Execute without observability wrapper
+            if not quiet:
+                display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
+                try:
+                    response = await execute_with_visualization(
+                        agent, prompt, None, console, display_mode
+                    )
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]Interrupted by user[/yellow]\n")
+                    raise typer.Exit(ExitCodes.INTERRUPTED)
+            else:
+                response = await execute_quiet_mode(agent, prompt, None)
 
         # Display response after completion summary
         if response:
@@ -296,6 +340,16 @@ async def run_chat_mode(
         config = AgentConfig.from_env()
         config.validate()
 
+        # Setup observability if enabled
+        if config.enable_otel:
+            from agent_framework.observability import setup_observability
+
+            setup_observability(
+                enable_sensitive_data=config.enable_sensitive_data,
+                otlp_endpoint=config.otlp_endpoint,
+                applicationinsights_connection_string=config.applicationinsights_connection_string,
+            )
+
         # Generate session name for this session (used for both logging and saving)
         from datetime import datetime
 
@@ -304,6 +358,9 @@ async def run_chat_mode(
         # Setup session-specific logging (follows copilot pattern: ~/.agent/logs/session-{name}.log)
         # Logs go to file, not console, to keep output clean
         setup_session_logging(session_name, config)
+
+        # Set session ID for telemetry correlation
+        os.environ["SESSION_ID"] = session_name
 
         # Show startup banner
         if not quiet:
@@ -475,22 +532,66 @@ async def _execute_agent_query(
     ctx = create_execution_context(verbose, quiet, is_interactive=True)
     set_execution_context(ctx)
 
-    # Execute with or without visualization
-    if not quiet:
-        display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
-        try:
-            return await execute_with_visualization(
-                agent, user_input, thread, console, display_mode
-            )
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Operation cancelled[/yellow] - Press Ctrl+C again to exit\n")
-            raise
+    # Wrap in observability span if enabled (adds session context)
+    config = agent.config
+    if config.enable_otel:
+        from agent_framework.observability import get_tracer
+        from opentelemetry.trace import SpanKind
+
+        tracer = get_tracer()
+        session_id = os.getenv("SESSION_ID", "unknown")
+
+        with tracer.start_as_current_span("agent-base.message", kind=SpanKind.CLIENT) as span:
+            # Add session context to each message span
+            span.set_attribute("session.id", session_id)
+            span.set_attribute("mode", "interactive")
+            span.set_attribute("gen_ai.system", config.llm_provider)
+            if config.llm_provider == "openai":
+                span.set_attribute("gen_ai.request.model", config.openai_model)
+            elif config.llm_provider == "anthropic":
+                span.set_attribute("gen_ai.request.model", config.anthropic_model)
+            elif config.llm_provider == "azure":
+                span.set_attribute("gen_ai.request.model", config.azure_openai_deployment)
+            elif config.llm_provider == "foundry":
+                span.set_attribute("gen_ai.request.model", config.azure_model_deployment)
+
+            # Execute with or without visualization
+            if not quiet:
+                display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
+                try:
+                    return await execute_with_visualization(
+                        agent, user_input, thread, console, display_mode
+                    )
+                except KeyboardInterrupt:
+                    console.print(
+                        "\n[yellow]Operation cancelled[/yellow] - Press Ctrl+C again to exit\n"
+                    )
+                    raise
+            else:
+                try:
+                    return await execute_quiet_mode(agent, user_input, thread)
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]Operation cancelled[/yellow]\n")
+                    raise
     else:
-        try:
-            return await execute_quiet_mode(agent, user_input, thread)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Operation cancelled[/yellow]\n")
-            raise
+        # Execute without observability wrapper
+        if not quiet:
+            display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
+            try:
+                return await execute_with_visualization(
+                    agent, user_input, thread, console, display_mode
+                )
+            except KeyboardInterrupt:
+                console.print(
+                    "\n[yellow]Operation cancelled[/yellow] - Press Ctrl+C again to exit\n"
+                )
+                raise
+        else:
+            try:
+                return await execute_quiet_mode(agent, user_input, thread)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Operation cancelled[/yellow]\n")
+                raise
 
 
 if __name__ == "__main__":
