@@ -44,8 +44,8 @@ def build_test_config(
             "azure_openai_deployment": "gpt-5-codex",
             "azure_openai_api_version": "2024-10-01-preview",
         },
-        "azure_ai_foundry": {
-            "llm_provider": "azure_ai_foundry",
+        "foundry": {
+            "llm_provider": "foundry",
             "azure_project_endpoint": "https://test.ai.azure.com/api/projects/test",
             "azure_model_deployment": "gpt-4o",
         },

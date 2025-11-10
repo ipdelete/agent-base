@@ -15,10 +15,10 @@ class AgentConfig:
     - openai: OpenAI API (gpt-5-mini, gpt-4o, etc.)
     - anthropic: Anthropic API (claude-sonnet-4-5, claude-opus-4, etc.)
     - azure: Azure OpenAI (gpt-5-codex, gpt-4o, etc.)
-    - azure_ai_foundry: Azure AI Foundry with managed models
+    - foundry: Azure AI Foundry with managed models
     """
 
-    # LLM Provider (openai, anthropic, azure, or azure_ai_foundry)
+    # LLM Provider (openai, anthropic, azure, or foundry)
     llm_provider: str
 
     # OpenAI (when llm_provider == "openai")
@@ -36,7 +36,7 @@ class AgentConfig:
     azure_openai_api_key: str | None = None
     # Uses AzureCliCredential for auth if API key not provided
 
-    # Azure AI Foundry (when llm_provider == "azure_ai_foundry")
+    # Azure AI Foundry (when llm_provider == "foundry")
     azure_project_endpoint: str | None = None
     azure_model_deployment: str | None = None
     # Uses AzureCliCredential for auth, no API key needed
@@ -117,7 +117,7 @@ class AgentConfig:
                     "Azure OpenAI requires deployment name. Set AZURE_OPENAI_DEPLOYMENT_NAME environment variable."
                 )
             # Note: Can use AzureCliCredential OR API key for auth
-        elif self.llm_provider == "azure_ai_foundry":
+        elif self.llm_provider == "foundry":
             if not self.azure_project_endpoint:
                 raise ValueError(
                     "Azure AI Foundry requires project endpoint. Set AZURE_PROJECT_ENDPOINT environment variable."
@@ -130,7 +130,7 @@ class AgentConfig:
         else:
             raise ValueError(
                 f"Unknown LLM provider: {self.llm_provider}. "
-                "Supported providers: openai, anthropic, azure, azure_ai_foundry"
+                "Supported providers: openai, anthropic, azure, foundry"
             )
 
     def get_model_display_name(self) -> str:
@@ -150,6 +150,6 @@ class AgentConfig:
             return f"Anthropic/{self.anthropic_model}"
         elif self.llm_provider == "azure":
             return f"Azure OpenAI/{self.azure_openai_deployment}"
-        elif self.llm_provider == "azure_ai_foundry":
+        elif self.llm_provider == "foundry":
             return f"Azure AI Foundry/{self.azure_model_deployment}"
         return "Unknown"

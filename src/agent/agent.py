@@ -92,7 +92,7 @@ class Agent:
         - openai: OpenAI API (gpt-5-mini, gpt-4o, etc.)
         - anthropic: Anthropic API (claude-sonnet-4-5, claude-opus-4, etc.)
         - azure: Azure OpenAI (gpt-5-codex, gpt-4o, etc.)
-        - azure_ai_foundry: Azure AI Foundry with managed models
+        - foundry: Azure AI Foundry with managed models
 
         Returns:
             Configured chat client for the selected provider
@@ -153,7 +153,7 @@ class Agent:
                         api_version=self.config.azure_openai_api_version,
                         credential=credential,
                     )
-        elif self.config.llm_provider == "azure_ai_foundry":
+        elif self.config.llm_provider == "foundry":
             from agent_framework.azure import AzureAIAgentClient
             from azure.identity.aio import AzureCliCredential as AsyncAzureCliCredential
 
@@ -165,7 +165,7 @@ class Agent:
         else:
             raise ValueError(
                 f"Unknown provider: {self.config.llm_provider}. "
-                f"Supported: openai, anthropic, azure, azure_ai_foundry"
+                f"Supported: openai, anthropic, azure, foundry"
             )
 
     def _create_agent(self) -> Any:

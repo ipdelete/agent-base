@@ -98,7 +98,7 @@ tests/integration/llm/
 - `openai_agent` - Real OpenAI agent (skips if no API key)
 - `anthropic_agent` - Real Anthropic agent (skips if no API key)
 - `azure_openai_agent` - Real Azure OpenAI agent (skips if no credentials)
-- `azure_ai_foundry_agent` - Real Azure AI Foundry agent (skips if no credentials)
+- `foundry_agent` - Real Azure AI Foundry agent (skips if no credentials)
 
 ### Test Files
 

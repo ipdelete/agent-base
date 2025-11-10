@@ -146,7 +146,7 @@ config_tests:
 
   - name: "Different provider - Azure"
     env:
-      LLM_PROVIDER: "azure_ai_foundry"
+      LLM_PROVIDER: "foundry"
     command: "uv run agent --check"
     timeout: 10
     expected_any:

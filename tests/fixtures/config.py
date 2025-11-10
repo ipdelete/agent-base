@@ -29,7 +29,7 @@ def mock_anthropic_config():
 def mock_azure_foundry_config():
     """Create mock Azure AI Foundry configuration."""
     return AgentConfig(
-        llm_provider="azure_ai_foundry",
+        llm_provider="foundry",
         azure_project_endpoint="https://test-project.services.ai.azure.com/api/projects/test",
         azure_model_deployment="gpt-4o",
     )

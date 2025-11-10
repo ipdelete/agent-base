@@ -62,7 +62,7 @@ class TestAgentConfig:
         with patch.dict(
             os.environ,
             {
-                "LLM_PROVIDER": "azure_ai_foundry",
+                "LLM_PROVIDER": "foundry",
                 "AZURE_PROJECT_ENDPOINT": "https://test.ai.azure.com/api/projects/test",
                 "AZURE_MODEL_DEPLOYMENT": "gpt-4o",
             },
@@ -70,7 +70,7 @@ class TestAgentConfig:
         ):
             config = AgentConfig.from_env()
 
-            assert config.llm_provider == "azure_ai_foundry"
+            assert config.llm_provider == "foundry"
             assert config.azure_project_endpoint == "https://test.ai.azure.com/api/projects/test"
             assert config.azure_model_deployment == "gpt-4o"
 
@@ -120,7 +120,7 @@ class TestAgentConfig:
     def test_validate_azure_foundry_success(self):
         """Test validate succeeds for Azure AI Foundry with required fields."""
         config = AgentConfig(
-            llm_provider="azure_ai_foundry",
+            llm_provider="foundry",
             azure_project_endpoint="https://test.ai.azure.com",
             azure_model_deployment="gpt-4o",
         )
@@ -130,7 +130,7 @@ class TestAgentConfig:
     def test_validate_azure_foundry_missing_endpoint(self):
         """Test validate fails for Azure AI Foundry without endpoint."""
         config = AgentConfig(
-            llm_provider="azure_ai_foundry",
+            llm_provider="foundry",
             azure_model_deployment="gpt-4o",
         )
 
@@ -140,7 +140,7 @@ class TestAgentConfig:
     def test_validate_azure_foundry_missing_deployment(self):
         """Test validate fails for Azure AI Foundry without deployment."""
         config = AgentConfig(
-            llm_provider="azure_ai_foundry",
+            llm_provider="foundry",
             azure_project_endpoint="https://test.ai.azure.com",
         )
 
@@ -177,7 +177,7 @@ class TestAgentConfig:
     def test_get_model_display_name_azure_foundry(self):
         """Test get_model_display_name for Azure AI Foundry."""
         config = AgentConfig(
-            llm_provider="azure_ai_foundry",
+            llm_provider="foundry",
             azure_project_endpoint="https://test.ai.azure.com",
             azure_model_deployment="gpt-4o",
         )

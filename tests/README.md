@@ -23,7 +23,6 @@ uv run pytest -m "not llm" -n auto
 # ✅ 220 tests in ~4 seconds, $0
 
 # Run ALL tests including LLM (requires API key, costs money)
-export OPENAI_API_KEY=sk-your-key
 uv run pytest -n auto
 # ✅ 242 tests (100%), ~30 seconds, ~$0.005
 ```

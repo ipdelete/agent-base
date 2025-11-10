@@ -96,7 +96,7 @@ def azure_openai_agent():
 
 
 @pytest.fixture
-def azure_ai_foundry_agent():
+def foundry_agent():
     """Create agent with real Azure AI Foundry client.
 
     Automatically skips if Azure AI Foundry credentials are not set.
@@ -111,14 +111,14 @@ def azure_ai_foundry_agent():
     Example:
         @pytest.mark.llm
         @pytest.mark.requires_azure
-        async def test_something(azure_ai_foundry_agent):
-            response = await azure_ai_foundry_agent.run("test")
+        async def test_something(foundry_agent):
+            response = await foundry_agent.run("test")
     """
     if not os.getenv("AZURE_PROJECT_ENDPOINT"):
         pytest.skip("Azure AI Foundry credentials not set - skipping real LLM test")
 
     config = AgentConfig(
-        llm_provider="azure_ai_foundry",
+        llm_provider="foundry",
         azure_project_endpoint=os.getenv("AZURE_PROJECT_ENDPOINT"),
         # Use gpt-5-mini as default (supports tools and matches main config)
         azure_model_deployment=os.getenv("AZURE_MODEL_DEPLOYMENT", "gpt-5-mini"),

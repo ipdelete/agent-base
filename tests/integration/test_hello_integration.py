@@ -113,12 +113,12 @@ async def test_agent_with_multiple_provider_configs():
 
     # Azure AI Foundry config
     azure_config = AgentConfig(
-        llm_provider="azure_ai_foundry",
+        llm_provider="foundry",
         azure_project_endpoint="https://test.ai.azure.com",
         azure_model_deployment="gpt-4o",
     )
     agent_azure = Agent(config=azure_config, chat_client=mock_client)
-    assert agent_azure.config.llm_provider == "azure_ai_foundry"
+    assert agent_azure.config.llm_provider == "foundry"
 
 
 @pytest.mark.asyncio
@@ -183,9 +183,9 @@ async def test_provider_switching_with_mock():
             ),
         ),
         (
-            "azure_ai_foundry",
+            "foundry",
             AgentConfig(
-                llm_provider="azure_ai_foundry",
+                llm_provider="foundry",
                 azure_project_endpoint="https://test.ai.azure.com",
                 azure_model_deployment="gpt-4o",
             ),
