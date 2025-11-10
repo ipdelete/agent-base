@@ -492,3 +492,65 @@ class TestLoggingFunctionMiddleware:
         assert child_start.tool_name == "child_tool"
         # Child should have parent_id set
         assert child_start.parent_id == parent_start.event_id
+
+    @pytest.mark.asyncio
+    async def test_middleware_handles_pydantic_arguments(self):
+        """Test middleware handles Pydantic model arguments."""
+        from pydantic import BaseModel
+
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolStartEvent, get_event_emitter
+
+        # Enable visualization
+        ctx = ExecutionContext(show_visualization=True)
+        set_execution_context(ctx)
+
+        # Create a Pydantic model for arguments
+        class ToolArgs(BaseModel):
+            name: str
+            value: int
+
+        args_model = ToolArgs(name="test", value=42)
+
+        context = Mock()
+        context.function = Mock()
+        context.function.name = "pydantic_tool"
+        context.arguments = args_model
+
+        async def mock_next(ctx):
+            return "result"
+
+        await logging_function_middleware(context, mock_next)
+
+        emitter = get_event_emitter()
+        event = emitter.get_event_nowait()
+
+        assert isinstance(event, ToolStartEvent)
+        assert event.arguments["name"] == "test"
+        assert event.arguments["value"] == 42
+
+    @pytest.mark.asyncio
+    async def test_middleware_handles_non_dict_arguments(self):
+        """Test middleware handles non-dict, non-Pydantic arguments."""
+        from agent.display import ExecutionContext, set_execution_context
+        from agent.display.events import ToolStartEvent, get_event_emitter
+
+        # Enable visualization
+        ctx = ExecutionContext(show_visualization=True)
+        set_execution_context(ctx)
+
+        context = Mock()
+        context.function = Mock()
+        context.function.name = "test_tool"
+        context.arguments = "string_arguments"  # Non-dict, non-Pydantic
+
+        async def mock_next(ctx):
+            return "result"
+
+        await logging_function_middleware(context, mock_next)
+
+        emitter = get_event_emitter()
+        event = emitter.get_event_nowait()
+
+        assert isinstance(event, ToolStartEvent)
+        assert event.arguments == {}  # Should default to empty dict
