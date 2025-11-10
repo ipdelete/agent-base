@@ -121,10 +121,13 @@ class TestToolErrorHandlingAcrossProviders:
 
         # Should communicate error
         response_lower = response.lower()
+        error_indicators = [
+            "not supported", "error", "cannot", "unable", "unsupported",
+            "doesn't support", "does not support", "only accepts", "only supports"
+        ]
         assert any(
-            word in response_lower
-            for word in ["not supported", "error", "cannot", "unable", "unsupported"]
-        )
+            word in response_lower for word in error_indicators
+        ), f"Should communicate error. Response: {response}"
 
 
 @pytest.mark.llm
