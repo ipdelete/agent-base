@@ -147,51 +147,9 @@ class TestOpenAIErrorHandling:
         ), f"Should communicate tool error. Response: {response}"
 
 
-@pytest.mark.llm
-@pytest.mark.requires_openai
-@pytest.mark.slow
-class TestOpenAIConversationContext:
-    """Test conversation context with real OpenAI API."""
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Thread context not persisting - known threading API limitation")
-    async def test_multi_turn_conversation(self, openai_agent):
-        """Test multi-turn conversation maintains context.
-
-        Cost: ~$0.001
-        """
-        # Get new thread for context
-        thread = openai_agent.get_new_thread()
-
-        # First turn - introduce name
-        response1 = await openai_agent.run("My name is Alice", thread=thread)
-        assert response1, "First response should not be empty"
-
-        # Second turn - ask about name (should remember)
-        response2 = await openai_agent.run("What is my name?", thread=thread)
-
-        # Should remember Alice from first turn
-        assert "Alice" in response2, f"Should remember name. Response: {response2}"
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Thread context not persisting - known threading API limitation")
-    async def test_context_across_tool_calls(self, openai_agent):
-        """Test context is maintained across tool invocations.
-
-        Cost: ~$0.001
-        """
-        thread = openai_agent.get_new_thread()
-
-        # First: Use tool to greet someone
-        response1 = await openai_agent.run(
-            "Use hello_world to greet Alice", thread=thread
-        )
-        assert "Alice" in response1
-
-        # Second: Reference previous greeting
-        response2 = await openai_agent.run(
-            "Who did you just greet?", thread=thread
-        )
-
-        # Should remember it was Alice
-        assert "Alice" in response2, f"Should remember previous greeting. Response: {response2}"
+# NOTE: Multi-turn conversation context tests removed
+# Threading/memory is not yet implemented in the agent template
+# When memory feature is added, add tests for:
+# - Multi-turn conversation context
+# - Context across tool calls
+# - Thread serialization/deserialization

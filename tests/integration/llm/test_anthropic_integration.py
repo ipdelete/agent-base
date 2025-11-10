@@ -108,27 +108,6 @@ class TestAnthropicErrorHandling:
         ), f"Should communicate tool error. Response: {response}"
 
 
-@pytest.mark.llm
-@pytest.mark.requires_anthropic
-@pytest.mark.slow
-class TestAnthropicConversationContext:
-    """Test conversation context with Anthropic."""
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Thread context not persisting - known threading API limitation")
-    async def test_multi_turn_conversation(self, anthropic_agent):
-        """Test multi-turn conversation maintains context.
-
-        Cost: ~$0.001
-        """
-        thread = anthropic_agent.get_new_thread()
-
-        # First turn
-        response1 = await anthropic_agent.run("My name is Alice", thread=thread)
-        assert response1
-
-        # Second turn - reference first
-        response2 = await anthropic_agent.run("What is my name?", thread=thread)
-
-        # Should remember Alice
-        assert "Alice" in response2, f"Should remember name. Response: {response2}"
+# NOTE: Multi-turn conversation context tests removed
+# Threading/memory is not yet implemented in the agent template
+# When memory feature is added, add tests for multi-turn conversations
