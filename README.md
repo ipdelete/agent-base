@@ -1,159 +1,149 @@
-# Agent Template
+# Agent Base
 
-Production-ready foundation for building AI agents with extensible tools. Built on Microsoft Agent Framework.
+Production-ready conversational AI agent with extensible architecture.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
 
-Build AI-powered conversational agents with custom tools. Clean architecture, multi-provider LLM support, and comprehensive testing built-in.
+A complete conversational agent built on Microsoft Agent Framework with multi-provider LLM support, conversation memory, and session management. Designed for extension through custom toolsets.
 
 ```bash
 agent -p "say hello to Alice"
-# ✓ Complete (2.0s) - msg:1 tool:1
-# Hello, Alice! ◉‿◉
+# Complete (2.0s)
+# Hello, Alice!
 
 agent  # Interactive mode with auto-save sessions
 ```
 
-**[📖 Full Usage Guide](USAGE.md)** | **[🚀 Quick Start](#quick-setup)**
-
 ## Features
 
-### 🤖 Multi-Provider LLM Support
-- **OpenAI**: Direct OpenAI API (gpt-5-mini, gpt-4o, etc.)
-- **Anthropic**: Direct Anthropic API (claude-sonnet-4-5, claude-opus-4, etc.)
-- **Azure OpenAI**: Azure-hosted OpenAI models (gpt-5-codex, gpt-4o, etc.) - fastest!
-- **Azure AI Foundry**: Microsoft's managed AI platform with 1,800+ models
+**Multi-Provider LLM Support**
+- OpenAI (gpt-5-mini, gpt-4o)
+- Anthropic (claude-sonnet-4-5, claude-opus-4)
+- Azure OpenAI (gpt-5-codex, gpt-4o)
+- Azure AI Foundry
 
-### 🎛️ Interactive Experience
-- **Interactive mode**: Multi-turn conversations with auto-save sessions
-- **Execution visualization**: Real-time display of thinking and tool calls
-- **Conversation history**: Resume sessions with `--continue`
-- **Keyboard shortcuts**: ESC to clear, shell commands with `!`
-- **Context status bar**: Right-aligned path and branch display before each prompt
+**Conversation Features**
+- Conversation memory with context persistence
+- Automatic session saving and resume
+- Multi-turn context awareness
+- Session switching and management
 
-### ⌨️ Keyboard Shortcuts
-- **Shell commands**: Execute system commands with `!` (e.g., `!ls`, `!git status`)
-- **Quick clear**: Press `ESC` to clear the prompt
-- **Mixed workflows**: Combine AI conversations with direct shell access
-- **No context switching**: Stay in agent while checking system state
+**Extensible Architecture**
+- Class-based toolset system for custom tools
+- Event-driven design for loose coupling
+- Dependency injection for testing
+- Test coverage above 85%
 
-### 🏗️ Clean Architecture
-- **Class-based toolsets** with dependency injection (no global state)
-- **Event-driven design** for loose coupling
-- **High test coverage** (85%+ maintained)
-- **Extensible patterns** for adding custom tools
+## Quick Start
 
-## Prerequisites
-
-**Required:**
-- Python 3.12+
+**Prerequisites**
+- Python 3.12 or higher
 - [uv](https://docs.astral.sh/uv/) package manager
-- One of the supported LLM providers (OpenAI, Anthropic, Azure OpenAI, or Azure AI Foundry)
+- API credentials for at least one LLM provider
+- (Optional) [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) for Azure providers
 
-**Optional:**
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) - auth via `az login` for Azure providers
-
-## Quick Setup
+**Installation**
 
 ```bash
-# Install from source
-git clone https://github.com/danielscholl/agent-template.git
-cd agent-template
+git clone https://github.com/danielscholl/agent-base.git
+cd agent-base
 uv sync
+```
 
-# Configure required credentials
+**Configuration**
+
+Copy the example environment file and add your credentials:
+
+```bash
 cp .env.example .env
-# Edit .env with your LLM provider credentials
 ```
 
-**Authenticate with CLI tools** (if using Azure AI Foundry):
+For OpenAI:
 ```bash
-az login      # For Azure AI Foundry
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-key
 ```
 
-**OR use API keys**:
+For Azure providers, authenticate via Azure CLI:
 ```bash
-# Edit .env file:
-# LLM_PROVIDER=openai
-# OPENAI_API_KEY=your-key
+az login
 ```
 
-**Verify setup**:
+**Verification**
+
 ```bash
-uv run agent --check    # Check dependencies and configuration
-uv run agent --config   # Show current configuration
+uv run agent --check    # Validate configuration
+uv run agent --config   # Display current settings
 ```
 
 ## Usage
 
+Basic commands:
+
 ```bash
-# Interactive chat mode
-agent
-
-# Single query
-agent -p "say hello to Alice"
-
-# Health check
-agent --check
-
-# Get help
-agent --help
+agent                          # Start interactive mode
+agent -p "your question"       # Single query
+agent --continue               # Resume last session
+agent --help                   # Show all options
 ```
 
-### Interactive Mode Features
+Interactive mode supports:
+- Natural language queries with automatic tool selection
+- Shell command execution via `!` prefix (e.g., `!git status`, `!ls`)
+- Session persistence (automatically saved on exit)
+- ESC to clear the current prompt
+- `/continue` to switch between saved sessions
 
-In interactive mode, you can:
-
-- **Ask questions**: Natural language interactions
-- **Use tools**: Agent automatically selects and calls appropriate tools
-- **Execute shell commands**: `!ls`, `!git status`, `!docker ps`
-- **Clear prompt**: Press `ESC` to clear current input
-- **Auto-saved sessions**: Exit and resume anytime with `agent --continue`
-- **Switch sessions**: Use `/continue` to pick from saved sessions
-
-**See [USAGE.md](USAGE.md) for comprehensive examples and patterns.**
+See [USAGE.md](USAGE.md) for detailed examples and usage patterns.
 
 ## Configuration
 
-Configure via `.env` file:
+Environment variables are loaded from `.env`:
 
 ```bash
-# Required
-LLM_PROVIDER=openai                  # openai, anthropic, azure, azure_ai_foundry
+# Provider selection (openai, anthropic, azure, azure_ai_foundry)
+LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-your-key
 
-# Optional
-AGENT_DATA_DIR=~/.agent              # Session storage
-LOG_LEVEL=info                       # debug, info, warning, error
+# Optional settings
+AGENT_DATA_DIR=~/.agent              # Session storage location
+LOG_LEVEL=info                       # Logging verbosity
 ```
 
-See [.env.example](.env.example) for all provider options (OpenAI, Anthropic, Azure OpenAI, Azure AI Foundry).
+See [.env.example](.env.example) for all available configuration options.
+
+## Extending Agent Base
+
+Add custom tools by creating toolsets:
+
+```python
+from agent.tools.toolset import AgentToolset
+
+class MyTools(AgentToolset):
+    def get_tools(self):
+        return [self.my_tool]
+
+    async def my_tool(self, arg: str) -> dict:
+        """Your custom tool."""
+        return self._create_success_response(result="...")
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guide.
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code quality guidelines, and contribution workflow.
-
-### Quick Development Setup
-
 ```bash
-# Install development dependencies
-uv sync --all-extras
-
-# Run tests
-uv run pytest --cov=src/agent --cov-fail-under=85
-
-# Code quality checks
-uv run black src/ tests/
-uv run ruff check --fix src/ tests/
-uv run mypy src/agent/
+uv sync --all-extras              # Install dev dependencies
+uv run pytest --cov=src/agent     # Run tests with coverage
+uv run black src/ tests/          # Format code
+uv run ruff check --fix src/      # Lint code
+uv run mypy src/agent/            # Type check
 ```
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code quality guidelines, and contribution workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 

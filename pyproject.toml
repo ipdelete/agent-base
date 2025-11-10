@@ -1,14 +1,14 @@
 [project]
-name = "agent-template"
+name = "agent-base"
 version = "0.1.0"
-description = "Generic chatbot agent with extensible tool architecture"
+description = "Production-ready conversational AI agent with extensible architecture"
 authors = [
     {name = "Daniel Scholl", email = "dascholl@microsoft.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.12"
-keywords = ["agent", "chatbot", "ai", "llm", "tools"]
+keywords = ["agent", "chatbot", "ai", "llm", "conversational", "tools"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -55,9 +55,9 @@ dev = [
 agent = "agent.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/danielscholl/agent-template"
-Repository = "https://github.com/danielscholl/agent-template"
-Issues = "https://github.com/danielscholl/agent-template/issues"
+Homepage = "https://github.com/danielscholl/agent-base"
+Repository = "https://github.com/danielscholl/agent-base"
+Issues = "https://github.com/danielscholl/agent-base/issues"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

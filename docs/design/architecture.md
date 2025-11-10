@@ -1,365 +1,310 @@
-# Tool Architecture
+# Architecture
 
-This document describes the architectural patterns used in the agent-template project for building tool-enabled AI agents.
+Architectural patterns and design decisions for agent-base.
 
 ## Overview
 
-The agent-template implements a class-based toolset architecture with dependency injection, avoiding common pitfalls like global state and tight coupling. The architecture enables:
+Agent-base uses a class-based architecture with dependency injection to avoid global state and tight coupling. The design prioritizes testability, type safety, and extensibility while maintaining test coverage above 85%.
 
-- Easy testing with mocked dependencies
-- Type-safe tool initialization
-- Loose coupling between components
-- High test coverage (85%+ target)
-- Modular, extensible design
+## Design Principles
 
-## Core Components
+1. **Testability** - All dependencies injected via constructors, enabling easy mocking without real LLM calls
+2. **Type Safety** - Type hints throughout for compile-time verification
+3. **Loose Coupling** - Event bus for component communication without direct dependencies
+4. **No Global State** - Class-based design with explicit dependency ownership
+5. **High Coverage** - 85%+ test coverage enforced, with clear separation between free and paid tests
 
-### 1. Agent Class
-
-The `Agent` class is the central component that integrates:
-- Multi-provider LLM support (OpenAI, Anthropic, Azure AI Foundry)
-- Tool registration and management
-- Microsoft Agent Framework integration
-
-```python
-from agent import Agent, AgentConfig
-
-config = AgentConfig.from_env()
-agent = Agent(config)
-response = await agent.run("Your prompt here")
-```
-
-**Key Features:**
-- Dependency injection for testing
-- Support for multiple toolsets
-- Async execution support
-
-### 2. Configuration System
-
-`AgentConfig` provides centralized configuration management:
-
-```python
-config = AgentConfig.from_env()  # Load from environment
-config.validate()                 # Validate provider settings
-```
-
-**Multi-Provider Support:**
-- OpenAI: `LLM_PROVIDER=openai`
-- Anthropic: `LLM_PROVIDER=anthropic`
-- Azure AI Foundry: `LLM_PROVIDER=azure_ai_foundry`
-
-### 3. Toolset Architecture
-
-Tools are organized into toolsets that inherit from `AgentToolset`:
-
-```python
-class HelloTools(AgentToolset):
-    def __init__(self, config: AgentConfig):
-        super().__init__(config)
-
-    def get_tools(self):
-        return [self.hello_world, self.greet_user]
-
-    async def hello_world(self, name: str = "World") -> dict:
-        return self._create_success_response(f"Hello, {name}!")
-```
-
-**Benefits:**
-- No global state
-- Easy to test with mocked config
-- Clear dependency ownership
-- Structured responses
-
-### 4. Event Bus
-
-Loose coupling between middleware and display via observer pattern:
-
-```python
-from agent.events import get_event_bus, Event, EventType
-
-bus = get_event_bus()
-bus.subscribe(display_component)
-
-# Emit events
-bus.emit(Event(EventType.TOOL_START, {"tool": "hello_world"}))
-```
-
-### 5. Exception Hierarchy
-
-Domain-specific exceptions for clear error handling:
-
-```
-AgentError (base)
-├── ConfigurationError
-├── ToolError
-│   ├── ToolNotFoundError
-│   └── ToolExecutionError
-└── APIError
-    └── ResourceNotFoundError
-```
-
-## Architectural Patterns
+## Key Patterns
 
 ### Dependency Injection
 
-**Why:** Enables testing without real LLM calls or external services.
+**Rationale:** Enables testing without real LLM calls or external services.
 
-```python
-# Production
-config = AgentConfig.from_env()
-agent = Agent(config)
+All components receive dependencies through constructors. Toolsets receive `AgentConfig`, Agent accepts `chat_client` for testing, memory manager is injected into Agent.
 
-# Testing
-from tests.mocks import MockChatClient
-mock_client = MockChatClient(response="Test")
-agent = Agent(config=config, chat_client=mock_client)
-```
+**What it enables:**
+- Test with `MockChatClient` instead of real LLM providers
+- Run full test suite without API costs
+- Multiple configurations simultaneously
+- No initialization order requirements
 
-### Structured Responses
-
-All tools return consistent response format:
-
-```python
-# Success
-{
-    "success": True,
-    "result": <any type>,
-    "message": "Optional message"
-}
-
-# Error
-{
-    "success": False,
-    "error": "machine_readable_code",
-    "message": "Human-friendly message"
-}
-```
+See ADR-0006 for detailed rationale on class-based design.
 
 ### Event-Driven Architecture
 
-Middleware emits events, display subscribes:
+**Rationale:** Middleware and display components should not know about each other.
 
+Observer pattern via event bus. Middleware emits events (`TOOL_START`, `TOOL_COMPLETE`), display subscribes and renders. Neither component imports the other.
+
+**What it enables:**
+- Test middleware without display
+- Swap display implementations
+- Add monitoring without changing middleware
+- Multiple subscribers to same events
+
+See ADR-0005 for detailed analysis of alternatives.
+
+### Structured Responses
+
+**Rationale:** Consistent format enables predictable error handling and testing.
+
+All tools return:
 ```python
-# Middleware (emits)
-bus.emit(Event(EventType.TOOL_START, {"tool": name}))
-
-# Display (subscribes)
-class DisplayComponent:
-    def handle_event(self, event: Event):
-        if event.type == EventType.TOOL_START:
-            self.show_tool_start(event.data["tool"])
+{"success": bool, "result": any, "message": str}  # Success
+{"success": bool, "error": str, "message": str}   # Error
 ```
+
+**What it enables:**
+- Uniform error handling in tests (`assert_success_response`)
+- Predictable LLM consumption
+- Easy validation helpers
+
+See ADR-0007 for response format specification.
+
+### ContextProvider Pattern
+
+**Rationale:** Memory needs both request and response messages to store complete conversations.
+
+Microsoft Agent Framework's ContextProvider receives both pre-LLM messages (`invoking`) and post-LLM messages (`invoked`). Middleware only sees one direction.
+
+**Why ContextProvider instead of middleware:**
+- Receives both request AND response messages
+- Can inject context before LLM call
+- Framework's intended pattern for memory/context
+- Proven pattern from production implementations
+
+See ADR-0013 for memory architecture decisions.
+
+## Component Overview
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    CLI (Typer)                       │
+│  Interactive shell, session management, shortcuts    │
+└─────────────────────┬────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│                     Agent                            │
+│   LLM orchestration, tool registration, memory      │
+└──┬──────────────┬──────────────┬────────────────────┘
+   │              │              │
+   ▼              ▼              ▼
+┌──────┐   ┌──────────┐   ┌──────────────┐
+│Tools │   │  Memory  │   │  Middleware  │
+│      │   │(Context  │   │(emit events) │
+│      │   │Provider) │   │              │
+└──────┘   └──────────┘   └──────┬───────┘
+                                 │
+                                 ▼
+                          ┌──────────────┐
+                          │  Event Bus   │
+                          └──────┬───────┘
+                                 │
+                                 ▼
+                          ┌──────────────┐
+                          │   Display    │
+                          │ (Rich/Tree)  │
+                          └──────────────┘
+```
+
+### Major Components
+
+**CLI** (`cli/`) - Interactive interface with Typer, prompt_toolkit, session management
+
+**Agent** (`agent.py`) - Core orchestration, multi-provider LLM support, dependency injection
+
+**Toolsets** (`tools/`) - Class-based tool implementations inheriting from `AgentToolset`
+
+**Memory** (`memory/`) - ContextProvider-based conversation storage with in-memory backend
+
+**Event Bus** (`events.py`) - Observer pattern for loose coupling between middleware and display
+
+**Display** (`display/`) - Rich-based execution visualization, tree hierarchy, multiple modes
+
+**Persistence** (`persistence.py`) - Session and memory state serialization
+
+See `src/agent/` for implementation details.
 
 ## Anti-Patterns Avoided
 
-### 1. Global State
+**Global State** - All state managed through class instances with explicit dependencies. No module-level variables holding configuration or managers.
 
-❌ **Bad:**
-```python
-_manager = None
+**Runtime Initialization** - Dependencies injected at construction time, not lazily initialized with runtime checks. No `if not _manager: raise RuntimeError`.
 
-def initialize_tools(config):
-    global _manager
-    _manager = Manager(config)
-```
+**Tight Coupling** - Event bus enables component independence. Display doesn't import middleware, middleware doesn't import display.
 
-✅ **Good:**
-```python
-class MyTools(AgentToolset):
-    def __init__(self, config: AgentConfig):
-        self.manager = Manager(config)
-```
+**Direct LLM Calls in Tests** - Dependency injection allows `MockChatClient` in all tests except explicit LLM integration tests (marked with `@pytest.mark.llm`).
 
-### 2. Runtime Initialization
+See ADR-0006 for detailed examples of avoided patterns.
 
-❌ **Bad:**
-```python
-def my_tool():
-    if not _manager:
-        raise RuntimeError("Not initialized")
-```
-
-✅ **Good:**
-```python
-class MyTools(AgentToolset):
-    async def my_tool(self):
-        return self.manager.do_work()  # Always available
-```
-
-### 3. Tight Coupling
-
-❌ **Bad:**
-```python
-from agent.display import show_tool_start
-
-def run_tool():
-    show_tool_start("tool_name")  # Direct dependency
-```
-
-✅ **Good:**
-```python
-from agent.events import get_event_bus, Event
-
-def run_tool():
-    bus = get_event_bus()
-    bus.emit(Event(EventType.TOOL_START, {"tool": "name"}))
-```
-
-## Testing Strategy
-
-### Unit Tests
-
-Test components in isolation with mocked dependencies:
-
-```python
-def test_hello_tools(mock_config):
-    tools = HelloTools(mock_config)
-    result = await tools.hello_world("Test")
-    assert result["success"] is True
-```
-
-**Coverage Target:** 100% for business logic
-
-### Integration Tests
-
-Test full stack with mock chat client:
-
-```python
-@pytest.mark.asyncio
-async def test_full_stack():
-    config = AgentConfig(llm_provider="openai", openai_api_key="test")
-    mock_client = MockChatClient(response="Test response")
-    agent = Agent(config=config, chat_client=mock_client)
-
-    response = await agent.run("Test prompt")
-    assert response == "Test response"
-```
-
-**Coverage Target:** 85%+ overall
+## Testing Approach
 
 ### Test Organization
 
-```
-tests/
-├── unit/              # Isolated component tests
-│   ├── test_config.py
-│   ├── test_events.py
-│   ├── test_hello_tools.py
-│   └── test_agent.py
-├── integration/       # Full stack tests
-│   └── test_hello_integration.py
-├── mocks/            # Test mocks
-│   └── mock_client.py
-└── conftest.py       # Shared fixtures
-```
+Tests separated by type with clear cost implications:
 
-## Creating New Tools
+- **Unit** - Isolated component tests (free, fast)
+- **Integration** - Component interaction with `MockChatClient` (free, moderate)
+- **Validation** - CLI subprocess tests (free, moderate)
+- **LLM** - Real API calls (costs money, opt-in via marker)
 
-### Step 1: Create Toolset Class
+Only LLM tests make API calls. All others run in CI for free.
 
+### Architecture Enables Testing
+
+**Dependency injection:**
 ```python
-from agent.tools.toolset import AgentToolset
+# Production: real LLM client
+agent = Agent(config)
 
-class MyTools(AgentToolset):
-    def get_tools(self):
-        return [self.my_tool]
-
-    async def my_tool(self, arg: str) -> dict:
-        \"\"\"Tool documentation for LLM.
-
-        Args:
-            arg: Argument description
-
-        Returns:
-            Structured response with success field
-        \"\"\"
-        try:
-            result = self._do_work(arg)
-            return self._create_success_response(result)
-        except Exception as e:
-            return self._create_error_response(
-                error="execution_failed",
-                message=str(e)
-            )
+# Testing: mock client
+agent = Agent(config, chat_client=MockChatClient(response="test"))
 ```
 
-### Step 2: Register with Agent
-
+**Event bus for display testing:**
 ```python
-from agent import Agent
-from mytools import MyTools
-
-agent = Agent(
-    config=config,
-    toolsets=[HelloTools(config), MyTools(config)]
-)
+# Test middleware without display
+bus = EventBus()
+listener = MockListener()
+bus.subscribe(listener)
+run_middleware()
+assert listener.received_event(EventType.TOOL_START)
 ```
 
-### Step 3: Write Tests
-
+**Structured responses for validation:**
 ```python
-@pytest.mark.asyncio
-async def test_my_tool():
-    config = AgentConfig(llm_provider="openai", openai_api_key="test")
-    tools = MyTools(config)
-
-    result = await tools.my_tool("test")
-    assert result["success"] is True
+result = await tool.my_function("input")
+assert_success_response(result)  # Validates format
 ```
+
+See `tests/README.md` for comprehensive testing guide.
+
+## Configuration Architecture
+
+Multi-provider support via `AgentConfig`:
+
+- **Environment-based** - Load from `.env` via `from_env()`
+- **Validation** - Provider-specific validation on `validate()`
+- **Memory settings** - Enable/disable, type selection, history limits
+- **No defaults in code** - All defaults in `.env.example`
+
+**Supported providers:**
+- OpenAI (direct API)
+- Anthropic (direct API)
+- Azure OpenAI (Azure-hosted, fastest)
+- Azure AI Foundry (managed platform)
+
+Provider selection changes chat client implementation but Agent interface remains identical.
+
+See ADR-0003 for configuration management decisions.
+
+## Memory Architecture
+
+### Design Decision
+
+Use Microsoft Agent Framework's ContextProvider pattern rather than middleware.
+
+**Rationale:**
+- ContextProvider receives both request and response messages
+- `invoking()` can inject context before LLM call
+- `invoked()` can store complete conversation turn
+- Framework's intended pattern for memory management
+
+**Components:**
+- `MemoryManager` - Abstract interface for extensibility
+- `InMemoryStore` - Default implementation with search
+- `MemoryContextProvider` - Framework integration
+- `MemoryPersistence` - Save/load with sessions
+
+**Future extensibility:**
+- Swap `InMemoryStore` for external services (mem0, langchain)
+- Memory manager interface remains stable
+- Agent code unchanged
+
+See ADR-0013 for detailed memory architecture analysis.
+
+## Session Management
+
+Sessions persist both thread state (conversation history) and memory state (long-term context).
+
+**Design decision:** Separate but coordinated persistence.
+
+**Rationale:**
+- Thread persistence from framework (serializes conversation)
+- Memory persistence custom (serializes memory store)
+- Saved together, restored together
+- Future: share memory across threads
+
+**Implementation:**
+- `ThreadPersistence.save_thread()` - Conversation history
+- `ThreadPersistence.save_memory_state()` - Memory store
+- Both serialized to session directory
+- Metadata tracks both files
 
 ## CLI Architecture
 
-Simple CLI with typer and rich:
+**Design decision:** Typer for commands, prompt_toolkit for interactive shell, Rich for display.
 
-```python
-agent --check          # Health check
-agent --config         # Show configuration
-agent -p "prompt"      # Single prompt mode
-agent --version        # Show version
-```
+**Rationale:**
+- Typer provides argument parsing and help
+- prompt_toolkit enables advanced input (history, shortcuts)
+- Rich provides formatted output without manual terminal codes
+- All three integrate cleanly
 
-## Future Enhancements
+**Interactive commands:** Internal commands (`/clear`, `/continue`) handled before LLM
 
-### Phase 2: Display System
-- Execution visualization with Rich
-- Progress bars and spinners
-- Tree-based execution hierarchy
-- Status bar with model info
+**Shell commands:** Prefix `!` executes system commands without exiting
 
-### Phase 3: Session Management
-- Session persistence
-- Context restoration
-- Session switching
-- Metadata tracking
+**Keyboard shortcuts:** Extensible handler system via `utils/keybindings/`
 
-### Phase 4: Advanced Tools
-- API integration tools
-- Data processing tools
-- Web scraping tools
-- File system tools
+See ADR-0009 for CLI framework selection.
 
-## References
+## Display Architecture
 
-See Architecture Decision Records (ADRs) in `docs/decisions/`:
+**Design decision:** Event-driven updates via Rich Live display.
 
-- ADR-0001: Module and Package Naming Conventions
-- ADR-0002: Repository Infrastructure and DevOps Setup
-- ADR-0003: Configuration Management Strategy
-- ADR-0004: Custom Exception Hierarchy Design
-- ADR-0005: Event Bus Pattern for Loose Coupling
-- ADR-0006: Class-based Toolset Architecture
-- ADR-0007: Tool Response Format
-- ADR-0008: Testing Strategy and Coverage Targets
+**Rationale:**
+- Middleware emits events, doesn't render
+- Display subscribes to events, updates live
+- Swap display modes without changing middleware
+- Test middleware without display
 
-## Summary
+**Display modes:**
+- Default: Completion summary with timing
+- Verbose: Full execution tree
+- Quiet: Response only
 
-The agent-template architecture prioritizes:
+Tree rendering uses Rich's tree structure, updated incrementally as events arrive.
 
-1. **Testability:** Dependency injection enables easy mocking
-2. **Type Safety:** Clear type hints throughout
-3. **Loose Coupling:** Event bus for component communication
-4. **No Global State:** Class-based toolsets with constructors
-5. **High Coverage:** 85%+ test coverage target
-6. **Extensibility:** Easy to add new tools and providers
+See ADR-0010 for display format decisions.
 
-This foundation enables confident development of custom tools and integrations while maintaining code quality and avoiding technical debt.
+## Design Decisions
+
+Detailed rationale in Architecture Decision Records:
+
+**Core Architecture:**
+- [ADR-0001](../decisions/0001-module-and-package-naming-conventions.md) - Naming conventions
+- [ADR-0004](../decisions/0004-custom-exception-hierarchy-design.md) - Exception hierarchy
+- [ADR-0006](../decisions/0006-class-based-toolset-architecture.md) - Class-based toolsets
+- [ADR-0007](../decisions/0007-tool-response-format.md) - Structured responses
+
+**Component Integration:**
+- [ADR-0005](../decisions/0005-event-bus-pattern-for-loose-coupling.md) - Event bus pattern
+- [ADR-0012](../decisions/0012-middleware-integration-strategy.md) - Middleware approach
+- [ADR-0013](../decisions/0013-memory-architecture.md) - Memory with ContextProvider
+
+**User Interface:**
+- [ADR-0009](../decisions/0009-cli-framework-selection.md) - CLI framework choice
+- [ADR-0010](../decisions/0010-display-output-format.md) - Display format
+- [ADR-0011](../decisions/0011-session-management-architecture.md) - Session persistence
+
+**Testing:**
+- [ADR-0008](../decisions/0008-testing-strategy-and-coverage-targets.md) - Testing strategy
+
+## See Also
+
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Tool development guide
+- [tests/README.md](../../tests/README.md) - Testing strategy and workflows
+- [docs/decisions/](../decisions/) - Detailed architecture decision records
+- [docs/design/requirements.md](requirements.md) - Base requirements specification
