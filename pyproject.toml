@@ -94,6 +94,7 @@ markers = [
     "persistence: Session persistence tests",
     "config: Configuration tests",
     "events: Event bus tests",
+    "memory: Memory and context management tests",
 
     # LLM providers (for real API integration tests)
     "requires_openai: Tests requiring OpenAI API key",

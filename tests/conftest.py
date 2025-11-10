@@ -15,6 +15,13 @@ from tests.fixtures.config import (  # noqa: F401
     mock_config,
     mock_openai_config,
 )
+from tests.fixtures.memory import (  # noqa: F401
+    memory_config,
+    memory_manager,
+    memory_persistence,
+    memory_store,
+    sample_messages,
+)
 
 # Future: Add more fixture imports as needed
 # from tests.fixtures.tools import tool_specific_fixtures

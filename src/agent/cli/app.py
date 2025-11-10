@@ -236,6 +236,7 @@ async def run_single_prompt(prompt: str, verbose: bool = False, quiet: bool = Fa
 
         # Setup session-specific logging (follows copilot pattern: ~/.agent/logs/session-{timestamp}.log)
         from datetime import datetime
+
         session_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         setup_session_logging(session_name, config)
 
@@ -294,6 +295,7 @@ async def run_chat_mode(
 
         # Generate session name for this session (used for both logging and saving)
         from datetime import datetime
+
         session_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
         # Setup session-specific logging (follows copilot pattern: ~/.agent/logs/session-{name}.log)
@@ -307,13 +309,17 @@ async def run_chat_mode(
         # Create agent
         agent = Agent(config=config)
 
-        # Initialize persistence manager
-        persistence = ThreadPersistence()
+        # Initialize persistence manager with config directories
+        persistence = ThreadPersistence(
+            storage_dir=config.agent_session_dir, memory_dir=config.memory_dir
+        )
 
         # Create or resume conversation thread
         thread = None
         message_count = 0
-        conversation_messages: list[dict] = []  # Track messages for providers without thread support
+        conversation_messages: list[dict] = (
+            []
+        )  # Track messages for providers without thread support
 
         if resume_session:
             # When resuming, use the resumed session name for logging
@@ -368,7 +374,14 @@ async def run_chat_mode(
                 if cmd in Commands.EXIT:
                     # Auto-save session before exit
                     await auto_save_session(
-                        persistence, thread, message_count, quiet, conversation_messages, console, session_name
+                        persistence,
+                        thread,
+                        message_count,
+                        quiet,
+                        conversation_messages,
+                        console,
+                        session_name,
+                        agent,
                     )
                     console.print("\n[dim]Goodbye![/dim]")
                     break
@@ -413,7 +426,14 @@ async def run_chat_mode(
             except EOFError:
                 # Ctrl+D - exit gracefully
                 await auto_save_session(
-                    persistence, thread, message_count, quiet, conversation_messages, console, session_name
+                    persistence,
+                    thread,
+                    message_count,
+                    quiet,
+                    conversation_messages,
+                    console,
+                    session_name,
+                    agent,
                 )
                 console.print("\n[dim]Goodbye![/dim]")
                 break
@@ -456,7 +476,9 @@ async def _execute_agent_query(
     if not quiet:
         display_mode = DisplayMode.VERBOSE if verbose else DisplayMode.MINIMAL
         try:
-            return await execute_with_visualization(agent, user_input, thread, console, display_mode)
+            return await execute_with_visualization(
+                agent, user_input, thread, console, display_mode
+            )
         except KeyboardInterrupt:
             console.print("\n[yellow]Operation cancelled[/yellow] - Press Ctrl+C again to exit\n")
             raise

@@ -33,6 +33,7 @@ class Agent:
         chat_client: Any | None = None,
         toolsets: list[AgentToolset] | None = None,
         middleware: list | None = None,
+        memory_manager: Any | None = None,
     ):
         """Initialize Agent.
 
@@ -41,6 +42,7 @@ class Agent:
             chat_client: Chat client for testing (optional, for dependency injection)
             toolsets: List of toolsets (default: HelloTools)
             middleware: List of middleware (framework auto-categorizes by type)
+            memory_manager: Memory manager for conversation storage (optional)
 
         Example:
             # Production use
@@ -64,6 +66,17 @@ class Agent:
             self.chat_client = chat_client
         else:
             self.chat_client = self._create_chat_client()
+
+        # Initialize memory manager if enabled
+        if memory_manager is not None:
+            self.memory_manager = memory_manager
+        elif self.config.memory_enabled:
+            from agent.memory import create_memory_manager
+
+            self.memory_manager = create_memory_manager(self.config)
+            logger.info(f"Memory enabled: {self.config.memory_type}")
+        else:
+            self.memory_manager = None
 
         # Initialize toolsets (avoid global state)
         if toolsets is None:
@@ -184,11 +197,23 @@ You help users with:
 
 Be helpful, concise, and clear in your responses."""
 
+        # Create context providers for memory
+        context_providers = []
+        if self.memory_manager:
+            from agent.memory import MemoryContextProvider
+
+            memory_provider = MemoryContextProvider(
+                self.memory_manager, history_limit=self.config.memory_history_limit
+            )
+            context_providers.append(memory_provider)
+            logger.info("Memory context provider enabled")
+
         return self.chat_client.create_agent(
             name="Agent",
             instructions=instructions,
             tools=self.tools,
             middleware=self.middleware,
+            context_providers=context_providers if context_providers else None,
         )
 
     def get_new_thread(self) -> Any:

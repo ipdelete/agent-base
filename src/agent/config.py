@@ -45,6 +45,12 @@ class AgentConfig:
     agent_data_dir: Path | None = None
     agent_session_dir: Path | None = None
 
+    # Memory configuration
+    memory_enabled: bool = True
+    memory_type: str = "in_memory"  # Future: "mem0", "langchain", etc.
+    memory_dir: Path | None = None
+    memory_history_limit: int = 20  # Max memories to inject as context
+
     @classmethod
     def from_env(cls) -> "AgentConfig":
         """Load configuration from environment variables.
@@ -84,6 +90,16 @@ class AgentConfig:
         data_dir = os.getenv("AGENT_DATA_DIR", str(home / ".agent"))
         config.agent_data_dir = Path(data_dir).expanduser()
         config.agent_session_dir = config.agent_data_dir / "sessions"
+
+        # Memory configuration
+        config.memory_enabled = os.getenv("MEMORY_ENABLED", "true").lower() == "true"
+        config.memory_type = os.getenv("MEMORY_TYPE", "in_memory")
+        config.memory_history_limit = int(os.getenv("MEMORY_HISTORY_LIMIT", "20"))
+        memory_dir = os.getenv("MEMORY_DIR")
+        if memory_dir:
+            config.memory_dir = Path(memory_dir).expanduser()
+        else:
+            config.memory_dir = config.agent_data_dir / "memory"
 
         return config
 

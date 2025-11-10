@@ -288,6 +288,10 @@ def create_middleware() -> list:
     Returns:
         List of middleware (framework auto-categorizes by type)
 
+    Note:
+        Memory is handled via ContextProvider, not middleware.
+        See MemoryContextProvider for memory management.
+
     Example:
         >>> from agent.middleware import create_middleware
         >>> middleware = create_middleware()

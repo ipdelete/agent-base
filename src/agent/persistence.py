@@ -76,12 +76,14 @@ class ThreadPersistence:
         >>> thread, context = await persistence.load_thread(agent, "my-session")
     """
 
-    def __init__(self, storage_dir: Path | None = None):
+    def __init__(self, storage_dir: Path | None = None, memory_dir: Path | None = None):
         """Initialize persistence manager.
 
         Args:
             storage_dir: Directory for storing conversations
                         (default: ~/.agent/sessions)
+            memory_dir: Directory for storing memory state
+                       (default: ~/.agent/memory)
         """
         if storage_dir is None:
             storage_dir = Path.home() / ".agent" / "sessions"
@@ -89,11 +91,18 @@ class ThreadPersistence:
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
+        # Memory directory
+        if memory_dir is None:
+            memory_dir = Path.home() / ".agent" / "memory"
+        self.memory_dir = Path(memory_dir)
+        self.memory_dir.mkdir(parents=True, exist_ok=True)
+
         # Metadata file tracks all conversations
         self.metadata_file = self.storage_dir / "index.json"
         self._load_metadata()
 
         logger.debug(f"Thread persistence initialized: {self.storage_dir}")
+        logger.debug(f"Memory persistence initialized: {self.memory_dir}")
 
     def _load_metadata(self) -> None:
         """Load conversation metadata index."""
@@ -345,12 +354,15 @@ class ThreadPersistence:
         logger.info(f"Saved conversation to {file_path}")
         return file_path
 
-    async def load_thread(self, agent: Any, name: str) -> tuple[Any, str | None]:
+    async def load_thread(
+        self, agent: Any, name: str, show_history: bool = True
+    ) -> tuple[Any, str | None]:
         """Load a conversation thread.
 
         Args:
             agent: Agent instance to create new thread
             name: Name of conversation to load
+            show_history: Whether to display conversation history (default: True)
 
         Returns:
             Tuple of (thread, context_summary)
@@ -379,34 +391,35 @@ class ThreadPersistence:
 
         thread_data = data["thread"]
 
-        from rich.console import Console
-        from rich.markdown import Markdown
-
-        console = Console()
-
-        # ALWAYS display conversation history to user (provides context)
-        # Extract messages regardless of serialization method
+        # Extract messages for context (may or may not display)
         messages = thread_data.get("messages", [])
 
-        if messages:
-            console.print("\n[bold cyan]Previous Session History:[/bold cyan]")
-            console.print(f"[dim]({len(messages)} messages)[/dim]\n")
+        # Display conversation history only if requested
+        # When memory is enabled, we suppress this since memory handles context
+        if show_history and messages:
+            from rich.console import Console
+            from rich.markdown import Markdown
 
-            for msg in messages:
+            console = Console()
+
+            # Small header to indicate resuming (subtle, not intrusive)
+            console.print(
+                f"\n[dim italic]Resuming session ({len(messages)} messages)[/dim italic]\n"
+            )
+
+            # Display in the same format as live conversation for consistency
+            for i, msg in enumerate(messages):
                 role = msg.get("role", "unknown")
                 content = msg.get("content", "")
 
                 if role == "user":
-                    console.print(f"[bold green]You:[/bold green] {content}")
+                    # Match the prompt format exactly: > user_message
+                    console.print(f"> {content}")
+                    console.print()  # Blank line after user input (like live conversation)
                 elif role == "assistant":
-                    console.print("[bold cyan]Agent:[/bold cyan]")
+                    # Match the agent response format (markdown rendering, no label)
                     console.print(Markdown(content))
-
-                # Show tool calls if present
-                if "tool_calls" in msg:
-                    console.print(f"[dim]  Tools used: {len(msg['tool_calls'])}[/dim]")
-
-                console.print()
+                    # Don't add blank line - let CLI handle spacing
 
         # Check if fallback serialization was used
         if thread_data.get("metadata", {}).get("fallback"):
@@ -491,3 +504,65 @@ class ThreadPersistence:
             self._save_metadata()
 
         logger.info(f"Deleted session '{safe_name}'")
+
+    async def save_memory_state(self, session_name: str, memory_data: list[dict]) -> Path:
+        """Save memory state for a session.
+
+        Args:
+            session_name: Name of the session
+            memory_data: List of memory entries to save
+
+        Returns:
+            Path to saved memory file
+
+        Raises:
+            ValueError: If session_name is invalid
+
+        Example:
+            >>> memories = [{"role": "user", "content": "Hello"}]
+            >>> path = await persistence.save_memory_state("session-1", memories)
+        """
+        from agent.memory.persistence import MemoryPersistence
+
+        safe_name = _sanitize_conversation_name(session_name)
+        memory_persistence = MemoryPersistence(storage_dir=self.memory_dir)
+
+        # Get memory file path
+        memory_path = memory_persistence.get_memory_path(safe_name)
+
+        # Save memory state
+        await memory_persistence.save(memory_data, memory_path)
+
+        # Update session metadata to track memory
+        if safe_name in self.metadata.get("conversations", {}):
+            self.metadata["conversations"][safe_name]["has_memory"] = True
+            self.metadata["conversations"][safe_name]["memory_count"] = len(memory_data)
+            self._save_metadata()
+
+        return memory_path
+
+    async def load_memory_state(self, session_name: str) -> list[dict] | None:
+        """Load memory state for a session.
+
+        Args:
+            session_name: Name of the session
+
+        Returns:
+            List of memory entries or None if no memory exists
+
+        Raises:
+            ValueError: If session_name is invalid
+
+        Example:
+            >>> memories = await persistence.load_memory_state("session-1")
+        """
+        from agent.memory.persistence import MemoryPersistence
+
+        safe_name = _sanitize_conversation_name(session_name)
+        memory_persistence = MemoryPersistence(storage_dir=self.memory_dir)
+
+        # Get memory file path
+        memory_path = memory_persistence.get_memory_path(safe_name)
+
+        # Load memory state
+        return await memory_persistence.load(memory_path)

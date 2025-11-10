@@ -260,6 +260,8 @@ Continue? (y/n): y
 ✓ Deleted 5 sessions
 ```
 
+**Note:** The agent automatically maintains conversation context, so when you resume a session it will remember information from earlier in the conversation.
+
 ## Building Custom Tools
 
 Agent Template uses a class-based toolset architecture for building custom tools.

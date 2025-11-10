@@ -13,8 +13,12 @@ from agent.agent import Agent
 from agent.config import AgentConfig
 from agent.persistence import ThreadPersistence
 
+logger = logging.getLogger(__name__)
 
-def setup_session_logging(session_name: str | None = None, config: AgentConfig | None = None) -> str:
+
+def setup_session_logging(
+    session_name: str | None = None, config: AgentConfig | None = None
+) -> str:
     """Setup session-specific logging to file (not console).
 
     Follows copilot pattern: ~/.agent/logs/session-{name}.log
@@ -75,6 +79,7 @@ async def auto_save_session(
     messages: list[dict] | None = None,
     console: Console | None = None,
     session_name: str | None = None,
+    agent: Agent | None = None,
 ) -> None:
     """Auto-save session on exit if it has messages.
 
@@ -86,6 +91,7 @@ async def auto_save_session(
         messages: Optional list of tracked messages for providers without thread support
         console: Console for output (optional)
         session_name: Optional session name (if not provided, generates timestamp)
+        agent: Optional Agent instance for memory saving
     """
     if message_count > 0:
         try:
@@ -100,6 +106,19 @@ async def auto_save_session(
                 description="Auto-saved session",
                 messages=messages,
             )
+
+            # Save memory state if agent has memory enabled
+            if agent and agent.memory_manager:
+                try:
+                    memory_result = await agent.memory_manager.get_all()
+                    if memory_result.get("success") and memory_result["result"]:
+                        memory_data = memory_result["result"]
+                        await persistence.save_memory_state(session_name, memory_data)
+                        if not quiet and console:
+                            console.print(f"[dim]Saved {len(memory_data)} memories[/dim]")
+                except Exception as e:
+                    if not quiet and console:
+                        console.print(f"[yellow]Warning: Failed to save memory: {e}[/yellow]")
 
             # Save as last session for --continue
             _save_last_session(session_name)
@@ -203,11 +222,33 @@ async def restore_session_context(
         Tuple of (thread, context_summary, message_count)
     """
     try:
-        thread, context_summary = await persistence.load_thread(agent, session_name)
+        # Show history unless in quiet mode
+        thread, context_summary = await persistence.load_thread(
+            agent, session_name, show_history=not quiet
+        )
+
+        # Load memory state silently if agent has memory enabled
+        if agent.memory_manager:
+            try:
+                memory_data = await persistence.load_memory_state(session_name)
+                if memory_data:
+                    # Restore memories into the memory manager
+                    result = await agent.memory_manager.add(memory_data)
+                    if result.get("success"):
+                        memory_count = len(memory_data)
+                        logger.info(
+                            f"Restored {memory_count} memories from session '{session_name}'"
+                        )
+                    else:
+                        logger.warning(f"Failed to restore memories: {result.get('message')}")
+            except Exception as e:
+                logger.warning(f"Could not load memory state: {e}")
 
         # If we have a context summary, restore AI context silently
+        # Skip this if memory is enabled - memory already provides full context
         message_count = 0
-        if context_summary:
+        if context_summary and not agent.memory_manager:
+            # Only restore context summary if memory is NOT enabled
             if not quiet:
                 with console.status("[bold blue]Restoring context...", spinner="dots"):
                     await agent.run(context_summary, thread=thread)
@@ -216,15 +257,15 @@ async def restore_session_context(
                 await agent.run(context_summary, thread=thread)
                 message_count = 1
 
-        # Show single clean status message after restore
-        if not quiet:
-            console.print("[green]✓ Ready[/green]\n")
-            console.print(f"[dim]{'─' * console.width}[/dim]")
+        # Don't show extra message - just continue seamlessly
+        # The history display above provides enough context
 
         return thread, context_summary, message_count
 
     except FileNotFoundError:
-        console.print(f"[yellow]Session '{session_name}' not found. Starting new session.[/yellow]\n")
+        console.print(
+            f"[yellow]Session '{session_name}' not found. Starting new session.[/yellow]\n"
+        )
         return None, None, 0
     except Exception as e:
         console.print(f"[yellow]Failed to resume session: {e}. Starting new session.[/yellow]\n")
