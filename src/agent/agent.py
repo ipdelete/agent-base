@@ -369,7 +369,8 @@ Be helpful, concise, and clear in your responses."""
                     if ctx_type is FunctionInvocationContext:
                         function_mw.append(mw)
                         continue
-                except Exception:
+                except (AttributeError, TypeError):
+                    # Middleware doesn't have proper type hints, fall back to heuristic
                     pass
 
                 # Last resort: name heuristic

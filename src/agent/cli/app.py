@@ -90,7 +90,8 @@ def _get_status_bar_text() -> str:
         if result.returncode == 0 and result.stdout.strip():
             branch = result.stdout.strip()
             branch_display = f" [⎇ {branch}]"
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
+        # Silently ignore git errors - branch info is optional
         pass
 
     # Right-justify the path and branch
@@ -201,8 +202,8 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
             if hasattr(agent, "chat_client") and hasattr(agent.chat_client, "close"):
                 try:
                     await agent.chat_client.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to close client during cleanup: {e}")
 
             return (True, "Connected") if response else (False, "Connection failed")
 
@@ -214,8 +215,8 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
             if agent and hasattr(agent, "chat_client") and hasattr(agent.chat_client, "close"):
                 try:
                     await agent.chat_client.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to close client in finally block: {e}")
 
     except Exception as e:
         logger.debug(f"Provider test for {provider} failed: {e}")
@@ -305,8 +306,8 @@ def run_health_check() -> None:
                         if ncpu > 0 and mem_total > 0:
                             mem_gb = mem_total / (1024**3)
                             resources_info = f" · {ncpu} cores, {mem_gb:.1f} GiB"
-                except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError):
-                    pass
+                except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
+                    logger.debug(f"Failed to get Docker resources: {e}")
 
                 console.print(
                     f"  [green]◉[/green] Running [dim]({version})[/dim]{resources_info}",

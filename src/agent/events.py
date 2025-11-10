@@ -79,7 +79,7 @@ class EventListener(Protocol):
         Args:
             event: The event to handle
         """
-        ...
+        pass
 
 
 class EventBus:
