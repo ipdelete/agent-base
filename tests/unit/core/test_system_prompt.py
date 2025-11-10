@@ -146,6 +146,7 @@ class TestSystemPromptLoading:
         mock_config.system_prompt_file = str(custom_prompt_file)
         mock_config.llm_provider = "anthropic"
         mock_config.anthropic_model = "claude-opus-4"
+        mock_config.anthropic_api_key = "test-key"  # Required for agent initialization
 
         agent = Agent(mock_config)
         prompt = agent._load_system_prompt()

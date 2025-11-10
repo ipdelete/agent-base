@@ -1,5 +1,6 @@
 """Unit tests for agent.cli module."""
 
+import re
 import subprocess
 import sys
 
@@ -8,6 +9,17 @@ import typer
 from typer.testing import CliRunner
 
 from agent.cli import app
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    This helper allows tests to focus on content rather than formatting.
+    ANSI codes are used for colors and styling but aren't relevant for
+    testing the presence of options and descriptions.
+    """
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 @pytest.mark.unit
@@ -58,11 +70,14 @@ class TestCLIHelpOutput:
         result = self.runner.invoke(app, ["--help"])
         assert result.exit_code == 0
 
+        # Strip ANSI codes to focus on content not formatting
+        clean_output = strip_ansi(result.stdout)
+
         # Check for documented options
-        assert "--prompt" in result.stdout
-        assert "--check" in result.stdout
-        assert "--config" in result.stdout
-        assert "--version" in result.stdout
+        assert "--prompt" in clean_output
+        assert "--check" in clean_output
+        assert "--config" in clean_output
+        assert "--version" in clean_output
 
     def test_help_contains_examples_section(self):
         """Test help output includes examples from docstring."""
@@ -162,8 +177,10 @@ class TestCLIIntegration:
         )
 
         assert result.returncode == 0
-        assert "agent" in result.stdout.lower() or "Agent" in result.stdout
-        assert "--help" in result.stdout
+        # Strip ANSI codes to focus on content not formatting
+        clean_output = strip_ansi(result.stdout)
+        assert "agent" in clean_output.lower() or "Agent" in clean_output
+        assert "--help" in clean_output
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific test")
     def test_cli_version_via_subprocess(self):
@@ -206,9 +223,9 @@ class TestCLIDocumentation:
         runner = CliRunner()
         result = runner.invoke(app, ["--help"])
 
-        # Verify that key options appear in help output
-        # (Rich formatting may split option names and descriptions across lines)
-        help_text = result.stdout.lower()
+        # Strip ANSI codes and convert to lowercase for matching
+        clean_output = strip_ansi(result.stdout)
+        help_text = clean_output.lower()
 
         # Check that important options are documented
         assert "--prompt" in help_text or "-p" in help_text
