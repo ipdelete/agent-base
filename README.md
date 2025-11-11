@@ -68,6 +68,9 @@ Goodbye!
 # Install agent
 uv tool install --prerelease=allow git+https://github.com/danielscholl/agent-base.git
 
+# Upgrade agent
+uv tool upgrade agent-base
+
 # Pull model
 docker desktop enable model-runner --tcp=12434
 docker model pull phi4
