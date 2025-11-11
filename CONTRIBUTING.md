@@ -18,8 +18,6 @@ cp .env.example .env
 uv run agent --check
 ```
 
-See [README.md](README.md) for detailed setup instructions.
-
 ## Development Workflow
 
 ### 1. Run Tests Before Changes
