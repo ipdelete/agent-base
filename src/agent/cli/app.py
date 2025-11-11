@@ -133,7 +133,7 @@ def main(
         agent -p "Say hello to Alice"               # Single query (clean output)
         agent -p "Say hello" --verbose              # Single query with execution details
         agent --provider openai                     # Use OpenAI provider
-        agent --provider local --model ai/qwen3     # Use local provider with phi4
+        agent --provider local --model ai/qwen3     # Use local provider with qwen3
         agent --continue                            # Resume last session
         agent --telemetry start                     # Start observability dashboard
     """
