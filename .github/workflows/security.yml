@@ -6,12 +6,15 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * 1'  # Weekly on Monday
+    # Run weekly on Mondays
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: read
   security-events: write
+  pull-requests: read
+  actions: read
 
 jobs:
   dependency-review:
@@ -20,6 +23,9 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
@@ -64,6 +70,7 @@ jobs:
         with:
           languages: python
           queries: security-and-quality
+          config-file: .github/codeql/codeql-config.yml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
