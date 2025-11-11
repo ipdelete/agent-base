@@ -298,8 +298,14 @@ def run_health_check() -> None:
         # System Information
         # Note: ◉ (U+25C9) renders correctly in PowerShell/cmd/modern terminals
         console.print("[bold]System:[/bold]")
-        console.print(f"  [cyan]◉[/cyan] Python [cyan]{platform.python_version()}[/cyan]")
-        console.print(f"  [cyan]◉[/cyan] Platform: [cyan]{platform.platform()}[/cyan]")
+        console.print(
+            f"  [cyan]◉[/cyan] Python [cyan]{platform.python_version()}[/cyan]",
+            highlight=False,
+        )
+        console.print(
+            f"  [cyan]◉[/cyan] Platform: [cyan]{platform.platform()}[/cyan]",
+            highlight=False,
+        )
         console.print(f"  [cyan]◉[/cyan] Data: [cyan]{config.agent_data_dir}[/cyan]")
 
         # Agent Settings
