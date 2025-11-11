@@ -183,6 +183,11 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
     Returns:
         Tuple of (success, status_message)
     """
+    # Temporarily suppress ERROR logs from middleware during connectivity test
+    middleware_logger = logging.getLogger("agent.middleware")
+    original_level = middleware_logger.level
+    middleware_logger.setLevel(logging.CRITICAL)
+
     try:
         # Create temporary config for this provider
         test_config = AgentConfig(
@@ -243,6 +248,9 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
     except Exception as e:
         logger.debug(f"Provider test for {provider} failed: {e}")
         return False, "Error testing provider"
+    finally:
+        # Restore original logging level
+        middleware_logger.setLevel(original_level)
 
 
 async def _test_all_providers(config: AgentConfig) -> list[tuple[str, str, bool, str]]:
@@ -272,7 +280,14 @@ async def _test_all_providers(config: AgentConfig) -> list[tuple[str, str, bool,
 
 
 def run_health_check() -> None:
-    """Run unified health check with configuration and connectivity."""
+    """Run unified health check with configuration and connectivity.
+
+    Note: Uses Unicode characters (◉, ○, ✓, ⚠) for visual display.
+    These render correctly in modern terminals (PowerShell, cmd, bash interactive)
+    but may cause UnicodeEncodeError when output is piped through non-interactive
+    shells with cp1252 encoding. This is acceptable since the primary use case
+    is interactive terminal display, not scripted/piped output.
+    """
     console.print()
 
     try:
@@ -281,9 +296,16 @@ def run_health_check() -> None:
         config.validate()
 
         # System Information
+        # Note: ◉ (U+25C9) renders correctly in PowerShell/cmd/modern terminals
         console.print("[bold]System:[/bold]")
-        console.print(f"  [cyan]◉[/cyan] Python [cyan]{platform.python_version()}[/cyan]")
-        console.print(f"  [cyan]◉[/cyan] Platform: [cyan]{platform.platform()}[/cyan]")
+        console.print(
+            f"  [cyan]◉[/cyan] Python [cyan]{platform.python_version()}[/cyan]",
+            highlight=False,
+        )
+        console.print(
+            f"  [cyan]◉[/cyan] Platform: [cyan]{platform.platform()}[/cyan]",
+            highlight=False,
+        )
         console.print(f"  [cyan]◉[/cyan] Data: [cyan]{config.agent_data_dir}[/cyan]")
 
         # Agent Settings
@@ -440,6 +462,9 @@ def run_health_check() -> None:
             )
             raise typer.Exit(ExitCodes.GENERAL_ERROR)
 
+    except typer.Exit:
+        # Re-raise typer.Exit without wrapping in another exception
+        raise
     except ValueError as e:
         console.print(f"[red]✗[/red] Configuration error: {e}")
         console.print("\n[yellow]See .env.example for configuration template[/yellow]")
