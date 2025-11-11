@@ -80,7 +80,7 @@ That's it! The agent runs locally with Docker Models.
 
 ### Hosted Providers
 
-To use hosted providers instead, set required credentials as environemnt settings:
+To use hosted providers instead, set required credentials as environment settings:
 
 ```bash
 # Copy example configuration

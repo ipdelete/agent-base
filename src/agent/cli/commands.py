@@ -129,9 +129,9 @@ async def handle_purge_command(
     items_to_delete = []
     if sessions:
         items_to_delete.append(f"{len(sessions)} sessions")
-    if memory_dir.exists() and any(memory_dir.iterdir()):
+    if memory_dir.exists() and next(memory_dir.iterdir(), None) is not None:
         items_to_delete.append("memory files")
-    if logs_dir.exists() and any(logs_dir.iterdir()):
+    if logs_dir.exists() and next(logs_dir.iterdir(), None) is not None:
         items_to_delete.append("log files")
     if last_session_file.exists() or history_file.exists():
         items_to_delete.append("metadata")
@@ -170,7 +170,7 @@ async def handle_purge_command(
                 console.print("  [dim]Skipped[/dim]")
 
         # Delete memory directory (with confirmation)
-        if memory_dir.exists() and any(memory_dir.iterdir()):
+        if memory_dir.exists() and next(memory_dir.iterdir(), None) is not None:
             console.print("\n[cyan]Delete memory files?[/cyan]")
             confirm_memory = await session.prompt_async("  (y/n): ")
             if confirm_memory.strip().lower() == "y":
@@ -184,7 +184,7 @@ async def handle_purge_command(
                 console.print("  [dim]Skipped[/dim]")
 
         # Delete logs directory (with confirmation)
-        if logs_dir.exists() and any(logs_dir.iterdir()):
+        if logs_dir.exists() and next(logs_dir.iterdir(), None) is not None:
             console.print("\n[cyan]Delete log files?[/cyan]")
             confirm_logs = await session.prompt_async("  (y/n): ")
             if confirm_logs.strip().lower() == "y":
