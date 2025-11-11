@@ -13,7 +13,7 @@ Build conversational AI agents with enterprise-grade features: session persisten
 agent
 
 Agent - Conversational Assistant
-Version 0.1.0 • OpenAI/gpt-5-mini
+Version 0.1.0 • Local/phi4
 
 > Say hello to Alice
 
@@ -34,61 +34,82 @@ Session auto-saved as '2025-11-10-11-38-07'
 Goodbye!
 ```
 
-Supports OpenAI, Anthropic, Azure OpenAI, Azure AI Foundry, Google Gemini, and Local (Docker Models).
+Supports Local (Docker Models), OpenAI, Anthropic, Azure OpenAI, Azure AI Foundry, and Google Gemini.
 
 ## Prerequisites
 
-### Cloud Resources (LLM Provider)
+### Required
 
-**Required - Choose one:**
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+
+### LLM Provider (Choose One)
+
+**Recommended (Free):**
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) - Local model serving (phi4, qwen3, etc.)
+  - ✅ Completely free
+  - ✅ No API keys required
+  - ✅ Works offline
+  - ✅ Full control over data
+
+**Cloud Alternatives:**
 - [OpenAI API](https://platform.openai.com/api-keys) - Direct OpenAI access
 - [Anthropic API](https://console.anthropic.com/) - Direct Anthropic access
 - [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/how-to/create-resource) - Azure-hosted OpenAI
 - [Azure AI Foundry](https://ai.azure.com) - Managed AI platform
 - [Google Gemini API](https://aistudio.google.com/apikey) - Google's Gemini models
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) - Local model serving (phi4, etc.)
 
-**Optional:**
-- [Azure Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview) - Cloud observability
+### Optional Enhancements
 
-### Local Tools
-
-**Required:**
-- Python 3.12+
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
-
-**Optional (enhances experience):**
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) - Simplifies Azure auth
-- [Docker](https://docs.docker.com/get-docker/) - For local observability dashboard
+- [Azure Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview) - Cloud observability
 
 ## Quick Setup
 
+### Free Local Setup (Recommended)
+
+Run completely free with Docker Desktop and local models:
+
 ```bash
-# 1. Install
+# 1. Install Docker Desktop
+# Download from https://www.docker.com/products/docker-desktop/
+
+# 2. Enable Model Runner and pull phi4
+docker desktop enable model-runner --tcp=12434
+docker model pull phi4
+
+# 3. Install agent
 uv tool install --prerelease=allow git+https://github.com/danielscholl/agent-base.git
 
-# Upgrade
-uv tool upgrade agent
-
-# 2. Configure required credentials
+# 4. Configure for local provider
 cp .env.example .env
+# Edit .env: Set LLM_PROVIDER=local (default)
+
+# 5. Verify setup
+agent --check
 ```
 
-**Authenticate with CLI tools** (recommended):
+### Cloud Provider Setup (Alternative)
+
+For cloud-based models (OpenAI, Anthropic, Azure, Gemini):
+
 ```bash
+# 1. Install agent
+uv tool install --prerelease=allow git+https://github.com/danielscholl/agent-base.git
+
+# 2. Configure credentials
+cp .env.example .env
+# Edit .env: Set LLM_PROVIDER and add API keys
+
+# Option A: Use CLI authentication (Azure only)
 az login  # For Azure providers (OpenAI, AI Foundry)
-```
 
-**OR use API keys** (if CLI not available):
-```bash
-# AZURE_OPENAI_API_KEY=your-key
+# Option B: Use API keys
 # LLM_PROVIDER=openai
 # OPENAI_API_KEY=sk-your-key
-```
 
-**3. Verify setup**
-```bash
-agent --check   # Validate configuration
+# 3. Verify setup
+agent --check
 ```
 
 ## Usage
