@@ -335,9 +335,7 @@ async def handle_telemetry_command(user_input: str, console: Console) -> None:
                 if enable_otel_env.lower() == "true":
                     console.print("[green]+ Telemetry enabled[/green] (ENABLE_OTEL=true)")
                 else:
-                    console.print(
-                        "[yellow]! Telemetry disabled[/yellow] (ENABLE_OTEL=false)\n"
-                    )
+                    console.print("[yellow]! Telemetry disabled[/yellow] (ENABLE_OTEL=false)\n")
                     console.print("To enable: Set ENABLE_OTEL=true in .env file")
             else:
                 # Auto-detection will happen
@@ -386,7 +384,11 @@ async def handle_telemetry_command(user_input: str, console: Console) -> None:
                     timeout=10,
                 )
 
-                console.print("\n[green]+ Telemetry dashboard is running[/green]", markup=True, highlight=False)
+                console.print(
+                    "\n[green]+ Telemetry dashboard is running[/green]",
+                    markup=True,
+                    highlight=False,
+                )
                 console.print(f"[dim]Status: {uptime_result.stdout.strip()}[/dim]")
                 console.print(f"[cyan]Dashboard:[/cyan] {DASHBOARD_URL}")
                 console.print(f"[cyan]OTLP Endpoint:[/cyan] {OTLP_ENDPOINT}\n")
