@@ -53,7 +53,6 @@ def _render_startup_banner(config: AgentConfig) -> None:
     Args:
         config: Agent configuration
     """
-    console.print()
     console.print("[bold cyan]Agent[/bold cyan] - Conversational Assistant")
     # Disable both markup and highlighting to prevent Rich from coloring numbers
     console.print(
