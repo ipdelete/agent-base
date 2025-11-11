@@ -57,7 +57,7 @@ def anthropic_agent():
         llm_provider="anthropic",
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
         # Use env var if set, otherwise use same default as main config
-        anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
+        anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
     )
 
     return Agent(config=config)

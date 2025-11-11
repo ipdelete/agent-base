@@ -16,7 +16,7 @@ class AgentConfig:
 
     Supports six LLM providers:
     - openai: OpenAI API (gpt-5-mini, gpt-4o, etc.)
-    - anthropic: Anthropic API (claude-sonnet-4-5, claude-opus-4, etc.)
+    - anthropic: Anthropic API (claude-haiku-4-5, claude-sonnet-4-5, claude-opus-4, etc.)
     - azure: Azure OpenAI (requires deployment name)
     - foundry: Azure AI Foundry with managed models
     - gemini: Google Gemini API (gemini-2.0-flash-exp, gemini-2.5-pro, etc.)
@@ -24,7 +24,7 @@ class AgentConfig:
 
     Model selection:
     - AGENT_MODEL: Override default model for any provider
-    - Defaults: gpt-5-mini (OpenAI), claude-sonnet-4-5-20250929 (Anthropic),
+    - Defaults: gpt-5-mini (OpenAI), claude-haiku-4-5-20251001 (Anthropic),
       gemini-2.0-flash-exp (Gemini), ai/phi4 (Local)
     - Azure providers: Use deployment names (AZURE_OPENAI_DEPLOYMENT_NAME, AZURE_MODEL_DEPLOYMENT)
     - Local: Recommended ai/qwen3 for best tool calling, ai/phi4 for general use
@@ -39,7 +39,7 @@ class AgentConfig:
 
     # Anthropic (when llm_provider == "anthropic")
     anthropic_api_key: str | None = None
-    anthropic_model: str = "claude-sonnet-4-5-20250929"
+    anthropic_model: str = "claude-haiku-4-5-20251001"
 
     # Azure OpenAI (when llm_provider == "azure")
     azure_openai_endpoint: str | None = None
@@ -111,7 +111,7 @@ class AgentConfig:
             openai_model=agent_model or "gpt-5-mini",
             # Anthropic
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-            anthropic_model=agent_model or "claude-sonnet-4-5-20250929",
+            anthropic_model=agent_model or "claude-haiku-4-5-20251001",
             # Azure OpenAI (deployment name is required Azure resource identifier)
             azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             azure_openai_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),

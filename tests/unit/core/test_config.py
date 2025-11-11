@@ -169,10 +169,10 @@ class TestAgentConfig:
         config = AgentConfig(
             llm_provider="anthropic",
             anthropic_api_key="test",
-            anthropic_model="claude-sonnet-4-5-20250929",
+            anthropic_model="claude-haiku-4-5-20251001",
         )
 
-        assert config.get_model_display_name() == "Anthropic/claude-sonnet-4-5-20250929"
+        assert config.get_model_display_name() == "Anthropic/claude-haiku-4-5-20251001"
 
     def test_get_model_display_name_azure_foundry(self):
         """Test get_model_display_name for Azure AI Foundry."""
@@ -194,7 +194,7 @@ class TestAgentConfig:
         """Test Anthropic defaults to correct model."""
         config = AgentConfig(llm_provider="anthropic", anthropic_api_key="test")
 
-        assert config.anthropic_model == "claude-sonnet-4-5-20250929"
+        assert config.anthropic_model == "claude-haiku-4-5-20251001"
 
     def test_openai_default_model(self):
         """Test OpenAI defaults to correct model."""
