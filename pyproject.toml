@@ -104,6 +104,8 @@ markers = [
     "requires_anthropic: Tests requiring Anthropic API key",
     "requires_azure: Tests requiring Azure credentials",
     "requires_gemini: Tests requiring Gemini API key",
+    # Provider grouping marker for unit tests
+    "providers: Provider unit tests",
 ]
 
 [tool.mypy]

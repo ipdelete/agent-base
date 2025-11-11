@@ -120,6 +120,25 @@ class TestMessageConversion:
         # Should have at least one part (empty text)
         assert len(result["parts"]) >= 1
 
+    def test_to_gemini_message_tool_result_in_user_turn(self):
+        """Function results are emitted only in user/tool turns with resolved name."""
+        from agent_framework import FunctionResultContent
+
+        # Simulate a tool message with a function result
+        msg = ChatMessage(
+            role=Role.TOOL,
+            contents=[FunctionResultContent(call_id="call_42", result={"ok": True})],
+        )
+
+        # Provide mapping so the function_response gets a name
+        converted = to_gemini_message(msg, call_id_to_name={"call_42": "do_thing"})
+
+        assert converted["role"] == "user"
+        assert any(
+            "function_response" in p and p["function_response"]["name"] == "do_thing"
+            for p in converted["parts"]
+        )
+
     def test_from_gemini_message_with_text(self):
         """Test converting Gemini response with text."""
         mock_response = MagicMock()
@@ -311,3 +330,37 @@ class TestGeminiChatClientStreaming:
         # ChatResponseUpdate has 'text' attribute
         assert chunks[0].text == "Hello "
         assert chunks[1].text == "world"
+
+
+@pytest.mark.unit
+@pytest.mark.providers
+class TestGeminiOptionsMapping:
+    """Tests around translating ChatOptions to Gemini config (tools and sampling)."""
+
+    @patch("agent.providers.gemini.chat_client.genai.Client")
+    def test_prepare_options_includes_tools_and_sampling(
+        self, mock_client_class, gemini_api_key, gemini_model
+    ):
+        from agent_framework import ChatOptions, ai_function
+
+        # Define a simple ai function tool
+        @ai_function
+        async def do_thing(name: str) -> dict:  # type: ignore[unused-ignore]
+            return {"done": True}
+
+        client = GeminiChatClient(model_id=gemini_model, api_key=gemini_api_key)
+        chat_options = ChatOptions(temperature=0.3, top_p=0.8, max_tokens=50, tools=[do_thing])
+
+        # Single user message
+        message = ChatMessage(role="user", contents=[TextContent(text="Hi")])
+
+        config = client._prepare_options([message], chat_options)
+
+        assert config["temperature"] == 0.3
+        assert config["top_p"] == 0.8
+        assert config["max_output_tokens"] == 50
+        assert "tools" in config
+        # tools should be in Gemini "function_declarations" format
+        tools = config["tools"]
+        assert isinstance(tools, list) and tools
+        assert "function_declarations" in tools[0]
