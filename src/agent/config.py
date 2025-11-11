@@ -99,7 +99,7 @@ class AgentConfig:
         """
         load_dotenv()
 
-        llm_provider = os.getenv("LLM_PROVIDER", "openai")
+        llm_provider = os.getenv("LLM_PROVIDER", "local")
 
         # AGENT_MODEL can override any provider's default model
         agent_model = os.getenv("AGENT_MODEL")

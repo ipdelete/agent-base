@@ -14,14 +14,14 @@ from agent.config import AgentConfig
 class TestAgentConfig:
     """Tests for AgentConfig class."""
 
-    def test_from_env_defaults_to_openai(self):
-        """Test from_env defaults to OpenAI provider when no env vars set."""
+    def test_from_env_defaults_to_local(self):
+        """Test from_env defaults to Local provider when no env vars set."""
         with patch.dict(os.environ, {}, clear=True):
             config = AgentConfig.from_env()
 
-            assert config.llm_provider == "openai"
-            assert config.openai_model == "gpt-5-mini"
-            assert config.openai_api_key is None
+            assert config.llm_provider == "local"
+            assert config.local_model == "ai/phi4"
+            assert config.local_base_url == "http://localhost:12434/engines/llama.cpp/v1"
 
     def test_from_env_loads_openai_config(self):
         """Test from_env loads OpenAI configuration with AGENT_MODEL override."""
