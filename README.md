@@ -34,7 +34,7 @@ Session auto-saved as '2025-11-10-11-38-07'
 Goodbye!
 ```
 
-Supports OpenAI, Anthropic, Azure OpenAI, Azure AI Foundry, and Google Gemini.
+Supports OpenAI, Anthropic, Azure OpenAI, Azure AI Foundry, Google Gemini, and Local (Docker Models).
 
 ## Prerequisites
 
@@ -46,6 +46,7 @@ Supports OpenAI, Anthropic, Azure OpenAI, Azure AI Foundry, and Google Gemini.
 - [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/how-to/create-resource) - Azure-hosted OpenAI
 - [Azure AI Foundry](https://ai.azure.com) - Managed AI platform
 - [Google Gemini API](https://aistudio.google.com/apikey) - Google's Gemini models
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) - Local model serving (phi4, etc.)
 
 **Optional:**
 - [Azure Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview) - Cloud observability

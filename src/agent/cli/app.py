@@ -162,7 +162,7 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
     """Test connectivity to a specific LLM provider asynchronously.
 
     Args:
-        provider: Provider name (openai, anthropic, azure, foundry)
+        provider: Provider name (openai, anthropic, azure, foundry, gemini, local)
         config: Agent configuration with credentials
 
     Returns:
@@ -187,6 +187,8 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
             gemini_project_id=config.gemini_project_id,
             gemini_location=config.gemini_location,
             gemini_use_vertexai=config.gemini_use_vertexai,
+            local_base_url=config.local_base_url,
+            local_model=config.local_model,
             agent_data_dir=config.agent_data_dir,
             agent_session_dir=config.agent_session_dir,
         )
@@ -243,6 +245,7 @@ async def _test_all_providers(config: AgentConfig) -> list[tuple[str, str, bool,
         ("azure", "Azure OpenAI", config.azure_openai_deployment or "N/A"),
         ("foundry", "Azure AI Foundry", config.azure_model_deployment or "N/A"),
         ("gemini", "Google Gemini", config.gemini_model),
+        ("local", "Local", config.local_model),
     ]
 
     results = []
@@ -319,6 +322,26 @@ def run_health_check() -> None:
                     f"  [green]◉[/green] Running [dim]({version})[/dim]{resources_info}",
                     highlight=False,
                 )
+
+                # Check for Docker Model Runner models
+                try:
+                    import requests
+
+                    response = requests.get(
+                        "http://localhost:12434/engines/llama.cpp/v1/models", timeout=2
+                    )
+                    if response.status_code == 200:
+                        models_data = response.json()
+                        models = models_data.get("data", [])
+                        for model in models:
+                            model_id = model.get("id", "unknown")
+                            console.print(
+                                f"  [green]•[/green] [dim]{model_id}[/dim]",
+                                highlight=False,
+                            )
+                except Exception as e:
+                    logger.debug(f"Failed to fetch Docker models: {e}")
+                    # Silently continue - DMR might not be enabled
             else:
                 console.print("  [yellow]◉[/yellow] Not running")
         except FileNotFoundError:
@@ -360,6 +383,8 @@ def run_health_check() -> None:
                     creds = f"****{config.gemini_api_key[-6:]}"
                 else:
                     creds = None
+            elif provider_id == "local" and config.local_base_url:
+                creds = config.local_base_url
             else:
                 creds = None
 

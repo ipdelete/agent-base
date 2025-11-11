@@ -150,6 +150,31 @@ def gemini_agent():
     return Agent(config=config)
 
 
+@pytest.fixture
+def local_agent():
+    """Create agent with local Docker model client.
+
+    Automatically skips if LOCAL_BASE_URL is not set.
+
+    Example:
+        @pytest.mark.llm
+        @pytest.mark.requires_local
+        async def test_something(local_agent):
+            response = await local_agent.run("test")
+    """
+    if not os.getenv("LOCAL_BASE_URL"):
+        pytest.skip("LOCAL_BASE_URL not set - skipping local LLM test")
+
+    config = AgentConfig(
+        llm_provider="local",
+        local_base_url=os.getenv("LOCAL_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1"),
+        # Use env var if set, otherwise use same default as main config
+        local_model=os.getenv("LOCAL_MODEL", "phi4"),
+    )
+
+    return Agent(config=config)
+
+
 @pytest.fixture(autouse=True)
 def track_llm_test_cost(request):
     """Track estimated cost of LLM tests (autouse for all tests in this directory).

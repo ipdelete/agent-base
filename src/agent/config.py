@@ -14,17 +14,19 @@ DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-exp"
 class AgentConfig:
     """Configuration for Agent.
 
-    Supports five LLM providers:
+    Supports six LLM providers:
     - openai: OpenAI API (gpt-5-mini, gpt-4o, etc.)
     - anthropic: Anthropic API (claude-sonnet-4-5, claude-opus-4, etc.)
     - azure: Azure OpenAI (requires deployment name)
     - foundry: Azure AI Foundry with managed models
     - gemini: Google Gemini API (gemini-2.0-flash-exp, gemini-2.5-pro, etc.)
+    - local: Local models via Docker Desktop (qwen3, phi4, etc.)
 
     Model selection:
     - AGENT_MODEL: Override default model for any provider
-    - Defaults: gpt-5-mini (OpenAI), claude-sonnet-4-5-20250929 (Anthropic), gemini-2.0-flash-exp (Gemini)
+    - Defaults: gpt-5-mini (OpenAI), claude-sonnet-4-5-20250929 (Anthropic), gemini-2.0-flash-exp (Gemini), ai/phi4 (Local)
     - Azure providers: Use deployment names (AZURE_OPENAI_DEPLOYMENT_NAME, AZURE_MODEL_DEPLOYMENT)
+    - Local: Recommended ai/qwen3 for best tool calling, ai/phi4 for general use
     """
 
     # LLM Provider (openai, anthropic, azure, or foundry)
@@ -57,6 +59,12 @@ class AgentConfig:
     gemini_location: str | None = None
     gemini_use_vertexai: bool = False
     # Supports both API key (Gemini Developer API) and Vertex AI (GCP credentials)
+
+    # Local Provider (when llm_provider == "local")
+    local_base_url: str | None = None
+    local_model: str = "ai/phi4"
+    # Docker Desktop Model Runner with OpenAI-compatible API
+
 
     # Agent-specific
     agent_data_dir: Path | None = None
@@ -118,6 +126,9 @@ class AgentConfig:
             gemini_project_id=os.getenv("GEMINI_PROJECT_ID"),
             gemini_location=os.getenv("GEMINI_LOCATION"),
             gemini_use_vertexai=os.getenv("GEMINI_USE_VERTEXAI", "false").lower() == "true",
+            # Local Provider
+            local_base_url=os.getenv("LOCAL_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1"),
+            local_model=agent_model or "ai/phi4",
         )
 
         # Set default paths
@@ -209,10 +220,17 @@ class AgentConfig:
                     raise ValueError(
                         "Gemini provider requires API key. Set GEMINI_API_KEY environment variable."
                     )
+        elif self.llm_provider == "local":
+            if not self.local_base_url:
+                raise ValueError(
+                    "Local provider requires base URL. Set LOCAL_BASE_URL environment variable "
+                    "(e.g., http://localhost:12434/engines/llama.cpp/v1). Ensure Docker Desktop is running "
+                    "with Model Runner enabled and model is pulled (e.g., docker model pull phi4)."
+                )
         else:
             raise ValueError(
                 f"Unknown LLM provider: {self.llm_provider}. "
-                "Supported providers: openai, anthropic, azure, foundry, gemini"
+                "Supported providers: openai, anthropic, azure, foundry, gemini, local"
             )
 
         # Validate system prompt file if specified
@@ -244,4 +262,6 @@ class AgentConfig:
             return f"Azure AI Foundry/{self.azure_model_deployment}"
         elif self.llm_provider == "gemini":
             return f"Gemini/{self.gemini_model}"
+        elif self.llm_provider == "local":
+            return f"Local/{self.local_model}"
         return "Unknown"
