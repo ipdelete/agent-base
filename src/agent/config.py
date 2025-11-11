@@ -24,7 +24,8 @@ class AgentConfig:
 
     Model selection:
     - AGENT_MODEL: Override default model for any provider
-    - Defaults: gpt-5-mini (OpenAI), claude-sonnet-4-5-20250929 (Anthropic), gemini-2.0-flash-exp (Gemini), ai/phi4 (Local)
+    - Defaults: gpt-5-mini (OpenAI), claude-sonnet-4-5-20250929 (Anthropic),
+      gemini-2.0-flash-exp (Gemini), ai/phi4 (Local)
     - Azure providers: Use deployment names (AZURE_OPENAI_DEPLOYMENT_NAME, AZURE_MODEL_DEPLOYMENT)
     - Local: Recommended ai/qwen3 for best tool calling, ai/phi4 for general use
     """
@@ -64,7 +65,6 @@ class AgentConfig:
     local_base_url: str | None = None
     local_model: str = "ai/phi4"
     # Docker Desktop Model Runner with OpenAI-compatible API
-
 
     # Agent-specific
     agent_data_dir: Path | None = None
@@ -127,7 +127,9 @@ class AgentConfig:
             gemini_location=os.getenv("GEMINI_LOCATION"),
             gemini_use_vertexai=os.getenv("GEMINI_USE_VERTEXAI", "false").lower() == "true",
             # Local Provider
-            local_base_url=os.getenv("LOCAL_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1"),
+            local_base_url=os.getenv(
+                "LOCAL_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1"
+            ),
             local_model=agent_model or "ai/phi4",
         )
 
@@ -223,9 +225,11 @@ class AgentConfig:
         elif self.llm_provider == "local":
             if not self.local_base_url:
                 raise ValueError(
-                    "Local provider requires base URL. Set LOCAL_BASE_URL environment variable "
-                    "(e.g., http://localhost:12434/engines/llama.cpp/v1). Ensure Docker Desktop is running "
-                    "with Model Runner enabled and model is pulled (e.g., docker model pull phi4)."
+                    "Local provider requires base URL. "
+                    "Set LOCAL_BASE_URL environment variable "
+                    "(e.g., http://localhost:12434/engines/llama.cpp/v1). "
+                    "Ensure Docker Desktop is running with Model Runner enabled "
+                    "and model is pulled (e.g., docker model pull phi4)."
                 )
         else:
             raise ValueError(

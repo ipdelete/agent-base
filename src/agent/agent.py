@@ -247,7 +247,7 @@ class Agent:
                     logger.info(f"Loaded system prompt from user default: {user_default_path}")
             except Exception as e:
                 logger.warning(
-                    f"Failed to load user default system prompt: {e}. " "Trying next fallback."
+                    f"Failed to load user default system prompt: {e}. Trying next fallback."
                 )
 
         # Tier 3: Try package default
