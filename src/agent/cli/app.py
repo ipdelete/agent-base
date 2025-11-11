@@ -730,13 +730,17 @@ async def run_chat_mode(
         )
 
         # Interactive loop
+        first_prompt = True
         while True:
             try:
                 # Print status bar before prompt
                 if not quiet:
                     status_text = _get_status_bar_text()
-                    console.print(f"\n[dim]{status_text}[/dim]")
+                    # Don't add newline before first prompt (already follows banner)
+                    separator = "" if first_prompt else "\n"
+                    console.print(f"{separator}[dim]{status_text}[/dim]")
                     console.print(f"[dim]{'─' * console.width}[/dim]")
+                    first_prompt = False
 
                 # Get user input
                 user_input = await session.prompt_async("> ")
