@@ -138,7 +138,7 @@ class GeminiChatClient(BaseChatClient):
             # Handle tools/functions (pass via config for google-genai)
             tools = chat_options.tools() if callable(chat_options.tools) else chat_options.tools
             if tools:
-                config["tools"] = to_gemini_tools(tools)
+                config["tools"] = to_gemini_tools(tools)  # type: ignore[arg-type]
 
         return config
 
@@ -159,8 +159,12 @@ class GeminiChatClient(BaseChatClient):
         logger.error(f"Traceback: {traceback.format_exc()}")
         return error
 
-    async def _inner_get_response(
-        self, messages: list[ChatMessage], chat_options: ChatOptions | None = None
+    async def _inner_get_response(  # type: ignore[override]
+        self,
+        *,
+        messages: list[ChatMessage],
+        chat_options: ChatOptions,
+        **kwargs: Any,
     ) -> ChatResponse:
         """Get non-streaming response from Gemini API.
 
@@ -207,7 +211,7 @@ class GeminiChatClient(BaseChatClient):
             response = self.client.models.generate_content(
                 model=self.model_id,
                 contents=contents,
-                config=config if config else None,
+                config=config if config else None,  # type: ignore[arg-type]
             )
 
             # Convert response to ChatResponse
@@ -217,13 +221,17 @@ class GeminiChatClient(BaseChatClient):
             usage = extract_usage_metadata(response)
 
             # Create ChatResponse with usage_details (let class handle dict -> UsageDetails)
-            return ChatResponse(messages=[chat_message], usage_details=usage or None)
+            return ChatResponse(messages=[chat_message], usage_details=usage or None)  # type: ignore[arg-type]
 
         except Exception as e:
             raise self._handle_gemini_error(e)
 
-    async def _inner_get_streaming_response(
-        self, messages: list[ChatMessage], chat_options: ChatOptions | None = None
+    async def _inner_get_streaming_response(  # type: ignore[override]
+        self,
+        *,
+        messages: list[ChatMessage],
+        chat_options: ChatOptions,
+        **kwargs: Any,
     ) -> AsyncIterator[ChatResponseUpdate]:
         """Get streaming response from Gemini API.
 
@@ -268,7 +276,7 @@ class GeminiChatClient(BaseChatClient):
             stream = self.client.models.generate_content_stream(
                 model=self.model_id,
                 contents=contents,
-                config=config if config else None,
+                config=config if config else None,  # type: ignore[arg-type]
             )
 
             # Yield chunks as they arrive

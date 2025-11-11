@@ -59,7 +59,7 @@ def to_gemini_message(
         if isinstance(item, FunctionCallContent):
             # Function call should only appear in a model (assistant) turn
             if gemini_role == "model":
-                parts.append({"function_call": {"name": item.name, "args": item.arguments}})
+                parts.append({"function_call": {"name": item.name, "args": item.arguments}})  # type: ignore[dict-item]
             # Skip function_call in non-model turns
             continue
 
@@ -72,14 +72,13 @@ def to_gemini_message(
                 # If we can't resolve the name, skip to avoid invalid request
                 if not name:
                     continue
-                parts.append(
-                    {
-                        "function_response": {
-                            "name": name,
-                            "response": {"result": item.result},
-                        }
+                response_dict: dict[str, Any] = {
+                    "function_response": {
+                        "name": name,
+                        "response": {"result": item.result},
                     }
-                )
+                }
+                parts.append(response_dict)
             # Skip function_result in model turns
             continue
 
@@ -107,7 +106,7 @@ def from_gemini_message(gemini_response: Any) -> ChatMessage:
         >>> msg.role
         'assistant'
     """
-    content_items = []
+    content_items: list[TextContent | FunctionCallContent] = []
 
     # Extract text and function calls from response
     if hasattr(gemini_response, "candidates") and gemini_response.candidates:
@@ -169,7 +168,7 @@ def to_gemini_tools(tools: list[AIFunction]) -> list[dict[str, Any]]:
             params = tool.parameters() if callable(tool.parameters) else tool.parameters
             if params:
                 # Convert parameters to Gemini format
-                function_declaration["parameters"] = _convert_parameters(params)
+                function_declaration["parameters"] = _convert_parameters(params)  # type: ignore[assignment]
 
         function_declarations.append(function_declaration)
 

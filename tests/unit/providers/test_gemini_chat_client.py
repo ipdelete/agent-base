@@ -1,6 +1,6 @@
 """Unit tests for Gemini chat client."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent_framework import ChatMessage, FunctionCallContent, Role, TextContent
@@ -11,7 +11,6 @@ from agent.providers.gemini.types import (
     extract_usage_metadata,
     from_gemini_message,
     to_gemini_message,
-    to_gemini_tools,
 )
 
 # Import fixtures from conftest
@@ -63,14 +62,10 @@ class TestGeminiChatClientInitialization:
         with pytest.raises(ValueError, match="requires both project_id and location"):
             GeminiChatClient(model_id=gemini_model, location="us-central1", use_vertexai=True)
 
-    def test_initialization_vertex_ai_without_location_fails(
-        self, gemini_model, gemini_project_id
-    ):
+    def test_initialization_vertex_ai_without_location_fails(self, gemini_model, gemini_project_id):
         """Test Vertex AI initialization fails without location."""
         with pytest.raises(ValueError, match="requires both project_id and location"):
-            GeminiChatClient(
-                model_id=gemini_model, project_id=gemini_project_id, use_vertexai=True
-            )
+            GeminiChatClient(model_id=gemini_model, project_id=gemini_project_id, use_vertexai=True)
 
 
 @pytest.mark.unit
@@ -102,7 +97,9 @@ class TestMessageConversion:
         message = ChatMessage(
             role=Role.ASSISTANT,
             contents=[
-                FunctionCallContent(call_id="call_123", name="test_func", arguments={"arg": "value"})
+                FunctionCallContent(
+                    call_id="call_123", name="test_func", arguments={"arg": "value"}
+                )
             ],
         )
 
@@ -255,7 +252,7 @@ class TestGeminiChatClientResponse:
         client = GeminiChatClient(model_id=gemini_model, api_key=gemini_api_key)
         message = ChatMessage(role="user", contents=[TextContent(text="Test")])
 
-        response = await client._inner_get_response([message])
+        response = await client._inner_get_response(messages=[message], chat_options=MagicMock())
 
         assert response is not None
         assert len(response.messages) == 1
@@ -264,7 +261,9 @@ class TestGeminiChatClientResponse:
 
     @pytest.mark.asyncio
     @patch("agent.providers.gemini.chat_client.genai.Client")
-    async def test_inner_get_response_with_error(self, mock_client_class, gemini_api_key, gemini_model):
+    async def test_inner_get_response_with_error(
+        self, mock_client_class, gemini_api_key, gemini_model
+    ):
         """Test _inner_get_response handles errors."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
@@ -274,7 +273,7 @@ class TestGeminiChatClientResponse:
         message = ChatMessage(role="user", contents=[TextContent(text="Test")])
 
         with pytest.raises(Exception, match="API Error"):
-            await client._inner_get_response([message])
+            await client._inner_get_response(messages=[message], chat_options=MagicMock())
 
 
 @pytest.mark.unit
@@ -303,7 +302,9 @@ class TestGeminiChatClientStreaming:
         message = ChatMessage(role="user", contents=[TextContent(text="Test")])
 
         chunks = []
-        async for update in client._inner_get_streaming_response([message]):
+        async for update in client._inner_get_streaming_response(
+            messages=[message], chat_options=MagicMock()
+        ):
             chunks.append(update)
 
         assert len(chunks) == 2
