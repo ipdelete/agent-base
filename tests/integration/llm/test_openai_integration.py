@@ -134,9 +134,7 @@ class TestOpenAIErrorHandling:
         """
         # Add timeout to prevent infinite retry loops when tool returns error
         response = await asyncio.wait_for(
-            openai_agent.run(
-                "Use greet_user to greet someone in German (language code 'de')"
-            ),
+            openai_agent.run("Use greet_user to greet someone in German (language code 'de')"),
             timeout=30.0,
         )
 
