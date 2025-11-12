@@ -518,24 +518,60 @@ async def handle_memory_command(user_input: str, console: Console) -> None:
             else:
                 console.print("[yellow]⚠ Server may still be starting up[/yellow]")
 
-            console.print("\n[green]+ Mem0 server started successfully![/green]\n")
-            console.print(f"  Endpoint: {MEM0_ENDPOINT}")
-            console.print("  Services: PostgreSQL (pgvector) + mem0\n")
+            # Check container health status
+            health_result = subprocess.run(
+                ["docker", "compose", "-f", COMPOSE_FILE, "ps", "--format", "json"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
 
-            # Check if MEMORY_TYPE is set
-            memory_type = os.getenv("MEMORY_TYPE")
-            if memory_type == "mem0":
-                console.print("[green]+ Semantic memory enabled[/green] (MEMORY_TYPE=mem0)")
-            else:
-                console.print("[yellow]! Semantic memory not enabled[/yellow]\n")
-                console.print("To enable semantic memory:")
-                console.print("  1. Add to .env file:")
+            containers_healthy = True
+            if health_result.returncode == 0:
+                import json
+
+                try:
+                    containers = json.loads(health_result.stdout)
+                    for container in containers:
+                        if container.get("Health") == "unhealthy":
+                            containers_healthy = False
+                            console.print(
+                                f"\n[yellow]⚠ Warning: {container.get('Service')} container is unhealthy[/yellow]"
+                            )
+                except json.JSONDecodeError:
+                    pass
+
+            console.print("\n[green]+ Mem0 containers started[/green]\n")
+            console.print(f"  Endpoint: {MEM0_ENDPOINT}")
+            console.print("  Services: Qdrant + mem0\n")
+
+            if not containers_healthy:
+                console.print("[yellow]⚠ Container health check failed[/yellow]")
+                console.print(
+                    "[yellow]  The official mem0-api-server image has known dependency issues.[/yellow]"
+                )
+                console.print("\n[cyan]Recommended:[/cyan] Use cloud-hosted mem0 instead:")
+                console.print("  1. Sign up at https://app.mem0.ai")
+                console.print("  2. Add to .env:")
                 console.print("     MEMORY_TYPE=mem0")
-                console.print(f"     MEM0_HOST={MEM0_ENDPOINT}")
-                console.print("  2. Or export environment variables:")
-                console.print("     export MEMORY_TYPE=mem0")
-                console.print(f"     export MEM0_HOST={MEM0_ENDPOINT}")
-            console.print()
+                console.print("     MEM0_API_KEY=<your-api-key>")
+                console.print("     MEM0_ORG_ID=<your-org-id>")
+                console.print("\n[dim]See docker/mem0/README.md for details[/dim]\n")
+            else:
+                # Check if MEMORY_TYPE is set
+                memory_type = os.getenv("MEMORY_TYPE")
+                if memory_type == "mem0":
+                    console.print("[green]+ Semantic memory enabled[/green] (MEMORY_TYPE=mem0)")
+                else:
+                    console.print("[yellow]! Semantic memory not enabled[/yellow]\n")
+                    console.print("To enable semantic memory:")
+                    console.print("  1. Add to .env file:")
+                    console.print("     MEMORY_TYPE=mem0")
+                    console.print(f"     MEM0_HOST={MEM0_ENDPOINT}")
+                    console.print("  2. Or export environment variables:")
+                    console.print("     export MEMORY_TYPE=mem0")
+                    console.print(f"     export MEM0_HOST={MEM0_ENDPOINT}")
+                console.print()
 
         elif action == "stop":
             # Stop the containers

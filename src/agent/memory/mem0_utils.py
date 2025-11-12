@@ -5,26 +5,27 @@ health checks, and connection handling.
 """
 
 import logging
-import socket
 from typing import Any
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from agent.config import AgentConfig
 
 logger = logging.getLogger(__name__)
 
 
-def check_mem0_endpoint(endpoint: str | None = None, timeout: float = 0.02) -> bool:
-    """Fast health check for mem0 endpoint availability.
+def check_mem0_endpoint(endpoint: str | None = None, timeout: float = 1.0) -> bool:
+    """Health check for mem0 endpoint availability.
 
-    Uses socket connection test for quick auto-detection without
-    making full HTTP requests.
+    Makes an actual HTTP request to verify the service is responding,
+    not just checking if the port is open.
 
     Args:
         endpoint: Endpoint URL (e.g., "http://localhost:8000")
-        timeout: Connection timeout in seconds (default: 20ms)
+        timeout: Request timeout in seconds (default: 1s)
 
     Returns:
-        True if endpoint is reachable, False otherwise
+        True if endpoint is reachable and responding, False otherwise
 
     Example:
         >>> check_mem0_endpoint("http://localhost:8000")
@@ -33,28 +34,17 @@ def check_mem0_endpoint(endpoint: str | None = None, timeout: float = 0.02) -> b
     if not endpoint:
         endpoint = "http://localhost:8000"
 
-    # Extract host and port from endpoint
     try:
-        # Remove protocol
-        host_port = endpoint.replace("http://", "").replace("https://", "")
-        # Split host:port
-        if ":" in host_port:
-            host, port_str = host_port.split(":", 1)
-            # Remove any path after port
-            port_str = port_str.split("/")[0]
-            port = int(port_str)
-        else:
-            host = host_port.split("/")[0]
-            port = 80 if endpoint.startswith("http://") else 443
+        # Make actual HTTP request to root endpoint
+        req = Request(endpoint + "/", method="GET")
+        with urlopen(req, timeout=timeout) as response:
+            # Service is responding if we get any HTTP response
+            status_code: int = int(response.status)
+            return status_code < 500
 
-        # Try socket connection
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        result = sock.connect_ex((host, port))
-        sock.close()
-
-        return result == 0
-
+    except URLError as e:
+        logger.debug(f"Mem0 endpoint check failed (HTTP error): {e}")
+        return False
     except Exception as e:
         logger.debug(f"Mem0 endpoint check failed: {e}")
         return False

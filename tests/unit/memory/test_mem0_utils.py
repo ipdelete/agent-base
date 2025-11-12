@@ -14,26 +14,26 @@ class TestMem0Utils:
     """Tests for mem0 utility functions."""
 
     def test_check_mem0_endpoint_success(self):
-        """Test endpoint check succeeds when connection is successful."""
-        with patch("socket.socket") as mock_socket:
-            # Mock successful connection (return code 0)
-            mock_instance = Mock()
-            mock_instance.connect_ex.return_value = 0
-            mock_socket.return_value = mock_instance
+        """Test endpoint check succeeds when HTTP request is successful."""
+        with patch("agent.memory.mem0_utils.urlopen") as mock_urlopen:
+            # Mock successful HTTP response
+            mock_response = Mock()
+            mock_response.status = 200
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
+            mock_urlopen.return_value = mock_response
 
             result = check_mem0_endpoint("http://localhost:8000")
 
             assert result is True
-            mock_instance.connect_ex.assert_called_once_with(("localhost", 8000))
-            mock_instance.close.assert_called_once()
 
     def test_check_mem0_endpoint_failure(self):
-        """Test endpoint check fails when connection fails."""
-        with patch("socket.socket") as mock_socket:
-            # Mock failed connection (non-zero return code)
-            mock_instance = Mock()
-            mock_instance.connect_ex.return_value = 1
-            mock_socket.return_value = mock_instance
+        """Test endpoint check fails when HTTP request fails."""
+        with patch("agent.memory.mem0_utils.urlopen") as mock_urlopen:
+            # Mock URLError (connection failed)
+            from urllib.error import URLError
+
+            mock_urlopen.side_effect = URLError("Connection refused")
 
             result = check_mem0_endpoint("http://localhost:8000")
 
@@ -41,37 +41,57 @@ class TestMem0Utils:
 
     def test_check_mem0_endpoint_default_url(self):
         """Test endpoint check uses default URL when none provided."""
-        with patch("socket.socket") as mock_socket:
-            mock_instance = Mock()
-            mock_instance.connect_ex.return_value = 0
-            mock_socket.return_value = mock_instance
+        with patch("agent.memory.mem0_utils.urlopen") as mock_urlopen:
+            mock_response = Mock()
+            mock_response.status = 200
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
+            mock_urlopen.return_value = mock_response
 
             result = check_mem0_endpoint()
 
             assert result is True
-            # Should default to localhost:8000
-            mock_instance.connect_ex.assert_called_once_with(("localhost", 8000))
+            # Should call urlopen with a Request for localhost:8000
+            assert mock_urlopen.called
+            request = mock_urlopen.call_args[0][0]
+            assert request.full_url == "http://localhost:8000/"
 
     def test_check_mem0_endpoint_custom_port(self):
         """Test endpoint check with custom port."""
-        with patch("socket.socket") as mock_socket:
-            mock_instance = Mock()
-            mock_instance.connect_ex.return_value = 0
-            mock_socket.return_value = mock_instance
+        with patch("agent.memory.mem0_utils.urlopen") as mock_urlopen:
+            mock_response = Mock()
+            mock_response.status = 200
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
+            mock_urlopen.return_value = mock_response
 
             result = check_mem0_endpoint("http://localhost:9000")
 
             assert result is True
-            mock_instance.connect_ex.assert_called_once_with(("localhost", 9000))
 
     def test_check_mem0_endpoint_handles_exception(self):
         """Test endpoint check handles exceptions gracefully."""
-        with patch("socket.socket") as mock_socket:
-            mock_socket.side_effect = Exception("Connection error")
+        with patch("agent.memory.mem0_utils.urlopen") as mock_urlopen:
+            # Mock generic exception
+            mock_urlopen.side_effect = Exception("Unknown error")
 
             result = check_mem0_endpoint("http://localhost:8000")
 
             # Should return False on exception, not raise
+            assert result is False
+
+    def test_check_mem0_endpoint_server_error(self):
+        """Test endpoint check returns False for 500+ errors."""
+        with patch("agent.memory.mem0_utils.urlopen") as mock_urlopen:
+            # Mock 500 error response
+            mock_response = Mock()
+            mock_response.status = 500
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
+            mock_urlopen.return_value = mock_response
+
+            result = check_mem0_endpoint("http://localhost:8000")
+
             assert result is False
 
     def test_get_mem0_client_self_hosted(self):
