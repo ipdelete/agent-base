@@ -160,3 +160,110 @@ class TestMemoryConfiguration:
             assert config.memory_enabled is True
             assert config.memory_type == "in_memory"
             assert config.memory_dir == Path("/custom/memory")
+
+    def test_mem0_config_self_hosted(self):
+        """Test mem0 self-hosted configuration."""
+        with patch.dict(
+            os.environ,
+            {
+                "MEMORY_TYPE": "mem0",
+                "MEM0_HOST": "http://localhost:8000",
+                "MEM0_USER_ID": "alice",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            assert config.memory_type == "mem0"
+            assert config.mem0_host == "http://localhost:8000"
+            assert config.mem0_user_id == "alice"
+
+            # Should validate successfully
+            config.validate()  # Should not raise
+
+    def test_mem0_config_cloud(self):
+        """Test mem0 cloud configuration."""
+        with patch.dict(
+            os.environ,
+            {
+                "MEMORY_TYPE": "mem0",
+                "MEM0_API_KEY": "test-key",
+                "MEM0_ORG_ID": "test-org",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            assert config.memory_type == "mem0"
+            assert config.mem0_api_key == "test-key"
+            assert config.mem0_org_id == "test-org"
+
+            # Should validate successfully
+            config.validate()  # Should not raise
+
+    def test_mem0_config_validation_fails_without_host_or_keys(self):
+        """Test mem0 validation fails when misconfigured."""
+        with patch.dict(os.environ, {"MEMORY_TYPE": "mem0"}, clear=True):
+            config = AgentConfig.from_env()
+
+            # Should fail validation - no MEM0_HOST or (MEM0_API_KEY + MEM0_ORG_ID)
+            with pytest.raises(ValueError, match="Mem0 memory requires"):
+                config.validate()
+
+    def test_mem0_config_validation_fails_with_only_api_key(self):
+        """Test mem0 validation fails with only API key (missing org ID)."""
+        with patch.dict(
+            os.environ,
+            {"MEMORY_TYPE": "mem0", "MEM0_API_KEY": "test-key"},
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # Should fail - need both api_key AND org_id for cloud mode
+            with pytest.raises(ValueError, match="Mem0 memory requires"):
+                config.validate()
+
+    def test_mem0_config_user_id_defaults_to_username(self):
+        """Test mem0 user_id defaults to $USER environment variable."""
+        with patch.dict(
+            os.environ,
+            {
+                "MEMORY_TYPE": "mem0",
+                "MEM0_HOST": "http://localhost:8000",
+                "USER": "testuser",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # Should default to $USER when MEM0_USER_ID not set
+            assert config.mem0_user_id == "testuser"
+
+    def test_mem0_config_user_id_explicit(self):
+        """Test mem0 user_id can be explicitly set."""
+        with patch.dict(
+            os.environ,
+            {
+                "MEMORY_TYPE": "mem0",
+                "MEM0_HOST": "http://localhost:8000",
+                "MEM0_USER_ID": "alice",
+                "USER": "should_not_use_this",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # MEM0_USER_ID should take precedence over $USER
+            assert config.mem0_user_id == "alice"
+
+    def test_mem0_config_project_id_optional(self):
+        """Test mem0 project_id is optional."""
+        with patch.dict(
+            os.environ,
+            {"MEMORY_TYPE": "mem0", "MEM0_HOST": "http://localhost:8000"},
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            assert config.mem0_project_id is None
+            config.validate()  # Should not raise even without project_id

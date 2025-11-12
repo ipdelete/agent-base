@@ -76,6 +76,13 @@ class AgentConfig:
     memory_dir: Path | None = None
     memory_history_limit: int = 20  # Max memories to inject as context
 
+    # Mem0 semantic memory configuration
+    mem0_host: str | None = None  # Self-hosted endpoint (e.g., http://localhost:8000)
+    mem0_api_key: str | None = None  # Cloud mode API key
+    mem0_org_id: str | None = None  # Cloud mode organization ID
+    mem0_user_id: str | None = None  # User namespace (default: username)
+    mem0_project_id: str | None = None  # Project namespace for isolation
+
     # System prompt configuration
     system_prompt_file: str | None = None
 
@@ -151,6 +158,13 @@ class AgentConfig:
             config.memory_dir = Path(memory_dir).expanduser()
         else:
             config.memory_dir = config.agent_data_dir / "memory"
+
+        # Mem0 configuration
+        config.mem0_host = os.getenv("MEM0_HOST")
+        config.mem0_api_key = os.getenv("MEM0_API_KEY")
+        config.mem0_org_id = os.getenv("MEM0_ORG_ID")
+        config.mem0_user_id = os.getenv("MEM0_USER_ID") or os.getenv("USER") or "default-user"
+        config.mem0_project_id = os.getenv("MEM0_PROJECT_ID")
 
         # System prompt configuration
         config.system_prompt_file = os.getenv("AGENT_SYSTEM_PROMPT")
@@ -241,6 +255,15 @@ class AgentConfig:
                 f"Unknown LLM provider: {self.llm_provider}. "
                 "Supported providers: openai, anthropic, azure, foundry, gemini, local"
             )
+
+        # Validate mem0 configuration if enabled
+        if self.memory_type == "mem0":
+            if not self.mem0_host and not (self.mem0_api_key and self.mem0_org_id):
+                raise ValueError(
+                    "Mem0 memory requires either:\n"
+                    "  - Self-hosted: MEM0_HOST environment variable\n"
+                    "  - Cloud: MEM0_API_KEY and MEM0_ORG_ID environment variables"
+                )
 
         # Validate system prompt file if specified
         if self.system_prompt_file:

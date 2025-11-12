@@ -1,10 +1,12 @@
 """Unit tests for memory integration with Agent."""
 
 import pytest
+from agent_framework import ChatMessage
 
 from agent.agent import Agent
 from agent.config import AgentConfig
 from agent.memory import InMemoryStore, MemoryManager
+from agent.memory.context_provider import MemoryContextProvider
 
 
 @pytest.mark.unit
@@ -228,3 +230,95 @@ class TestAgentMemoryIntegration:
 
         # Memory manager should be created
         assert agent.memory_manager is not None
+
+
+@pytest.mark.unit
+@pytest.mark.memory
+class TestMemoryContextProvider:
+    """Tests for MemoryContextProvider integration."""
+
+    @pytest.mark.asyncio
+    async def test_context_provider_uses_retrieve_for_context(self, memory_config):
+        """Verify ContextProvider calls retrieve_for_context and retrieves relevant memories."""
+        store = InMemoryStore(memory_config)
+        provider = MemoryContextProvider(store, history_limit=5)
+
+        # Add some memories
+        await store.add([
+            {"role": "user", "content": "My name is Bob"},
+            {"role": "assistant", "content": "Nice to meet you, Bob!"},
+            {"role": "user", "content": "I like Python programming"},
+            {"role": "assistant", "content": "Python is a great language!"}
+        ])
+
+        # Create messages asking about the name
+        current_msgs = [ChatMessage(role="user", content="What's my name?")]
+
+        # Call invoking() and verify it retrieves relevant context
+        context = await provider.invoking(current_msgs)
+
+        assert context.instructions is not None
+        # Should find relevant memory about Bob
+        assert "Bob" in context.instructions
+        assert "name" in context.instructions.lower()
+
+    @pytest.mark.asyncio
+    async def test_context_provider_retrieves_keyword_relevant_memories(self, memory_config):
+        """Verify ContextProvider retrieves memories based on keyword matching."""
+        store = InMemoryStore(memory_config)
+        provider = MemoryContextProvider(store, history_limit=5)
+
+        # Add memories with distinct keywords
+        await store.add([
+            {"role": "user", "content": "Python is my favorite programming language"},
+            {"role": "assistant", "content": "Python is great for many tasks!"},
+            {"role": "user", "content": "I also like JavaScript"},
+            {"role": "assistant", "content": "JavaScript is versatile!"},
+        ])
+
+        # Ask about Python - should retrieve Python-related memories
+        current_msgs = [ChatMessage(role="user", content="Tell me about Python")]
+
+        context = await provider.invoking(current_msgs)
+
+        assert context.instructions is not None
+        # Should find Python-related memories based on keyword match
+        assert "Python" in context.instructions
+
+    @pytest.mark.asyncio
+    async def test_context_provider_handles_no_memories(self, memory_config):
+        """Verify ContextProvider handles case with no stored memories."""
+        store = InMemoryStore(memory_config)
+        provider = MemoryContextProvider(store, history_limit=5)
+
+        # No memories stored yet
+        current_msgs = [ChatMessage(role="user", content="Hello")]
+
+        context = await provider.invoking(current_msgs)
+
+        # Should return empty context when no memories
+        assert context.instructions is None or context.instructions == ""
+
+    @pytest.mark.asyncio
+    async def test_context_provider_respects_history_limit(self, memory_config):
+        """Verify ContextProvider respects history_limit parameter."""
+        store = InMemoryStore(memory_config)
+        provider = MemoryContextProvider(store, history_limit=2)
+
+        # Add many memories
+        messages = [
+            {"role": "user", "content": f"Python message {i}"}
+            for i in range(10)
+        ]
+        await store.add(messages)
+
+        # Ask about Python - should limit results
+        current_msgs = [ChatMessage(role="user", content="Tell me about Python")]
+
+        context = await provider.invoking(current_msgs)
+
+        assert context.instructions is not None
+        # Count number of memory entries in context (should be limited)
+        # Each memory appears as "user: Python message N"
+        memory_count = context.instructions.count("user:")
+        assert memory_count <= 2  # Should respect limit=2

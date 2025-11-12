@@ -33,6 +33,7 @@ dependencies = [
     "azure-identity>=1.25.1",
     "azure-monitor-opentelemetry-exporter>=1.0.0b44",
     "google-genai>=0.8.0",
+    "mem0ai>=1.0.0",
 ]
 
 [project.optional-dependencies]

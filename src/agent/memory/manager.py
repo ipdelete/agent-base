@@ -103,6 +103,46 @@ class MemoryManager(ABC):
         """
         pass
 
+    async def retrieve_for_context(
+        self, messages: list[dict], limit: int = 10
+    ) -> dict:
+        """Retrieve memories relevant for context injection.
+
+        Default implementation extracts query from latest user message and searches,
+        falling back to recent memories if no query available. Backends can override
+        for optimized semantic retrieval.
+
+        Args:
+            messages: Current conversation messages (list of dicts with role/content)
+            limit: Maximum number of memories to retrieve
+
+        Returns:
+            Structured response dict with relevant memories
+
+        Example:
+            >>> result = await manager.retrieve_for_context(
+            ...     [{"role": "user", "content": "What's my name?"}],
+            ...     limit=5
+            ... )
+
+        Note:
+            Implementations can use different strategies:
+            - InMemoryStore: Keyword-based search from current message
+            - Mem0Store: Semantic similarity search (future)
+        """
+        # Extract query from latest user message
+        query = None
+        for msg in reversed(messages):
+            if isinstance(msg, dict) and msg.get("role") == "user":
+                query = msg.get("content", "").strip()
+                break
+
+        # Search if we have a query, otherwise get recent
+        if query:
+            return await self.search(query, limit=limit)
+        else:
+            return await self.get_recent(limit=limit)
+
     def _create_success_response(self, result: Any, message: str = "") -> dict:
         """Create standardized success response.
 

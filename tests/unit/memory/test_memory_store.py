@@ -337,3 +337,68 @@ class TestInMemoryStore:
         clear_result = await memory_store.clear()
         assert "success" in clear_result
         assert "message" in clear_result
+
+    @pytest.mark.asyncio
+    async def test_retrieve_for_context_with_query(self, memory_store, sample_messages):
+        """Test retrieve_for_context extracts query and searches."""
+        await memory_store.add(sample_messages)
+
+        # Messages with user query
+        current_messages = [
+            {"role": "user", "content": "Tell me about Alice"}
+        ]
+
+        result = await memory_store.retrieve_for_context(current_messages, limit=5)
+
+        assert result["success"] is True
+        # Should find messages mentioning Alice
+        assert len(result["result"]) > 0
+        assert any("Alice" in mem["content"] for mem in result["result"])
+
+    @pytest.mark.asyncio
+    async def test_retrieve_for_context_fallback(self, memory_store, sample_messages):
+        """Test retrieve_for_context falls back to recent when no query."""
+        await memory_store.add(sample_messages)
+
+        # Empty messages - should fall back to get_recent
+        result = await memory_store.retrieve_for_context([], limit=3)
+
+        assert result["success"] is True
+        assert len(result["result"]) <= 3
+        # Should return most recent memories
+        assert result["result"] == memory_store.memories[-3:]
+
+    @pytest.mark.asyncio
+    async def test_retrieve_for_context_respects_limit(self, memory_store):
+        """Test retrieve_for_context respects limit parameter."""
+        messages = [{"role": "user", "content": f"Python message {i}"} for i in range(10)]
+        await memory_store.add(messages)
+
+        current_messages = [{"role": "user", "content": "Tell me about Python"}]
+        result = await memory_store.retrieve_for_context(current_messages, limit=3)
+
+        assert result["success"] is True
+        assert len(result["result"]) == 3
+
+    @pytest.mark.asyncio
+    async def test_retrieve_for_context_extracts_from_latest_user_message(self, memory_store):
+        """Test retrieve_for_context extracts query from latest user message only."""
+        messages = [
+            {"role": "user", "content": "My name is Alice"},
+            {"role": "assistant", "content": "Nice to meet you, Alice"},
+            {"role": "user", "content": "I like Python"}
+        ]
+        await memory_store.add(messages)
+
+        # Current messages with multiple roles - should use latest user message
+        current_messages = [
+            {"role": "user", "content": "Earlier message"},
+            {"role": "assistant", "content": "Assistant message"},
+            {"role": "user", "content": "Tell me about Python"}  # This should be used
+        ]
+
+        result = await memory_store.retrieve_for_context(current_messages, limit=5)
+
+        assert result["success"] is True
+        # Should find Python-related memories
+        assert any("Python" in mem["content"] for mem in result["result"])

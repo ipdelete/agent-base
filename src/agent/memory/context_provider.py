@@ -47,8 +47,8 @@ class MemoryContextProvider(ContextProvider):
     ) -> Context:
         """Inject relevant memories before agent invocation.
 
-        Retrieves previous conversation history from memory and injects it
-        as context instructions for the LLM.
+        Retrieves relevant conversation history from memory using semantic/keyword
+        search and injects it as context instructions for the LLM.
 
         Args:
             messages: Current conversation messages
@@ -58,24 +58,29 @@ class MemoryContextProvider(ContextProvider):
             Context with conversation history instructions
         """
         try:
-            # Get all previous memories
-            all_memories = await self.memory_manager.get_all()
+            # Convert ChatMessage to dict format for memory manager
+            messages_dicts = []
+            msg_list = messages if isinstance(messages, MutableSequence) else [messages]
+            for msg in msg_list:
+                text = self._get_message_text(msg)
+                if text:
+                    messages_dicts.append({
+                        "role": str(getattr(msg, "role", "user")),
+                        "content": text
+                    })
 
-            if all_memories.get("success") and all_memories["result"]:
-                memories = all_memories["result"]
-                memory_count = len(memories)
-                logger.debug(f"Injecting {memory_count} memories into context")
+            # Retrieve relevant memories using new method
+            result = await self.memory_manager.retrieve_for_context(
+                messages_dicts, limit=self.history_limit
+            )
 
-                # Build conversation history context
-                # Use last N messages to keep context manageable
-                recent_memories = (
-                    memories[-self.history_limit :]
-                    if len(memories) > self.history_limit
-                    else memories
-                )
+            if result.get("success") and result["result"]:
+                memories = result["result"]
+                logger.debug(f"Injecting {len(memories)} relevant memories into context")
 
+                # Build context from relevant memories
                 context_parts = ["Previous conversation history:"]
-                for mem in recent_memories:
+                for mem in memories:
                     role = mem.get("role", "unknown")
                     content = mem.get("content", "")
                     context_parts.append(f"{role}: {content}")
@@ -85,7 +90,7 @@ class MemoryContextProvider(ContextProvider):
 
                 return Context(instructions=context_text)
             else:
-                logger.debug("No previous memories to inject")
+                logger.debug("No relevant memories to inject")
                 return Context()
 
         except Exception as e:
