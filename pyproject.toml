@@ -36,6 +36,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mem0 = [
+    # Semantic memory enhancement
+    "mem0ai>=1.0.0",
+    "chromadb>=0.5.0",  # Local vector storage
+]
 dev = [
     # Testing framework
     "pytest>=8.4.2",

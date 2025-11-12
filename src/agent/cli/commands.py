@@ -234,6 +234,7 @@ def show_help(console: Console) -> None:
     console.print("  [cyan]/clear[/cyan]      - Clear screen and start new conversation")
     console.print("  [cyan]/continue[/cyan]   - Resume a previous session")
     console.print("  [cyan]/purge[/cyan]      - Delete all agent data (sessions, logs, memory)")
+    console.print("  [cyan]/memory[/cyan]     - Manage memory configuration (mem0)")
     console.print("  [cyan]/telemetry[/cyan]  - Manage local observability dashboard")
     console.print("  [cyan]/help[/cyan]       - Show this help message")
     console.print("  [cyan]exit[/cyan]        - Exit interactive mode")
@@ -427,3 +428,66 @@ async def handle_telemetry_command(user_input: str, console: Console) -> None:
         console.print(f"\n[red]Error: {e}[/red]\n")
     except Exception as e:
         console.print(f"\n[red]Unexpected error: {e}[/red]\n")
+
+
+async def handle_memory_command(user_input: str, console: Console) -> None:
+    """Handle /memory command for memory configuration help.
+
+    Args:
+        user_input: Full user input (e.g., "/memory help")
+        console: Console for output
+
+    Commands:
+        /memory help - Show memory configuration help
+        /memory info - Show current memory configuration
+    """
+    parts = user_input.strip().split()
+    action = parts[1].lower() if len(parts) > 1 else "help"
+
+    if action == "info":
+        # Show current memory configuration
+        memory_type = os.getenv("MEMORY_TYPE", "in_memory")
+        console.print("\n[bold]Memory Configuration:[/bold]")
+        console.print(f"  Backend: [cyan]{memory_type}[/cyan]")
+
+        if memory_type == "mem0":
+            # Check if using cloud or local mode
+            api_key = os.getenv("MEM0_API_KEY")
+            org_id = os.getenv("MEM0_ORG_ID")
+            storage_path = os.getenv("MEM0_STORAGE_PATH", "~/.agent/mem0_data/chroma_db")
+
+            if api_key and org_id:
+                console.print("  Mode: [green]Cloud (mem0.ai)[/green]")
+                console.print(f"  Organization: {org_id}")
+                console.print("  API Key: [dim]" + ("*" * 20) + api_key[-4:] + "[/dim]")
+            else:
+                console.print("  Mode: [green]Local (Chroma)[/green]")
+                console.print(f"  Storage: {storage_path}")
+
+            user_id = os.getenv("MEM0_USER_ID", os.getenv("USER", "default-user"))
+            project_id = os.getenv("MEM0_PROJECT_ID")
+            console.print(f"  User: {user_id}")
+            if project_id:
+                console.print(f"  Project: {project_id}")
+        console.print()
+
+    else:
+        # Show help
+        console.print("\n[bold]Mem0 Semantic Memory:[/bold]")
+        console.print()
+        console.print("[cyan]Local Mode[/cyan] (File-based, no setup required):")
+        console.print("  MEMORY_TYPE=mem0")
+        console.print("  # Stores in ~/.agent/mem0_data/chroma_db by default")
+        console.print()
+        console.print("[cyan]Cloud Mode[/cyan] (mem0.ai service):")
+        console.print("  MEMORY_TYPE=mem0")
+        console.print("  MEM0_API_KEY=<your-api-key>")
+        console.print("  MEM0_ORG_ID=<your-org-id>")
+        console.print("  # Get credentials from https://app.mem0.ai")
+        console.print()
+        console.print("[bold]Commands:[/bold]")
+        console.print("  [cyan]/memory help[/cyan] - Show this help")
+        console.print("  [cyan]/memory info[/cyan] - Show current configuration")
+        console.print()
+        console.print("[dim]Memory works across sessions - enable once and it persists![/dim]")
+        console.print()

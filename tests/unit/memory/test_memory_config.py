@@ -160,3 +160,119 @@ class TestMemoryConfiguration:
             assert config.memory_enabled is True
             assert config.memory_type == "in_memory"
             assert config.memory_dir == Path("/custom/memory")
+
+    def test_mem0_config_local(self):
+        """Test mem0 local storage configuration."""
+        with patch.dict(
+            os.environ,
+            {
+                "LLM_PROVIDER": "openai",
+                "OPENAI_API_KEY": "sk-test",
+                "MEMORY_TYPE": "mem0",
+                "MEM0_STORAGE_PATH": "/custom/mem0/path",
+                "MEM0_USER_ID": "alice",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            assert config.memory_type == "mem0"
+            assert config.mem0_storage_path == Path("/custom/mem0/path")
+            assert config.mem0_user_id == "alice"
+
+            # Should validate successfully
+            config.validate()  # Should not raise
+
+    def test_mem0_config_cloud(self):
+        """Test mem0 cloud configuration."""
+        with patch.dict(
+            os.environ,
+            {
+                "LLM_PROVIDER": "openai",
+                "OPENAI_API_KEY": "sk-test",
+                "MEMORY_TYPE": "mem0",
+                "MEM0_API_KEY": "test-key",
+                "MEM0_ORG_ID": "test-org",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            assert config.memory_type == "mem0"
+            assert config.mem0_api_key == "test-key"
+            assert config.mem0_org_id == "test-org"
+
+            # Should validate successfully
+            config.validate()  # Should not raise
+
+    def test_mem0_config_validation_passes_local_mode(self):
+        """Test mem0 validation passes for local mode."""
+        with patch.dict(
+            os.environ,
+            {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "sk-test", "MEMORY_TYPE": "mem0"},
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # Should validate successfully
+            config.validate()  # Should not raise
+
+    def test_mem0_config_validation_passes_with_only_api_key(self):
+        """Test mem0 validation passes with only API key (falls back to local)."""
+        with patch.dict(
+            os.environ,
+            {
+                "LLM_PROVIDER": "openai",
+                "OPENAI_API_KEY": "sk-test",
+                "MEMORY_TYPE": "mem0",
+                "MEM0_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # Should pass - will fall back to local mode when org_id missing
+            config.validate()  # Should not raise
+
+    def test_mem0_config_user_id_defaults_to_username(self):
+        """Test mem0 user_id defaults to $USER environment variable."""
+        with patch.dict(
+            os.environ,
+            {
+                "MEMORY_TYPE": "mem0",
+                "USER": "testuser",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # Should default to $USER when MEM0_USER_ID not set
+            assert config.mem0_user_id == "testuser"
+
+    def test_mem0_config_user_id_explicit(self):
+        """Test mem0 user_id can be explicitly set."""
+        with patch.dict(
+            os.environ,
+            {
+                "MEMORY_TYPE": "mem0",
+                "MEM0_USER_ID": "alice",
+                "USER": "should_not_use_this",
+            },
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            # MEM0_USER_ID should take precedence over $USER
+            assert config.mem0_user_id == "alice"
+
+    def test_mem0_config_project_id_optional(self):
+        """Test mem0 project_id is optional."""
+        with patch.dict(
+            os.environ,
+            {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "sk-test", "MEMORY_TYPE": "mem0"},
+            clear=True,
+        ):
+            config = AgentConfig.from_env()
+
+            assert config.mem0_project_id is None
+            config.validate()  # Should not raise even without project_id

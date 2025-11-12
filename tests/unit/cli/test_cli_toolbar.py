@@ -29,9 +29,17 @@ def test_status_bar_includes_directory():
     assert "/" in result or "~" in result
 
 
+@patch("agent.cli.app._BRANCH_CACHE_CWD", None)
+@patch("agent.cli.app._BRANCH_CACHE_VALUE", "")
 @patch("agent.cli.app.subprocess.run")
 def test_status_bar_includes_git_branch(mock_run):
     """Test that git branch is included when available."""
+    # Clear cache to force subprocess call
+    import agent.cli.app
+
+    agent.cli.app._BRANCH_CACHE_CWD = None
+    agent.cli.app._BRANCH_CACHE_VALUE = ""
+
     # Mock git command to return a branch name
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -48,6 +56,12 @@ def test_status_bar_includes_git_branch(mock_run):
 @patch("agent.cli.app.subprocess.run")
 def test_status_bar_handles_no_git(mock_run):
     """Test that status bar works when not in git repo."""
+    # Clear cache to force subprocess call
+    import agent.cli.app
+
+    agent.cli.app._BRANCH_CACHE_CWD = None
+    agent.cli.app._BRANCH_CACHE_VALUE = ""
+
     # Mock git command to fail
     mock_result = MagicMock()
     mock_result.returncode = 1
@@ -65,6 +79,12 @@ def test_status_bar_handles_no_git(mock_run):
 @patch("agent.cli.app.subprocess.run")
 def test_status_bar_handles_git_exception(mock_run):
     """Test that status bar handles git command exceptions."""
+    # Clear cache to force subprocess call
+    import agent.cli.app
+
+    agent.cli.app._BRANCH_CACHE_CWD = None
+    agent.cli.app._BRANCH_CACHE_VALUE = ""
+
     # Mock git command to raise exception (OSError for git not found)
     mock_run.side_effect = OSError("Git not found")
 
@@ -79,6 +99,12 @@ def test_status_bar_handles_git_exception(mock_run):
 @patch("agent.cli.app.subprocess.run")
 def test_status_bar_git_timeout(mock_run):
     """Test that git command timeout is handled gracefully."""
+    # Clear cache to force subprocess call
+    import agent.cli.app
+
+    agent.cli.app._BRANCH_CACHE_CWD = None
+    agent.cli.app._BRANCH_CACHE_VALUE = ""
+
     # Mock git command to timeout
     mock_run.side_effect = subprocess.TimeoutExpired("git", 1)
 

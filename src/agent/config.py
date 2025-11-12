@@ -76,6 +76,15 @@ class AgentConfig:
     memory_dir: Path | None = None
     memory_history_limit: int = 20  # Max memories to inject as context
 
+    # Mem0 semantic memory configuration
+    mem0_storage_path: Path | None = (
+        None  # Local Chroma storage path (default: memory_dir/chroma_db)
+    )
+    mem0_api_key: str | None = None  # Cloud mode API key (mem0.ai)
+    mem0_org_id: str | None = None  # Cloud mode organization ID
+    mem0_user_id: str | None = None  # User namespace (default: username)
+    mem0_project_id: str | None = None  # Project namespace for isolation
+
     # System prompt configuration
     system_prompt_file: str | None = None
 
@@ -141,8 +150,8 @@ class AgentConfig:
         config.agent_session_dir = config.agent_data_dir / "sessions"
 
         # Memory configuration
-        # Note: Memory is currently redundant with thread persistence
-        # Default to false until semantic memory (mem0) is implemented
+        # Note: Memory is enabled by default for conversation context
+        # Supports both in-memory (keyword search) and mem0 (semantic search)
         config.memory_enabled = os.getenv("MEMORY_ENABLED", "true").lower() == "true"
         config.memory_type = os.getenv("MEMORY_TYPE", "in_memory")
         config.memory_history_limit = int(os.getenv("MEMORY_HISTORY_LIMIT", "20"))
@@ -151,6 +160,15 @@ class AgentConfig:
             config.memory_dir = Path(memory_dir).expanduser()
         else:
             config.memory_dir = config.agent_data_dir / "memory"
+
+        # Mem0 semantic memory configuration
+        mem0_storage_env = os.getenv("MEM0_STORAGE_PATH")
+        if mem0_storage_env:
+            config.mem0_storage_path = Path(mem0_storage_env).expanduser()
+        config.mem0_api_key = os.getenv("MEM0_API_KEY")
+        config.mem0_org_id = os.getenv("MEM0_ORG_ID")
+        config.mem0_user_id = os.getenv("MEM0_USER_ID") or os.getenv("USER") or "default-user"
+        config.mem0_project_id = os.getenv("MEM0_PROJECT_ID")
 
         # System prompt configuration
         config.system_prompt_file = os.getenv("AGENT_SYSTEM_PROMPT")
@@ -241,6 +259,11 @@ class AgentConfig:
                 f"Unknown LLM provider: {self.llm_provider}. "
                 "Supported providers: openai, anthropic, azure, foundry, gemini, local"
             )
+
+        # Mem0 validation: No validation needed!
+        # - If both MEM0_API_KEY and MEM0_ORG_ID are set → cloud mode
+        # - If neither or only one is set → local Chroma mode (default)
+        # - Graceful fallback handled in mem0_utils.create_memory_instance()
 
         # Validate system prompt file if specified
         if self.system_prompt_file:
