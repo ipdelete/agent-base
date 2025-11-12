@@ -24,6 +24,13 @@ from agent.memory.context_provider import MemoryContextProvider
 from agent.memory.manager import MemoryManager
 from agent.memory.store import InMemoryStore
 
+# Conditional import for optional mem0 dependency
+try:
+    from agent.memory.mem0_store import Mem0Store
+except ImportError:
+    # mem0 not available, but that's okay - it's optional
+    pass
+
 if TYPE_CHECKING:
     from agent.config import AgentConfig
 
@@ -32,10 +39,17 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "MemoryManager",
     "InMemoryStore",
-    "Mem0Store",
     "MemoryContextProvider",
     "create_memory_manager",
 ]
+
+# Only export Mem0Store if it's available
+try:
+    from agent.memory.mem0_store import Mem0Store  # noqa: F401
+
+    __all__.append("Mem0Store")
+except ImportError:
+    pass
 
 
 def create_memory_manager(config: "AgentConfig") -> MemoryManager:
