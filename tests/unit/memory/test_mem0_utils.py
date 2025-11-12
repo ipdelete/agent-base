@@ -111,10 +111,7 @@ class TestMem0Utils:
             client = get_mem0_client(config)
 
             assert client == mock_instance
-            mock_client.assert_called_once_with(
-                api_key="test-key",
-                org_id="test-org"
-            )
+            mock_client.assert_called_once_with(api_key="test-key", org_id="test-org")
 
     def test_get_mem0_client_missing_config_raises(self):
         """Test get_mem0_client raises when config is incomplete."""

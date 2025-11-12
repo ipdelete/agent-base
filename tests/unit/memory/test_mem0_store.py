@@ -77,7 +77,7 @@ class TestMem0Store:
 
         messages = [
             {"role": "user", "content": "My name is Alice"},
-            {"role": "assistant", "content": "Nice to meet you, Alice!"}
+            {"role": "assistant", "content": "Nice to meet you, Alice!"},
         ]
 
         result = await mem0_store.add(messages)
@@ -145,10 +145,7 @@ class TestMem0Store:
 
         # Verify namespace is used in add call
         # Note: Implementation tries 'memory=' first, falls back to 'messages='
-        mem0_store.client.add.assert_called_with(
-            memory="Test",
-            user_id="test-user:test-project"
-        )
+        mem0_store.client.add.assert_called_with(memory="Test", user_id="test-user:test-project")
 
     @pytest.mark.asyncio
     async def test_add_empty_messages_returns_error(self, mem0_store):
@@ -219,7 +216,7 @@ class TestMem0Store:
                 "memory": "User authentication failed",
                 "score": 0.95,
                 "created_at": "2025-01-01T00:00:00Z",
-                "metadata": {}
+                "metadata": {},
             }
         ]
 
@@ -231,9 +228,7 @@ class TestMem0Store:
         assert result["result"][0]["score"] == 0.95
 
         mem0_store.client.search.assert_called_once_with(
-            query="login errors",
-            filters={"user_id": "test-user:test-project"},
-            limit=5
+            query="login errors", filters={"user_id": "test-user:test-project"}, limit=5
         )
 
     @pytest.mark.asyncio
@@ -259,7 +254,7 @@ class TestMem0Store:
         """Test get_all returns all stored memories."""
         mem0_store.client.get_all.return_value = [
             {"id": "mem-1", "memory": "First memory", "created_at": "2025-01-01", "metadata": {}},
-            {"id": "mem-2", "memory": "Second memory", "created_at": "2025-01-02", "metadata": {}}
+            {"id": "mem-2", "memory": "Second memory", "created_at": "2025-01-02", "metadata": {}},
         ]
 
         result = await mem0_store.get_all()
@@ -274,7 +269,7 @@ class TestMem0Store:
         mem0_store.client.get_all.return_value = [
             {"id": "mem-1", "memory": "Oldest", "created_at": "2025-01-01", "metadata": {}},
             {"id": "mem-2", "memory": "Newest", "created_at": "2025-01-03", "metadata": {}},
-            {"id": "mem-3", "memory": "Middle", "created_at": "2025-01-02", "metadata": {}}
+            {"id": "mem-3", "memory": "Middle", "created_at": "2025-01-02", "metadata": {}},
         ]
 
         result = await mem0_store.get_recent(limit=2)
@@ -289,9 +284,24 @@ class TestMem0Store:
     async def test_get_recent_parses_iso_timestamps(self, mem0_store):
         """Test get_recent correctly parses ISO timestamps with proper datetime sorting."""
         mem0_store.client.get_all.return_value = [
-            {"id": "mem-1", "memory": "Morning", "created_at": "2025-01-10T09:00:00Z", "metadata": {}},
-            {"id": "mem-2", "memory": "Afternoon", "created_at": "2025-01-10T15:30:00+00:00", "metadata": {}},
-            {"id": "mem-3", "memory": "Evening", "created_at": "2025-01-10T20:45:00Z", "metadata": {}}
+            {
+                "id": "mem-1",
+                "memory": "Morning",
+                "created_at": "2025-01-10T09:00:00Z",
+                "metadata": {},
+            },
+            {
+                "id": "mem-2",
+                "memory": "Afternoon",
+                "created_at": "2025-01-10T15:30:00+00:00",
+                "metadata": {},
+            },
+            {
+                "id": "mem-3",
+                "memory": "Evening",
+                "created_at": "2025-01-10T20:45:00Z",
+                "metadata": {},
+            },
         ]
 
         result = await mem0_store.get_recent(limit=3)
@@ -307,9 +317,14 @@ class TestMem0Store:
     async def test_get_recent_handles_invalid_timestamps(self, mem0_store):
         """Test get_recent handles invalid timestamps gracefully."""
         mem0_store.client.get_all.return_value = [
-            {"id": "mem-1", "memory": "Valid", "created_at": "2025-01-10T15:00:00Z", "metadata": {}},
+            {
+                "id": "mem-1",
+                "memory": "Valid",
+                "created_at": "2025-01-10T15:00:00Z",
+                "metadata": {},
+            },
             {"id": "mem-2", "memory": "Invalid", "created_at": "not-a-date", "metadata": {}},
-            {"id": "mem-3", "memory": "Missing", "created_at": "", "metadata": {}}
+            {"id": "mem-3", "memory": "Missing", "created_at": "", "metadata": {}},
         ]
 
         result = await mem0_store.get_recent(limit=3)
@@ -344,12 +359,16 @@ class TestMem0Store:
     async def test_retrieve_for_context_uses_semantic_search(self, mem0_store):
         """Test retrieve_for_context uses semantic search."""
         mem0_store.client.search.return_value = [
-            {"id": "mem-1", "memory": "Relevant memory", "score": 0.9, "created_at": "2025-01-01", "metadata": {}}
+            {
+                "id": "mem-1",
+                "memory": "Relevant memory",
+                "score": 0.9,
+                "created_at": "2025-01-01",
+                "metadata": {},
+            }
         ]
 
-        messages = [
-            {"role": "user", "content": "What is my name?"}
-        ]
+        messages = [{"role": "user", "content": "What is my name?"}]
 
         result = await mem0_store.retrieve_for_context(messages, limit=5)
 

@@ -244,12 +244,14 @@ class TestMemoryContextProvider:
         provider = MemoryContextProvider(store, history_limit=5)
 
         # Add some memories
-        await store.add([
-            {"role": "user", "content": "My name is Bob"},
-            {"role": "assistant", "content": "Nice to meet you, Bob!"},
-            {"role": "user", "content": "I like Python programming"},
-            {"role": "assistant", "content": "Python is a great language!"}
-        ])
+        await store.add(
+            [
+                {"role": "user", "content": "My name is Bob"},
+                {"role": "assistant", "content": "Nice to meet you, Bob!"},
+                {"role": "user", "content": "I like Python programming"},
+                {"role": "assistant", "content": "Python is a great language!"},
+            ]
+        )
 
         # Create messages asking about the name
         current_msgs = [ChatMessage(role="user", content="What's my name?")]
@@ -269,12 +271,14 @@ class TestMemoryContextProvider:
         provider = MemoryContextProvider(store, history_limit=5)
 
         # Add memories with distinct keywords
-        await store.add([
-            {"role": "user", "content": "Python is my favorite programming language"},
-            {"role": "assistant", "content": "Python is great for many tasks!"},
-            {"role": "user", "content": "I also like JavaScript"},
-            {"role": "assistant", "content": "JavaScript is versatile!"},
-        ])
+        await store.add(
+            [
+                {"role": "user", "content": "Python is my favorite programming language"},
+                {"role": "assistant", "content": "Python is great for many tasks!"},
+                {"role": "user", "content": "I also like JavaScript"},
+                {"role": "assistant", "content": "JavaScript is versatile!"},
+            ]
+        )
 
         # Ask about Python - should retrieve Python-related memories
         current_msgs = [ChatMessage(role="user", content="Tell me about Python")]
@@ -306,10 +310,7 @@ class TestMemoryContextProvider:
         provider = MemoryContextProvider(store, history_limit=2)
 
         # Add many memories
-        messages = [
-            {"role": "user", "content": f"Python message {i}"}
-            for i in range(10)
-        ]
+        messages = [{"role": "user", "content": f"Python message {i}"} for i in range(10)]
         await store.add(messages)
 
         # Ask about Python - should limit results

@@ -186,4 +186,3 @@ class TestCreateMemoryManager:
         manager = create_memory_manager(config)
 
         assert isinstance(manager, InMemoryStore)
-

@@ -344,9 +344,7 @@ class TestInMemoryStore:
         await memory_store.add(sample_messages)
 
         # Messages with user query
-        current_messages = [
-            {"role": "user", "content": "Tell me about Alice"}
-        ]
+        current_messages = [{"role": "user", "content": "Tell me about Alice"}]
 
         result = await memory_store.retrieve_for_context(current_messages, limit=5)
 
@@ -386,7 +384,7 @@ class TestInMemoryStore:
         messages = [
             {"role": "user", "content": "My name is Alice"},
             {"role": "assistant", "content": "Nice to meet you, Alice"},
-            {"role": "user", "content": "I like Python"}
+            {"role": "user", "content": "I like Python"},
         ]
         await memory_store.add(messages)
 
@@ -394,7 +392,7 @@ class TestInMemoryStore:
         current_messages = [
             {"role": "user", "content": "Earlier message"},
             {"role": "assistant", "content": "Assistant message"},
-            {"role": "user", "content": "Tell me about Python"}  # This should be used
+            {"role": "user", "content": "Tell me about Python"},  # This should be used
         ]
 
         result = await memory_store.retrieve_for_context(current_messages, limit=5)
