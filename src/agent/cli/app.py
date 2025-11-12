@@ -377,12 +377,12 @@ def run_health_check() -> None:
                 # Add actionable hints
                 if mem0_host == "http://localhost:8000":
                     console.print(
-                        f"  [dim]→ Try: [cyan]agent --memory start[/cyan] to start self-hosted mem0[/dim]",
+                        "  [dim]→ Try: [cyan]agent --memory start[/cyan] to start self-hosted mem0[/dim]",
                         highlight=False,
                     )
                 else:
                     console.print(
-                        f"  [dim]→ Check MEM0_HOST configuration or network connectivity[/dim]",
+                        "  [dim]→ Check MEM0_HOST configuration or network connectivity[/dim]",
                         highlight=False,
                     )
 

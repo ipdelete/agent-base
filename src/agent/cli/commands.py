@@ -468,7 +468,9 @@ async def handle_memory_command(user_input: str, console: Console) -> None:
 
             # Check if Docker Compose file exists
             if not os.path.exists(COMPOSE_FILE):
-                console.print(f"\n[red]Error: Docker Compose file not found: {COMPOSE_FILE}[/red]\n")
+                console.print(
+                    f"\n[red]Error: Docker Compose file not found: {COMPOSE_FILE}[/red]\n"
+                )
                 return
 
             # Check if already running
@@ -498,6 +500,7 @@ async def handle_memory_command(user_input: str, console: Console) -> None:
 
             # Poll for health with backoff
             from agent.memory.mem0_utils import check_mem0_endpoint
+
             max_attempts = 15
             base_delay = 0.5
 
@@ -530,7 +533,7 @@ async def handle_memory_command(user_input: str, console: Console) -> None:
                 console.print("     MEMORY_TYPE=mem0")
                 console.print(f"     MEM0_HOST={MEM0_ENDPOINT}")
                 console.print("  2. Or export environment variables:")
-                console.print(f"     export MEMORY_TYPE=mem0")
+                console.print("     export MEMORY_TYPE=mem0")
                 console.print(f"     export MEM0_HOST={MEM0_ENDPOINT}")
             console.print()
 
@@ -575,6 +578,7 @@ async def handle_memory_command(user_input: str, console: Console) -> None:
 
                 # Check endpoint health
                 from agent.memory.mem0_utils import check_mem0_endpoint
+
                 is_healthy = check_mem0_endpoint(MEM0_ENDPOINT)
 
                 if is_healthy:

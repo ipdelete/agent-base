@@ -80,7 +80,7 @@ def get_mem0_client(config: AgentConfig) -> Any:
         >>> client = get_mem0_client(config)
     """
     try:
-        from mem0 import MemoryClient
+        from mem0 import MemoryClient  # type: ignore[import-untyped]
     except ImportError:
         raise ImportError(
             "mem0ai package not installed. "
@@ -109,10 +109,7 @@ def get_mem0_client(config: AgentConfig) -> Any:
         # Cloud mode
         logger.info("Initializing mem0 cloud client")
         try:
-            client = MemoryClient(
-                api_key=config.mem0_api_key,
-                org_id=config.mem0_org_id
-            )
+            client = MemoryClient(api_key=config.mem0_api_key, org_id=config.mem0_org_id)
             logger.debug("Mem0 cloud client initialized successfully")
             return client
         except Exception as e:
