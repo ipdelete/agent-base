@@ -1,32 +1,13 @@
+# Simplified mem0 setup (ephemeral storage)
+# Note: Official image is currently broken - use cloud mem0.ai instead
 services:
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: mem0-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - mem0_qdrant_data:/qdrant/storage
-
   mem0:
     image: mem0/mem0-api-server:latest
     container_name: mem0-server
     environment:
-      # LLM configuration
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    volumes:
-      - ./config.yaml:/app/config.yaml
+      # Required: OpenAI API key for embeddings
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY must be set}
     ports:
       - "8000:8000"
-    depends_on:
-      - qdrant
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-volumes:
-  mem0_qdrant_data:
-    driver: local
+    # No persistence - data resets when container stops
+    # To add persistence, uncomment and configure external vector store

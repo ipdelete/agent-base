@@ -541,9 +541,9 @@ async def handle_memory_command(user_input: str, console: Console) -> None:
                 except json.JSONDecodeError:
                     pass
 
-            console.print("\n[green]+ Mem0 containers started[/green]\n")
+            console.print("\n[green]+ Mem0 container started[/green]\n")
             console.print(f"  Endpoint: {MEM0_ENDPOINT}")
-            console.print("  Services: Qdrant + mem0\n")
+            console.print("  Storage: Ephemeral (resets on container stop)\n")
 
             if not containers_healthy:
                 console.print("[yellow]⚠ Container health check failed[/yellow]")
