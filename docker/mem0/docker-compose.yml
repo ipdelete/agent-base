@@ -1,44 +1,32 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: pgvector/pgvector:pg15
-    container_name: mem0-postgres
-    environment:
-      POSTGRES_DB: mem0
-      POSTGRES_USER: mem0
-      POSTGRES_PASSWORD: mem0
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: mem0-qdrant
     ports:
-      - "5432:5432"
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - mem0_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mem0"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - mem0_qdrant_data:/qdrant/storage
 
   mem0:
-    image: mem0ai/mem0:latest
+    image: mem0/mem0-api-server:latest
     container_name: mem0-server
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: mem0
-      POSTGRES_USER: mem0
-      POSTGRES_PASSWORD: mem0
+      # LLM configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ./config.yaml:/app/config.yaml
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - qdrant
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
 volumes:
-  mem0_postgres_data:
+  mem0_qdrant_data:
     driver: local
