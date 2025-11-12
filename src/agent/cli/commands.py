@@ -234,6 +234,7 @@ def show_help(console: Console) -> None:
     console.print("  [cyan]/clear[/cyan]      - Clear screen and start new conversation")
     console.print("  [cyan]/continue[/cyan]   - Resume a previous session")
     console.print("  [cyan]/purge[/cyan]      - Delete all agent data (sessions, logs, memory)")
+    console.print("  [cyan]/memory[/cyan]     - Manage semantic memory server (mem0)")
     console.print("  [cyan]/telemetry[/cyan]  - Manage local observability dashboard")
     console.print("  [cyan]/help[/cyan]       - Show this help message")
     console.print("  [cyan]exit[/cyan]        - Exit interactive mode")
@@ -419,6 +420,189 @@ async def handle_telemetry_command(user_input: str, console: Console) -> None:
             console.print("  [cyan]/telemetry stop[/cyan]   - Stop telemetry dashboard")
             console.print("  [cyan]/telemetry status[/cyan] - Check if running")
             console.print("  [cyan]/telemetry url[/cyan]    - Show URLs and setup")
+            console.print()
+
+    except subprocess.TimeoutExpired:
+        console.print("\n[red]Error: Docker command timed out[/red]\n")
+    except subprocess.CalledProcessError as e:
+        console.print(f"\n[red]Error: {e}[/red]\n")
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error: {e}[/red]\n")
+
+
+async def handle_memory_command(user_input: str, console: Console) -> None:
+    """Handle /memory command for managing semantic memory server.
+
+    Args:
+        user_input: Full user input (e.g., "/memory start")
+        console: Console for output
+
+    Commands:
+        /memory start  - Start mem0 server with Docker Compose
+        /memory stop   - Stop mem0 server
+        /memory status - Check if running
+        /memory url    - Show endpoint URL and setup
+    """
+    parts = user_input.strip().split()
+    action = parts[1].lower() if len(parts) > 1 else "help"
+
+    COMPOSE_FILE = "docker/mem0/docker-compose.yml"
+    MEM0_ENDPOINT = "http://localhost:8000"
+
+    try:
+        if action == "start":
+            # Check if Docker is available
+            try:
+                subprocess.run(
+                    ["docker", "--version"],
+                    capture_output=True,
+                    check=True,
+                    timeout=5,
+                )
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                console.print("\n[red]Error: Docker is not installed or not running[/red]")
+                console.print(
+                    "[yellow]Install Docker from: https://docs.docker.com/get-docker/[/yellow]\n"
+                )
+                return
+
+            # Check if Docker Compose file exists
+            if not os.path.exists(COMPOSE_FILE):
+                console.print(f"\n[red]Error: Docker Compose file not found: {COMPOSE_FILE}[/red]\n")
+                return
+
+            # Check if already running
+            result = subprocess.run(
+                ["docker", "ps", "--filter", "name=mem0-server", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if "mem0-server" in result.stdout:
+                console.print("\n[yellow]Mem0 server is already running![/yellow]")
+                console.print(f"[cyan]Endpoint:[/cyan] {MEM0_ENDPOINT}\n")
+                return
+
+            # Start mem0 with Docker Compose
+            console.print("\n[dim]Starting mem0 semantic memory server...[/dim]")
+            subprocess.run(
+                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d"],
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+
+            # Wait for startup
+            console.print("[dim]Waiting for services to start...[/dim]")
+            time.sleep(5)
+
+            console.print("\n[green]+ Mem0 server started successfully![/green]\n")
+            console.print(f"  Endpoint: {MEM0_ENDPOINT}")
+            console.print("  Services: PostgreSQL (pgvector) + mem0\n")
+
+            # Check if MEMORY_TYPE is set
+            memory_type = os.getenv("MEMORY_TYPE")
+            if memory_type == "mem0":
+                console.print("[green]+ Semantic memory enabled[/green] (MEMORY_TYPE=mem0)")
+            else:
+                console.print("[yellow]! Semantic memory not enabled[/yellow]\n")
+                console.print("To enable semantic memory:")
+                console.print("  1. Add to .env file:")
+                console.print("     MEMORY_TYPE=mem0")
+                console.print(f"     MEM0_HOST={MEM0_ENDPOINT}")
+                console.print("  2. Or export environment variables:")
+                console.print(f"     export MEMORY_TYPE=mem0")
+                console.print(f"     export MEM0_HOST={MEM0_ENDPOINT}")
+            console.print()
+
+        elif action == "stop":
+            # Stop the containers
+            result = subprocess.run(
+                ["docker", "compose", "-f", COMPOSE_FILE, "down"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
+                console.print("\n[green]+ Mem0 server stopped[/green]\n")
+            else:
+                console.print("\n[yellow]Mem0 server was not running[/yellow]\n")
+
+        elif action == "status":
+            # Check if running
+            result = subprocess.run(
+                ["docker", "ps", "--filter", "name=mem0-server", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if "mem0-server" in result.stdout:
+                # Get uptime
+                uptime_result = subprocess.run(
+                    [
+                        "docker",
+                        "ps",
+                        "--filter",
+                        "name=mem0-server",
+                        "--format",
+                        "{{.Status}}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+
+                console.print(
+                    "\n[green]+ Mem0 server is running[/green]",
+                    markup=True,
+                    highlight=False,
+                )
+                console.print(f"[dim]Status: {uptime_result.stdout.strip()}[/dim]")
+                console.print(f"[cyan]Endpoint:[/cyan] {MEM0_ENDPOINT}")
+
+                # Show memory configuration
+                memory_type = os.getenv("MEMORY_TYPE")
+                mem0_host = os.getenv("MEM0_HOST")
+                console.print(f"[cyan]Memory Type:[/cyan] {memory_type or 'in_memory (default)'}")
+                if mem0_host:
+                    console.print(f"[cyan]Configured Host:[/cyan] {mem0_host}")
+                console.print()
+            else:
+                console.print("\n[yellow]Mem0 server is not running[/yellow]")
+                console.print("[dim]Start with: /memory start[/dim]\n")
+
+        elif action == "url":
+            console.print("\n[bold]Mem0 Semantic Memory:[/bold]")
+            console.print(f"  Endpoint: {MEM0_ENDPOINT}\n")
+
+            # Check current memory configuration
+            memory_type = os.getenv("MEMORY_TYPE")
+            mem0_host = os.getenv("MEM0_HOST")
+
+            console.print("[bold]Configuration:[/bold]")
+            console.print(f"  Memory Type: {memory_type or 'in_memory (default)'}")
+            if mem0_host:
+                console.print(f"  MEM0_HOST: {mem0_host}")
+            else:
+                console.print("  MEM0_HOST: [dim]not set[/dim]")
+
+            console.print("\n[bold]To enable semantic memory:[/bold]")
+            console.print("  1. Ensure mem0 server is running (/memory start)")
+            console.print("  2. Set environment variables:")
+            console.print("     MEMORY_TYPE=mem0")
+            console.print(f"     MEM0_HOST={MEM0_ENDPOINT}")
+            console.print()
+
+        else:
+            # Show help
+            console.print("\n[bold]Memory Commands:[/bold]")
+            console.print("  [cyan]/memory start[/cyan]  - Start mem0 server (Docker Compose)")
+            console.print("  [cyan]/memory stop[/cyan]   - Stop mem0 server")
+            console.print("  [cyan]/memory status[/cyan] - Check if running")
+            console.print("  [cyan]/memory url[/cyan]    - Show endpoint and setup")
             console.print()
 
     except subprocess.TimeoutExpired:

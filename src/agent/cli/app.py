@@ -19,6 +19,7 @@ from agent.agent import Agent
 from agent.cli.commands import (
     handle_clear_command,
     handle_continue_command,
+    handle_memory_command,
     handle_purge_command,
     handle_shell_command,
     handle_telemetry_command,
@@ -111,6 +112,9 @@ def main(
     telemetry: str = typer.Option(
         None, "--telemetry", help="Manage telemetry dashboard (start|stop|status|url)"
     ),
+    memory: str = typer.Option(
+        None, "--memory", help="Manage semantic memory server (start|stop|status|url)"
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", help="Show detailed execution tree (single prompt mode only)"
     ),
@@ -154,6 +158,11 @@ def main(
     if telemetry:
         # Run telemetry command and exit
         asyncio.run(_run_telemetry_cli(telemetry))
+        return
+
+    if memory:
+        # Run memory command and exit
+        asyncio.run(_run_memory_cli(memory))
         return
 
     if prompt:
@@ -500,6 +509,15 @@ async def _run_telemetry_cli(action: str) -> None:
         action: Telemetry action (start, stop, status, url)
     """
     await handle_telemetry_command(f"/telemetry {action}", console)
+
+
+async def _run_memory_cli(action: str) -> None:
+    """Run memory command from CLI flag.
+
+    Args:
+        action: Memory action (start, stop, status, url)
+    """
+    await handle_memory_command(f"/memory {action}", console)
 
 
 def show_configuration() -> None:
@@ -863,6 +881,9 @@ async def run_chat_mode(
                     continue
                 elif any(user_input.strip().startswith(c) for c in Commands.TELEMETRY):
                     await handle_telemetry_command(user_input, console)
+                    continue
+                elif user_input.strip().startswith("/memory"):
+                    await handle_memory_command(user_input, console)
                     continue
 
                 # Move past the old status bar with a newline
