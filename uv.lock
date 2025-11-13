@@ -24,14 +24,14 @@ wheels = [
 
 [[package]]
 name = "ag-ui-protocol"
-version = "0.2.0a0"
+version = "0.1.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/35/dd487e5d4930236c6fd2a9530863e1899eb003d9f96bc3b7800ac73530bb/ag_ui_protocol-0.2.0a0.tar.gz", hash = "sha256:422bc284f9ab7019d2796641bac96faddd20eba815e1bad6122d72be1f989b80", size = 5582, upload-time = "2025-10-20T17:34:18.183Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/bb/5a5ec893eea5805fb9a3db76a9888c3429710dfb6f24bbb37568f2cf7320/ag_ui_protocol-0.1.10.tar.gz", hash = "sha256:3213991c6b2eb24bb1a8c362ee270c16705a07a4c5962267a083d0959ed894f4", size = 6945, upload-time = "2025-11-06T15:17:17.068Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/85/b2b1eacf49c09c9d40ca2be61213e8e3fdbc88e77eebb0d7668570cf4da3/ag_ui_protocol-0.2.0a0-py3-none-any.whl", hash = "sha256:3f1fbf7ea1f0333ce8034cdc67df192b3c1a85a6c39dc866c35f9329df85b9cf", size = 7674, upload-time = "2025-10-20T17:34:17.412Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/78/eb55fabaab41abc53f52c0918a9a8c0f747807e5306273f51120fd695957/ag_ui_protocol-0.1.10-py3-none-any.whl", hash = "sha256:c81e6981f30aabdf97a7ee312bfd4df0cd38e718d9fc10019c7d438128b93ab5", size = 7889, upload-time = "2025-11-06T15:17:15.325Z" },
 ]
 
 [[package]]
@@ -41,6 +41,7 @@ source = { editable = "." }
 dependencies = [
     { name = "agent-framework" },
     { name = "anthropic" },
+    { name = "azure-ai-inference" },
     { name = "azure-identity" },
     { name = "azure-monitor-opentelemetry-exporter" },
     { name = "google-genai" },
@@ -73,6 +74,7 @@ mem0 = [
 requires-dist = [
     { name = "agent-framework", specifier = ">=1.0.0b251106" },
     { name = "anthropic", specifier = ">=0.40.0" },
+    { name = "azure-ai-inference", specifier = ">=1.0.0b8" },
     { name = "azure-identity", specifier = ">=1.25.1" },
     { name = "azure-monitor-opentelemetry-exporter", specifier = ">=1.0.0b44" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=25.1.0" },
@@ -471,6 +473,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ed/57/8adeed578fa8984856c67b4229e93a58e3f6024417d448d0037aafa4ee9b/azure_ai_agents-1.2.0b5.tar.gz", hash = "sha256:1a16ef3f305898aac552269f01536c34a00473dedee0bca731a21fdb739ff9d5", size = 394876, upload-time = "2025-09-30T01:55:02.328Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/6d/15070d23d7a94833a210da09d5d7ed3c24838bb84f0463895e5d159f1695/azure_ai_agents-1.2.0b5-py3-none-any.whl", hash = "sha256:257d0d24a6bf13eed4819cfa5c12fb222e5908deafb3cbfd5711d3a511cc4e88", size = 217948, upload-time = "2025-09-30T01:55:04.155Z" },
+]
+
+[[package]]
+name = "azure-ai-inference"
+version = "1.0.0b9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/6a/ed85592e5c64e08c291992f58b1a94dab6869f28fb0f40fd753dced73ba6/azure_ai_inference-1.0.0b9.tar.gz", hash = "sha256:1feb496bd84b01ee2691befc04358fa25d7c344d8288e99364438859ad7cd5a4", size = 182408, upload-time = "2025-02-15T00:37:28.464Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/0f/27520da74769db6e58327d96c98e7b9a07ce686dff582c9a5ec60b03f9dd/azure_ai_inference-1.0.0b9-py3-none-any.whl", hash = "sha256:49823732e674092dad83bb8b0d1b65aa73111fab924d61349eb2a8cdc0493990", size = 124885, upload-time = "2025-02-15T00:37:29.964Z" },
 ]
 
 [[package]]
