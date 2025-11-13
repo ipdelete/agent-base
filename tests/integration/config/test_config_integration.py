@@ -69,12 +69,9 @@ class TestConfigurationIntegration:
         config_path = tmp_path / "settings.json"
         settings = get_default_config()
 
-        # Initially no providers enabled
-        assert settings.providers.enabled == []
-
-        # Enable local first
-        settings.providers.enabled.append("local")
-        settings.providers.local.enabled = True
+        # Initially local provider enabled by default
+        assert settings.providers.enabled == ["local"]
+        assert settings.providers.local.enabled is True
 
         # Enable OpenAI
         settings.providers.enabled.append("openai")
