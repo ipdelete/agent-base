@@ -9,7 +9,7 @@ A functional agent base for building AI agents with multi-provider LLM support a
 
 Build conversational AI agents with enterprise-grade features: session persistence, conversation memory, observability, and extensible toolsets.
 
-Supports Local (Docker Models), OpenAI, Anthropic, Google Gemini, Azure OpenAI, and Azure AI Foundry.
+Supports Local (Docker Models), GitHub Models, OpenAI, Anthropic, Google Gemini, Azure OpenAI, and Azure AI Foundry.
 
 ```bash
 agent
@@ -53,6 +53,7 @@ Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) for l
 
 | Provider | Auth Method |
 |----------|-------------|
+| GitHub Models | GitHub CLI (`gh auth login`) |
 | OpenAI | API Key |
 | Anthropic | API Key |
 | Google Gemini | API Key |
@@ -95,6 +96,7 @@ agent config show
 
 # Manage providers
 agent config provider local       # Enable/configure local (Docker)
+agent config provider github      # Enable/configure GitHub Models
 agent config provider openai      # Enable/configure OpenAI
 
 # Configure memory backend
