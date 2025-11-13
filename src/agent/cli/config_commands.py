@@ -26,8 +26,8 @@ except ImportError:
 
 # Timeout constants for Docker operations
 DOCKER_ENABLE_TIMEOUT = 30  # seconds
-MODEL_CHECK_TIMEOUT = 5     # seconds
-MODEL_PULL_TIMEOUT = 1200   # seconds (20 minutes)
+MODEL_CHECK_TIMEOUT = 5  # seconds
+MODEL_PULL_TIMEOUT = 1200  # seconds (20 minutes)
 
 console = Console()
 
@@ -68,7 +68,9 @@ def _setup_local_provider() -> None:
         console.print("[yellow]⚠[/yellow] requests library not available, skipping model check")
     else:
         try:
-            response = requests.get("http://localhost:12434/engines/llama.cpp/v1/models", timeout=MODEL_CHECK_TIMEOUT)
+            response = requests.get(
+                "http://localhost:12434/engines/llama.cpp/v1/models", timeout=MODEL_CHECK_TIMEOUT
+            )
             if response.status_code == 200:
                 models = response.json().get("data", [])
                 if models:
