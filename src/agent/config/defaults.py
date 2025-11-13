@@ -27,7 +27,6 @@ def get_default_config() -> AgentSettings:
         providers={  # type: ignore[arg-type]
             "enabled": [],  # No providers enabled by default - user must explicitly configure
             "local": {
-                "enabled": True,
                 "base_url": "http://localhost:12434/engines/llama.cpp/v1",
                 "model": "ai/phi4",
             },

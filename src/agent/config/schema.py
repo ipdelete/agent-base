@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class LocalProviderConfig(BaseModel):
     """Local provider configuration (Docker Desktop Model Runner)."""
 
-    enabled: bool = True
+    enabled: bool = False  # Consistent with other providers; controlled by ProviderConfig.enabled list
     base_url: str = "http://localhost:12434/engines/llama.cpp/v1"
     model: str = "ai/phi4"
 

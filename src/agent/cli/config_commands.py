@@ -24,7 +24,19 @@ try:
 except ImportError:
     requests = None  # type: ignore[assignment]
 
+# Timeout constants for Docker operations
+DOCKER_ENABLE_TIMEOUT = 30  # seconds
+MODEL_CHECK_TIMEOUT = 5     # seconds
+MODEL_PULL_TIMEOUT = 1200   # seconds (20 minutes)
+
 console = Console()
+
+
+def _mask_api_key(api_key: str | None) -> str:
+    """Mask API key for display, showing only last 4 characters."""
+    if api_key and len(api_key) >= 4:
+        return "***" + api_key[-4:]
+    return "****"
 
 
 def _setup_local_provider() -> None:
@@ -39,7 +51,7 @@ def _setup_local_provider() -> None:
             ["docker", "desktop", "enable", "model-runner", "--tcp=12434"],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=DOCKER_ENABLE_TIMEOUT,
         )
         if result.returncode == 0:
             console.print("[green]✓[/green] Model Runner enabled")
@@ -56,7 +68,7 @@ def _setup_local_provider() -> None:
         console.print("[yellow]⚠[/yellow] requests library not available, skipping model check")
     else:
         try:
-            response = requests.get("http://localhost:12434/engines/llama.cpp/v1/models", timeout=5)
+            response = requests.get("http://localhost:12434/engines/llama.cpp/v1/models", timeout=MODEL_CHECK_TIMEOUT)
             if response.status_code == 200:
                 models = response.json().get("data", [])
                 if models:
@@ -74,7 +86,7 @@ def _setup_local_provider() -> None:
                     try:
                         result = subprocess.run(
                             ["docker", "model", "pull", "phi4"],
-                            timeout=1200,  # 20 minutes for model download
+                            timeout=MODEL_PULL_TIMEOUT,
                             text=True,
                         )
                         if result.returncode == 0:
@@ -298,20 +310,10 @@ def config_show() -> None:
                 table.add_row(f"  {provider_name} URL", provider.base_url)
                 table.add_row(f"  {provider_name} Model", provider.model)
             elif provider_name == "openai":
-                api_key_display = "***" + (
-                    provider.api_key[-4:]
-                    if provider.api_key and len(provider.api_key) >= 4
-                    else "****"
-                )
-                table.add_row(f"  {provider_name} API Key", api_key_display)
+                table.add_row(f"  {provider_name} API Key", _mask_api_key(provider.api_key))
                 table.add_row(f"  {provider_name} Model", provider.model)
             elif provider_name == "anthropic":
-                api_key_display = "***" + (
-                    provider.api_key[-4:]
-                    if provider.api_key and len(provider.api_key) >= 4
-                    else "****"
-                )
-                table.add_row(f"  {provider_name} API Key", api_key_display)
+                table.add_row(f"  {provider_name} API Key", _mask_api_key(provider.api_key))
                 table.add_row(f"  {provider_name} Model", provider.model)
             elif provider_name == "azure":
                 table.add_row(f"  {provider_name} Endpoint", provider.endpoint or "Not set")
@@ -321,12 +323,7 @@ def config_show() -> None:
                     table.add_row(f"  {provider_name} Mode", "Vertex AI")
                     table.add_row(f"  {provider_name} Project", provider.project_id or "Not set")
                 else:
-                    api_key_display = "***" + (
-                        provider.api_key[-4:]
-                        if provider.api_key and len(provider.api_key) >= 4
-                        else "****"
-                    )
-                    table.add_row(f"  {provider_name} API Key", api_key_display)
+                    table.add_row(f"  {provider_name} API Key", _mask_api_key(provider.api_key))
 
         # Telemetry
         telemetry_status = "Enabled" if settings.telemetry.enabled else "Disabled"

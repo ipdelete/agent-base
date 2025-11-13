@@ -94,13 +94,13 @@ def save_config(settings: AgentSettings, config_path: Path | None = None) -> Non
             json_str = settings.model_dump_json_pretty()
             with open(config_path, "w") as f:
                 f.write(json_str)
+
+            # Set restrictive permissions on POSIX systems (user read/write only)
+            if os.name != "nt":  # Not Windows
+                os.chmod(config_path, 0o600)
         finally:
             if old_umask is not None:
                 os.umask(old_umask)
-
-        # Set restrictive permissions on POSIX systems (user read/write only)
-        if os.name != "nt":  # Not Windows
-            os.chmod(config_path, 0o600)
 
     except Exception as e:
         raise ConfigurationError(f"Failed to save configuration to {config_path}: {e}") from e
