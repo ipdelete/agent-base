@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class LocalProviderConfig(BaseModel):
     """Local provider configuration (Docker Desktop Model Runner)."""
 
-    enabled: bool = False  # Consistent with other providers; controlled by ProviderConfig.enabled list
+    enabled: bool = (
+        False  # Consistent with other providers; controlled by ProviderConfig.enabled list
+    )
     base_url: str = "http://localhost:12434/engines/llama.cpp/v1"
     model: str = "ai/phi4"
 
@@ -62,7 +64,7 @@ class GeminiProviderConfig(BaseModel):
 class ProviderConfig(BaseModel):
     """Provider configurations."""
 
-    enabled: list[str] = Field(default_factory=list)
+    enabled: list[str] = Field(default_factory=lambda: ["local"])
     local: LocalProviderConfig = Field(default_factory=LocalProviderConfig)
     openai: OpenAIProviderConfig = Field(default_factory=OpenAIProviderConfig)
     anthropic: AnthropicProviderConfig = Field(default_factory=AnthropicProviderConfig)

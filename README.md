@@ -79,8 +79,7 @@ uv tool install --prerelease=allow git+https://github.com/danielscholl/agent-bas
 agent config init
 
 # Option B: Enable local provider (no API keys needed)
-docker desktop enable model-runner --tcp=12434
-docker model pull phi4
+# The command below will automatically set up Docker and pull the model
 agent config enable local
 
 # Option C: Environment variables (for CI/CD)
@@ -228,8 +227,10 @@ agent config enable anthropic   # Prompts for API key
 agent config enable azure       # Prompts for endpoint and deployment
 agent config enable gemini      # Prompts for API key or Vertex AI
 
-# Disable providers
+# Disable providers (opens interactive menu; select "Disable" when prompted)
 agent config disable openai
+# Note: This command opens a menu with options including "Disable provider".
+# It does not immediately disable; follow the prompts to complete the action.
 
 # Edit configuration file directly
 agent config edit               # Opens in VSCode, vim, or nano

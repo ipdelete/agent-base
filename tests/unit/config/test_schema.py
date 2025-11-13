@@ -23,7 +23,9 @@ class TestProviderConfigs:
     def test_local_provider_defaults(self):
         """Test local provider has correct defaults."""
         config = LocalProviderConfig()
-        assert config.enabled is True
+        # Note: Field default is False; actual enabled state is controlled by
+        # ProviderConfig.enabled list through sync_enabled_flags() validator
+        assert config.enabled is False
         assert config.base_url == "http://localhost:12434/engines/llama.cpp/v1"
         assert config.model == "ai/phi4"
 
@@ -72,10 +74,10 @@ class TestProviderConfig:
     """Test ProviderConfig model."""
 
     def test_default_enabled_providers(self):
-        """Test default enabled providers list is empty."""
+        """Test default enabled providers includes local provider."""
         config = ProviderConfig()
-        assert config.enabled == []
-        assert config.local.enabled is False
+        assert config.enabled == ["local"]
+        assert config.local.enabled is True
         assert config.openai.enabled is False
 
     def test_enable_multiple_providers(self):
@@ -163,7 +165,7 @@ class TestAgentSettings:
         """Test default agent settings."""
         settings = AgentSettings()
         assert settings.version == "1.0"
-        assert settings.providers.enabled == []  # No providers enabled by default
+        assert settings.providers.enabled == ["local"]  # Local provider enabled by default
         assert settings.agent.data_dir.endswith(".agent")
         assert settings.agent.log_level == "info"
         assert settings.telemetry.enabled is False

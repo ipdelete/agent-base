@@ -25,7 +25,7 @@ def get_default_config() -> AgentSettings:
     return AgentSettings(
         version="1.0",
         providers={  # type: ignore[arg-type]
-            "enabled": [],  # No providers enabled by default - user must explicitly configure
+            "enabled": ["local"],  # Local Docker provider enabled by default (free, no API keys)
             "local": {
                 "base_url": "http://localhost:12434/engines/llama.cpp/v1",
                 "model": "ai/phi4",
