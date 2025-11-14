@@ -46,7 +46,7 @@ def _check_mem0_local_dependencies() -> tuple[bool, list[str]]:
     missing = []
 
     try:
-        import mem0  # noqa: F401
+        import mem0  # type: ignore[import-untyped]  # noqa: F401
     except ImportError:
         missing.append("mem0ai")
 
