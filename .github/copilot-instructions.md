@@ -7,11 +7,11 @@ The following guidelines ensure code quality, consistency, and efficiency in dev
 
 When assigned to work on this repository, follow these best practices:
 
-* **Well-Scoped Issues**: Work best with clear, specific tasks like bug fixes, test additions, or focused feature implementations
-* **Validation Required**: Always run the complete validation sequence before considering work complete
-* **Iterative Feedback**: Review PR comments and iterate on changes as requested
-* **Test Coverage**: Maintain or improve the 85% test coverage requirement
-* **Code Style**: Follow existing patterns and architecture decisions documented in `docs/decisions/`
+- **Well-Scoped Issues**: Work best with clear, specific tasks like bug fixes, test additions, or focused feature implementations
+- **Validation Required**: Always run the complete validation sequence before considering work complete
+- **Iterative Feedback**: Review PR comments and iterate on changes as requested
+- **Test Coverage**: Maintain or improve the 85% test coverage requirement
+- **Code Style**: Follow existing patterns and Architecture Decision Records (ADRs) in `docs/decisions/`
 
 **Good Task Examples:**
 - Add input validation to a specific function
