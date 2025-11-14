@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.2.2](https://github.com/danielscholl/agent-base/compare/agent-template-v0.2.1...agent-template-v0.2.2) (2025-11-14)
+
+
+### Bug Fixes
+
+* **github:** update GitHub Models API endpoint and add enterprise support ([9641136](https://github.com/danielscholl/agent-base/commit/9641136f04504f5ccd2bf522cf1dff6c60691542))
+* **github:** Update GitHub Models API endpoint and add enterprise support ([c3e4807](https://github.com/danielscholl/agent-base/commit/c3e4807fd44f2b75877bcdd653966908aceedcae))
+* **mem0:** match GitHubChatClient URL construction for enterprise orgs ([0f33fd6](https://github.com/danielscholl/agent-base/commit/0f33fd6bf2c62513cfd9a99f8f899d46cd7424bc))
+* **tests:** improve Windows compatibility and formatting in test files ([3b450ee](https://github.com/danielscholl/agent-base/commit/3b450eead4612622a0cf01dded9e2526ea2fbccc))
+* **tests:** resolve Windows test failures and enable passing tests ([e6ef556](https://github.com/danielscholl/agent-base/commit/e6ef5569c1f4467629f2c5e30da3d138338adb3b))
+
+
+### Documentation
+
+* add GitHub Models to README provider list ([20237f1](https://github.com/danielscholl/agent-base/commit/20237f1ac37b347926185eb3870bb74e83d21bad))
+* **copilot:** add guidance for working with copilot coding agent ([b46f84f](https://github.com/danielscholl/agent-base/commit/b46f84f3cea1181dfb2947de22bebcc23c3d1da0))
+* **copilot:** improve formatting consistency in instructions ([42f5594](https://github.com/danielscholl/agent-base/commit/42f5594e82c67ca732ccafc329f237bff92e3231))
+
+
+### Code Refactoring
+
+* **cli:** extract console encoding setup to shared utility ([aeaf330](https://github.com/danielscholl/agent-base/commit/aeaf330b16ba46c7a8fea47f08eef291645b608d))
+* **cli:** extract console encoding setup to shared utility ([3727b44](https://github.com/danielscholl/agent-base/commit/3727b447b519b1132ebaa6c3f309d8aa9381bec7))
+* **config:** extract GitHub org setup to helper function ([56bb6cf](https://github.com/danielscholl/agent-base/commit/56bb6cf689d77d7fe236bc7616d0df503236a0e6))
+* **tests:** move os import to module level in test_mem0_utils.py ([049f7d4](https://github.com/danielscholl/agent-base/commit/049f7d4bc699c98c349172185f746f014d5e094e))
+* **tests:** move os import to module level in test_mem0_utils.py ([c535ebc](https://github.com/danielscholl/agent-base/commit/c535ebcebd196473198cea75d7d27353d6b844da))
+* **tests:** simplify test function signatures in test_utils.py ([d3a9904](https://github.com/danielscholl/agent-base/commit/d3a9904aba9650a1e18c0f5f92b3fe34032bfe0b))
+
+
+### Tests
+
+* fix Windows-specific test failures ([f1f3d19](https://github.com/danielscholl/agent-base/commit/f1f3d19cf4deee4044c9c4b8ca6ab7e0f811103b))
+
 ## [0.2.1](https://github.com/danielscholl/agent-base/compare/agent-template-v0.2.0...agent-template-v0.2.1) (2025-11-13)
 
 
