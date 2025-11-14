@@ -1,9 +1,7 @@
 """Unit tests for agent.cli.utils module."""
 
 import os
-import platform
-import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
@@ -92,9 +90,7 @@ class TestGetConsole:
     @patch("platform.system")
     @patch("sys.stdout")
     @patch("locale.getpreferredencoding")
-    def test_get_console_windows_encoding_exception(
-        self, mock_encoding, mock_stdout, mock_system
-    ):
+    def test_get_console_windows_encoding_exception(self, mock_encoding, mock_stdout, mock_system):
         """Test console creation when encoding detection fails."""
         mock_system.return_value = "Windows"
         mock_stdout.isatty.return_value = False
@@ -108,9 +104,7 @@ class TestGetConsole:
     @patch("platform.system")
     @patch("sys.stdout")
     @patch("locale.getpreferredencoding")
-    def test_get_console_windows_none_encoding(
-        self, mock_encoding, mock_stdout, mock_system
-    ):
+    def test_get_console_windows_none_encoding(self, mock_encoding, mock_stdout, mock_system):
         """Test console creation when getpreferredencoding returns None."""
         mock_system.return_value = "Windows"
         mock_stdout.isatty.return_value = False
