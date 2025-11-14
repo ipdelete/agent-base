@@ -204,6 +204,12 @@ def create_memory_instance(config: AgentConfig) -> Any:
         # Override model with appropriate embedding model
         if llm_config["provider"] == "openai":
             embedder_config["config"]["model"] = "text-embedding-3-small"
+        elif llm_config["provider"] == "anthropic":
+            embedder_config["config"]["model"] = "voyage-2"
+        elif llm_config["provider"] == "azure_openai":
+            embedder_config["config"]["model"] = "text-embedding-3-small"
+        elif llm_config["provider"] == "gemini":
+            embedder_config["config"]["model"] = "text-embedding-004"
 
         mem0_config = {
             "llm": llm_config,
@@ -237,7 +243,13 @@ def create_memory_instance(config: AgentConfig) -> Any:
         # Override model with appropriate embedding model
         if llm_config["provider"] == "openai":
             embedder_config["config"]["model"] = "text-embedding-3-small"
-        # For other providers, mem0 will use their default embedding models
+        elif llm_config["provider"] == "anthropic":
+            embedder_config["config"]["model"] = "voyage-2"
+        elif llm_config["provider"] == "azure_openai":
+            embedder_config["config"]["model"] = "text-embedding-3-small"
+        elif llm_config["provider"] == "gemini":
+            embedder_config["config"]["model"] = "text-embedding-004"
+        # For any other providers, mem0 will use their default embedding models
 
         mem0_config = {
             "llm": llm_config,

@@ -37,7 +37,7 @@ from agent.cli.utils import get_console
 console = get_console()
 
 
-def _check_mem0_dependencies() -> tuple[bool, list[str]]:
+def _check_mem0_local_dependencies() -> tuple[bool, list[str]]:
     """Check if mem0 dependencies (mem0ai, chromadb) are installed.
 
     Returns:
@@ -82,6 +82,8 @@ def _install_mem0_dependencies() -> bool:
         else:
             # uv failed, try pip
             console.print("[yellow]⚠[/yellow] uv install failed, trying pip...")
+            if result.stderr:
+                console.print(f"  [dim]Error: {result.stderr[:100]}[/dim]")
     except (FileNotFoundError, subprocess.TimeoutExpired):
         # uv not found or timed out, try pip
         pass
@@ -1081,7 +1083,7 @@ def config_memory() -> None:
 
             if use_local:
                 # Local mode - check if dependencies are installed
-                deps_installed, missing = _check_mem0_dependencies()
+                deps_installed, missing = _check_mem0_local_dependencies()
 
                 if not deps_installed:
                     console.print(

@@ -464,13 +464,15 @@ def run_health_check() -> None:
                 mem0_available = is_compatible
                 unavailable_reason = reason
 
-                # Also check if chromadb is actually installed
+                # Also check if chromadb is actually installed (only needed for local mode)
                 if is_compatible:
-                    try:
-                        import chromadb  # noqa: F401
-                    except ImportError:
-                        mem0_available = False
-                        unavailable_reason = "chromadb package not installed"
+                    is_cloud = bool(config.mem0_api_key and config.mem0_org_id)
+                    if not is_cloud:  # Only check chromadb for local mode
+                        try:
+                            import chromadb  # noqa: F401
+                        except ImportError:
+                            mem0_available = False
+                            unavailable_reason = "chromadb package not installed"
 
             except ImportError as e:
                 unavailable_reason = "mem0ai package not installed"
