@@ -69,15 +69,18 @@ class TestSystemPromptLoading:
         # Use os-agnostic path checking
         import os
 
+        # Check paths handle both Unix (/) and Windows (\) separators
+        normalized_data_path = os.path.normpath("/test/data")
+        normalized_data_path_slash = normalized_data_path.replace(os.sep, "/")
         assert (
-            os.path.normpath("/test/data") in os.path.normpath(prompt)
-            or "test" in prompt
-            and "data" in prompt
+            normalized_data_path in prompt or normalized_data_path_slash in prompt
         )
+
+        normalized_sessions_path = os.path.normpath("/test/sessions")
+        normalized_sessions_path_slash = normalized_sessions_path.replace(os.sep, "/")
         assert (
-            os.path.normpath("/test/sessions") in os.path.normpath(prompt)
-            or "test" in prompt
-            and "sessions" in prompt
+            normalized_sessions_path in prompt
+            or normalized_sessions_path_slash in prompt
         )
         assert "True" in prompt
 

@@ -103,12 +103,20 @@ def extract_llm_config(config: AgentConfig) -> dict[str, Any]:
         from agent.providers.github.auth import get_github_token
 
         github_token = config.github_token or get_github_token()
+
+        # Construct base URL matching GitHubChatClient behavior
+        # Include /inference path and organization scope if configured
+        if config.github_org:
+            base_url = f"{config.github_endpoint}/orgs/{config.github_org}/inference"
+        else:
+            base_url = f"{config.github_endpoint}/inference"
+
         return {
             "provider": "openai",
             "config": {
                 "model": config.github_model,
                 "api_key": github_token,
-                "openai_base_url": config.github_endpoint,
+                "openai_base_url": base_url,
             },
         }
 
