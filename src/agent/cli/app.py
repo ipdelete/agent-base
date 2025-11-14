@@ -474,10 +474,8 @@ def run_health_check() -> None:
                             mem0_available = False
                             unavailable_reason = "chromadb package not installed"
 
-            except ImportError as e:
+            except ImportError:
                 unavailable_reason = "mem0ai package not installed"
-                if "chromadb" in str(e).lower():
-                    unavailable_reason = "chromadb package not installed"
 
             if not mem0_available:
                 # Show actual backend (in_memory) with note about mem0
@@ -517,25 +515,22 @@ def run_health_check() -> None:
 
                 # Show embedding model being used (mem0 only - in_memory doesn't use embeddings)
                 try:
-                    from agent.memory.mem0_utils import extract_llm_config
+                    from agent.memory.mem0_utils import extract_llm_config, get_embedding_model
 
                     llm_config = extract_llm_config(config)
-                    embedding_model = "text-embedding-3-small"  # Default for OpenAI-compatible
 
-                    # Determine embedding model based on provider
-                    if llm_config["provider"] == "openai":
-                        embedding_model = "text-embedding-3-small"
-                    elif llm_config["provider"] == "anthropic":
-                        embedding_model = "voyage-2 (via Anthropic)"
-                    elif llm_config["provider"] == "azure_openai":
-                        embedding_model = "text-embedding-3-small (Azure)"
-                    elif llm_config["provider"] == "gemini":
-                        embedding_model = "text-embedding-004 (Gemini)"
+                    # Get the embedding model name (without provider suffixes)
+                    embedding_model = get_embedding_model(llm_config)
 
-                    # Show which LLM provider is being used for embeddings
-                    # Note: local provider will never reach here since it's blocked by is_provider_compatible
+                    # Add provider context for display
                     if config.llm_provider == "github":
                         embedding_display = f"{embedding_model} [dim](via GitHub Models)[/dim]"
+                    elif llm_config["provider"] == "anthropic":
+                        embedding_display = f"{embedding_model} [dim](via Anthropic)[/dim]"
+                    elif llm_config["provider"] == "azure_openai":
+                        embedding_display = f"{embedding_model} [dim](Azure)[/dim]"
+                    elif llm_config["provider"] == "gemini":
+                        embedding_display = f"{embedding_model} [dim](Gemini)[/dim]"
                     else:
                         embedding_display = embedding_model
 
