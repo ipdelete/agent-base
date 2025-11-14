@@ -22,7 +22,13 @@ from agent.config.providers.openai import OpenAISetup
 
 # Type alias for all provider setup types
 ProviderSetupType = (
-    LocalSetup | GitHubSetup | OpenAISetup | AnthropicSetup | GeminiSetup | AzureSetup | FoundrySetup
+    LocalSetup
+    | GitHubSetup
+    | OpenAISetup
+    | AnthropicSetup
+    | GeminiSetup
+    | AzureSetup
+    | FoundrySetup
 )
 
 # Provider registry - maps provider names to setup implementations
