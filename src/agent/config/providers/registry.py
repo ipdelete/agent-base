@@ -12,8 +12,6 @@ Usage:
     >>> settings.providers.openai.model = config["model"]
 """
 
-from typing import Union
-
 from agent.config.providers.anthropic import AnthropicSetup
 from agent.config.providers.azure import AzureSetup
 from agent.config.providers.foundry import FoundrySetup
@@ -23,9 +21,9 @@ from agent.config.providers.local import LocalSetup
 from agent.config.providers.openai import OpenAISetup
 
 # Type alias for all provider setup types
-ProviderSetupType = Union[
-    LocalSetup, GitHubSetup, OpenAISetup, AnthropicSetup, GeminiSetup, AzureSetup, FoundrySetup
-]
+ProviderSetupType = (
+    LocalSetup | GitHubSetup | OpenAISetup | AnthropicSetup | GeminiSetup | AzureSetup | FoundrySetup
+)
 
 # Provider registry - maps provider names to setup implementations
 PROVIDER_REGISTRY: dict[str, ProviderSetupType] = {
