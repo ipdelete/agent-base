@@ -191,8 +191,23 @@ def create_memory_instance(config: AgentConfig) -> Any:
     if is_cloud_mode:
         # Cloud mode - use mem0.ai service
         logger.info("Initializing mem0 in cloud mode (mem0.ai)")
+
+        # Extract LLM config
+        llm_config = extract_llm_config(config)
+
+        # Create embedder config (reuse LLM provider credentials)
+        embedder_config = {
+            "provider": llm_config["provider"],
+            "config": llm_config["config"].copy(),
+        }
+
+        # Override model with appropriate embedding model
+        if llm_config["provider"] == "openai":
+            embedder_config["config"]["model"] = "text-embedding-3-small"
+
         mem0_config = {
-            "llm": extract_llm_config(config),
+            "llm": llm_config,
+            "embedder": embedder_config,
             "vector_store": {
                 "provider": "mem0",
                 "config": {
@@ -209,8 +224,24 @@ def create_memory_instance(config: AgentConfig) -> Any:
         # Ensure storage directory exists
         storage_path.mkdir(parents=True, exist_ok=True)
 
+        # Extract LLM config
+        llm_config = extract_llm_config(config)
+
+        # Create embedder config (reuse LLM provider credentials)
+        # For embeddings, we use the same provider and credentials as the LLM
+        embedder_config = {
+            "provider": llm_config["provider"],
+            "config": llm_config["config"].copy(),
+        }
+
+        # Override model with appropriate embedding model
+        if llm_config["provider"] == "openai":
+            embedder_config["config"]["model"] = "text-embedding-3-small"
+        # For other providers, mem0 will use their default embedding models
+
         mem0_config = {
-            "llm": extract_llm_config(config),
+            "llm": llm_config,
+            "embedder": embedder_config,
             "vector_store": {
                 "provider": "chroma",
                 "config": {

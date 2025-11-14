@@ -49,6 +49,8 @@ Goodbye!
 **Local (Docker Models)**  
 Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) for local model serving.
 
+> **Note:** Docker-based local models work on Windows, but performance is significantly slower due to Windows virtualization overhead. For best results, use a hosted provider or run Docker only on Linux/macOS.
+
 **Hosted Providers**
 
 | Provider | Auth Method |
