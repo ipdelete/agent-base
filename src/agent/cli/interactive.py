@@ -289,8 +289,31 @@ async def run_chat_mode(
         # Hide Azure connection string if telemetry disabled (prevents 1-3s exit lag)
         saved_connection_string = hide_connection_string_if_otel_disabled(config)
 
-        # Disable observability auto-detection in interactive mode by default
-        should_enable_otel = config.enable_otel and config.enable_otel_explicit
+        # Setup observability with auto-detection
+        # Rules:
+        # 1. If telemetry explicitly enabled in config, always respect it
+        # 2. If not explicit, auto-detect endpoint availability
+        # 3. If endpoint reachable, enable telemetry automatically
+        should_enable_otel = config.enable_otel
+
+        if not config.enable_otel_explicit:
+            # User didn't explicitly enable telemetry, check if endpoint is available
+            from agent.observability import check_telemetry_endpoint
+
+            if check_telemetry_endpoint(config.otlp_endpoint):
+                should_enable_otel = True
+                logger.info(
+                    f"Telemetry endpoint detected at {config.otlp_endpoint}, enabling observability"
+                )
+
+        if should_enable_otel:
+            from agent_framework.observability import setup_observability
+
+            setup_observability(
+                enable_sensitive_data=config.enable_sensitive_data,
+                otlp_endpoint=config.otlp_endpoint,
+                applicationinsights_connection_string=config.applicationinsights_connection_string,
+            )
 
         # Generate session name for this session (used for both logging and saving)
         session_name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

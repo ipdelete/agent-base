@@ -96,8 +96,22 @@ async def run_single_prompt(
         # Hide Azure connection string if telemetry disabled (prevents 1-3s exit lag)
         saved_connection_string = hide_connection_string_if_otel_disabled(config)
 
-        # Skip observability auto-detection in single-prompt mode for speed
-        should_enable_otel = config.enable_otel and config.enable_otel_explicit
+        # Setup observability with auto-detection
+        # Rules:
+        # 1. If telemetry explicitly enabled in config, always respect it
+        # 2. If not explicit, auto-detect endpoint availability (fast check: ~20-30ms)
+        # 3. If endpoint reachable, enable telemetry automatically
+        should_enable_otel = config.enable_otel
+
+        if not config.enable_otel_explicit:
+            # User didn't explicitly enable telemetry, check if endpoint is available
+            from agent.observability import check_telemetry_endpoint
+
+            if check_telemetry_endpoint(config.otlp_endpoint):
+                should_enable_otel = True
+                logger.info(
+                    f"Telemetry endpoint detected at {config.otlp_endpoint}, enabling observability"
+                )
 
         if should_enable_otel:
             from agent_framework.observability import setup_observability
