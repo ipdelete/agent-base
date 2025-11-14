@@ -30,7 +30,6 @@ class ProviderSetup(Protocol):
             >>> creds = setup.detect_credentials()
             >>> # {'api_key': 'sk-...', 'model': 'gpt-4o'}
         """
-        ...
 
     def prompt_user(self, console: Console, detected: dict[str, Any]) -> dict[str, Any]:
         """Prompt user for missing credentials interactively.
@@ -48,7 +47,6 @@ class ProviderSetup(Protocol):
             >>> creds = setup.prompt_user(console, detected)
             >>> # Prompts for missing fields, uses detected for present ones
         """
-        ...
 
     def configure(self, console: Console) -> dict[str, Any]:
         """Configure provider with environment detection + user prompts.
@@ -67,7 +65,6 @@ class ProviderSetup(Protocol):
             >>> config = setup.configure(console)
             >>> settings.providers.openai.update(config)
         """
-        ...
 
 
 def check_env_var(var_name: str, console: Console, display_name: str | None = None) -> str | None:
@@ -113,5 +110,5 @@ def prompt_if_missing(
 
     if default:
         return Prompt.ask(prompt_text, password=password, default=default, show_default=True)
-    else:
-        return Prompt.ask(prompt_text, password=password)
+
+    return Prompt.ask(prompt_text, password=password)

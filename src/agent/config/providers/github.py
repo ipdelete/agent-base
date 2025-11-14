@@ -86,6 +86,7 @@ class GitHubSetup:
 
                 org_name = get_github_org()
             except Exception:
+                # Organization detection failed; fallback to manual prompt below
                 pass
 
             if org_name:
