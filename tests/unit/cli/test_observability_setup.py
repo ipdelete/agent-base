@@ -349,8 +349,7 @@ class TestObservabilitySpanCreation:
         # Verify span was started
         mock_tracer_instance.start_as_current_span.assert_called_once()
 
-        # Verify span attributes were set
-        assert mock_span.set_attribute.called
-        call_args = [call[0] for call in mock_span.set_attribute.call_args_list]
-        assert any("session.id" in str(args) for args in call_args)
-        assert any("mode" in str(args) for args in call_args)
+        # Directly check that expected attributes were set
+        from unittest import mock
+        mock_span.set_attribute.assert_any_call("session.id", mock.ANY)
+        mock_span.set_attribute.assert_any_call("mode", "single-prompt")

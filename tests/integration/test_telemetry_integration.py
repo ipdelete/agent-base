@@ -17,17 +17,6 @@ from agent.observability import check_telemetry_endpoint
 from tests.mocks.mock_client import MockChatClient
 
 
-@pytest.fixture
-def telemetry_config():
-    """Config with telemetry endpoint configured."""
-    return AgentConfig(
-        llm_provider="openai",
-        openai_api_key="test-key",
-        enable_otel=False,
-        enable_otel_explicit=False,
-        otlp_endpoint="http://localhost:4317",
-    )
-
 
 @pytest.mark.integration
 @pytest.mark.cli
@@ -116,10 +105,8 @@ class TestTelemetryAutoDetection:
             # Test
             check_telemetry_endpoint("http://localhost:4317", timeout=0.01)
 
-            # Verify timeout was set
-            mock_socket.settimeout.assert_called_once()
-            # The timeout value should be small (default is 0.02)
-            assert mock_socket.settimeout.call_args[0][0] <= 0.02
+            # Verify timeout was set correctly
+            mock_socket.settimeout.assert_called_once_with(0.01)
 
 
 @pytest.mark.integration
