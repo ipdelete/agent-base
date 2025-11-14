@@ -1,5 +1,6 @@
 """Unit tests for mem0 utility functions."""
 
+import os
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -144,7 +145,9 @@ class TestMem0Utils:
             # Verify it was configured for local Chroma storage
             call_args = mock_memory_class.from_config.call_args[0][0]
             assert call_args["vector_store"]["provider"] == "chroma"
-            assert "/tmp/memory/chroma_db" in call_args["vector_store"]["config"]["path"]
+            # Use os.path.join for cross-platform path checking
+            expected_path = os.path.join(str(config.memory_dir), "chroma_db")
+            assert call_args["vector_store"]["config"]["path"] == expected_path
 
     def test_create_memory_instance_cloud_mode(self):
         """Test create_memory_instance creates cloud instance when API keys provided."""

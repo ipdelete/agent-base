@@ -17,7 +17,14 @@ class TestAgentConfig:
     @patch("agent.config.legacy.load_dotenv")  # Prevent loading from .env file
     def test_from_env_defaults_to_local(self, mock_load_dotenv):
         """Test from_env defaults to Local provider when no env vars set."""
-        with patch.dict(os.environ, {}, clear=True):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {}
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.llm_provider == "local"
@@ -26,15 +33,18 @@ class TestAgentConfig:
 
     def test_from_env_loads_openai_config(self):
         """Test from_env loads OpenAI configuration with AGENT_MODEL override."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "openai",
-                "OPENAI_API_KEY": "test-key-123",
-                "AGENT_MODEL": "gpt-4-turbo",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "openai",
+            "OPENAI_API_KEY": "test-key-123",
+            "AGENT_MODEL": "gpt-4-turbo",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.llm_provider == "openai"
@@ -43,15 +53,18 @@ class TestAgentConfig:
 
     def test_from_env_loads_anthropic_config(self):
         """Test from_env loads Anthropic configuration with AGENT_MODEL override."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "anthropic",
-                "ANTHROPIC_API_KEY": "sk-ant-test-456",
-                "AGENT_MODEL": "claude-opus-4-20250514",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "anthropic",
+            "ANTHROPIC_API_KEY": "sk-ant-test-456",
+            "AGENT_MODEL": "claude-opus-4-20250514",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.llm_provider == "anthropic"
@@ -60,15 +73,18 @@ class TestAgentConfig:
 
     def test_from_env_loads_azure_foundry_config(self):
         """Test from_env loads Azure AI Foundry configuration from environment."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "foundry",
-                "AZURE_PROJECT_ENDPOINT": "https://test.ai.azure.com/api/projects/test",
-                "AZURE_MODEL_DEPLOYMENT": "gpt-4o",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "foundry",
+            "AZURE_PROJECT_ENDPOINT": "https://test.ai.azure.com/api/projects/test",
+            "AZURE_MODEL_DEPLOYMENT": "gpt-4o",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.llm_provider == "foundry"
@@ -77,7 +93,14 @@ class TestAgentConfig:
 
     def test_from_env_sets_default_data_directory(self):
         """Test from_env sets default agent data directory."""
-        with patch.dict(os.environ, {}, clear=True):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {}
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             expected_dir = Path.home() / ".agent"
@@ -86,7 +109,14 @@ class TestAgentConfig:
 
     def test_from_env_respects_custom_data_directory(self):
         """Test from_env uses custom AGENT_DATA_DIR when specified."""
-        with patch.dict(os.environ, {"AGENT_DATA_DIR": "/custom/path"}, clear=True):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {"AGENT_DATA_DIR": "/custom/path"}
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.agent_data_dir == Path("/custom/path")
@@ -244,7 +274,14 @@ class TestAgentConfig:
 
     def test_system_prompt_file_defaults_to_none(self):
         """Test system_prompt_file defaults to None when not set."""
-        with patch.dict(os.environ, {}, clear=True):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {}
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.system_prompt_file is None

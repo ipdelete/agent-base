@@ -75,8 +75,9 @@ class TestProviderConfigs:
         config = GitHubProviderConfig()
         assert config.enabled is False
         assert config.token is None
-        assert config.model == "gpt-5-nano"
-        assert config.endpoint == "https://models.inference.ai.azure.com"
+        assert config.model == "gpt-4o-mini"
+        assert config.endpoint == "https://models.github.ai"
+        assert config.org is None
 
 
 class TestProviderConfig:
@@ -192,7 +193,7 @@ class TestAgentSettings:
             memory={"type": "mem0", "history_limit": 50},
         )
         assert settings.providers.enabled == ["openai"]
-        assert "/custom/path" in settings.agent.data_dir
+        assert "custom" in settings.agent.data_dir and "path" in settings.agent.data_dir
         assert settings.agent.log_level == "debug"
         assert settings.telemetry.enabled is True
         assert settings.memory.type == "mem0"
@@ -346,6 +347,9 @@ class TestDataDirExpansion:
 
     def test_storage_path_expands_tilde(self):
         """Test that ~ in mem0 storage_path is expanded."""
+
         settings = AgentSettings(memory={"mem0": {"storage_path": "~/.agent/mem0"}})
         assert "~" not in settings.memory.mem0.storage_path
-        assert settings.memory.mem0.storage_path.endswith(".agent/mem0")
+        # Check path ends with .agent and mem0 (works on Windows and Unix)
+        assert ".agent" in settings.memory.mem0.storage_path
+        assert settings.memory.mem0.storage_path.endswith("mem0")

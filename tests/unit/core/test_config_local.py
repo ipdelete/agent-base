@@ -15,15 +15,18 @@ class TestLocalProviderConfig:
 
     def test_from_env_with_local_provider(self):
         """Test from_env loads local provider configuration."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "local",
-                "LOCAL_BASE_URL": "http://localhost:12434/engines/llama.cpp/v1",
-                "AGENT_MODEL": "ai/phi4",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "local",
+            "LOCAL_BASE_URL": "http://localhost:12434/engines/llama.cpp/v1",
+            "AGENT_MODEL": "ai/phi4",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.llm_provider == "local"
@@ -32,13 +35,16 @@ class TestLocalProviderConfig:
 
     def test_from_env_local_provider_defaults(self):
         """Test from_env uses default values for local provider."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "local",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "local",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.llm_provider == "local"
@@ -47,14 +53,17 @@ class TestLocalProviderConfig:
 
     def test_from_env_local_custom_base_url(self):
         """Test from_env with custom LOCAL_BASE_URL."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "local",
-                "LOCAL_BASE_URL": "http://localhost:9000/v1",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "local",
+            "LOCAL_BASE_URL": "http://localhost:9000/v1",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.local_base_url == "http://localhost:9000/v1"
@@ -114,14 +123,17 @@ class TestLocalProviderConfig:
 
     def test_local_model_override_via_agent_model(self):
         """Test AGENT_MODEL overrides default local model."""
-        with patch.dict(
-            os.environ,
-            {
-                "LLM_PROVIDER": "local",
-                "AGENT_MODEL": "ai/llama3.2",
-            },
-            clear=True,
-        ):
+        # Preserve HOME/USERPROFILE for Path.home()
+        env_vars = {
+            "LLM_PROVIDER": "local",
+            "AGENT_MODEL": "ai/llama3.2",
+        }
+        if "HOME" in os.environ:
+            env_vars["HOME"] = os.environ["HOME"]
+        if "USERPROFILE" in os.environ:
+            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+
+        with patch.dict(os.environ, env_vars, clear=True):
             config = AgentConfig.from_env()
 
             assert config.local_model == "ai/llama3.2"

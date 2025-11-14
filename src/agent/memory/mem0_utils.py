@@ -13,7 +13,7 @@ from agent.config import AgentConfig
 logger = logging.getLogger(__name__)
 
 # Providers that mem0 supports
-SUPPORTED_PROVIDERS = ["openai", "anthropic", "azure", "gemini"]
+SUPPORTED_PROVIDERS = ["openai", "anthropic", "azure", "gemini", "github"]
 
 
 def is_provider_compatible(config: AgentConfig) -> tuple[bool, str]:
@@ -94,6 +94,29 @@ def extract_llm_config(config: AgentConfig) -> dict[str, Any]:
             "config": {
                 "model": config.gemini_model,
                 "api_key": config.gemini_api_key,
+            },
+        }
+
+    elif config.llm_provider == "github":
+        # GitHub Models uses OpenAI-compatible API
+        # Token may be None if using gh CLI authentication, so we need to get it
+        from agent.providers.github.auth import get_github_token
+
+        github_token = config.github_token or get_github_token()
+
+        # Construct base URL matching GitHubChatClient behavior
+        # Include /inference path and organization scope if configured
+        if config.github_org:
+            base_url = f"{config.github_endpoint}/orgs/{config.github_org}/inference"
+        else:
+            base_url = f"{config.github_endpoint}/inference"
+
+        return {
+            "provider": "openai",
+            "config": {
+                "model": config.github_model,
+                "api_key": github_token,
+                "openai_base_url": base_url,
             },
         }
 
