@@ -40,7 +40,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --frozen --prerelease=allow
-        uv pip install -e .[dev]
+        uv pip install -e .[dev,mem0]
 
     - name: Check code formatting with black
       id: black

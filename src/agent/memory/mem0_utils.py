@@ -129,6 +129,50 @@ def extract_llm_config(config: AgentConfig) -> dict[str, Any]:
         )
 
 
+def _create_embedder_config(llm_config: dict[str, Any]) -> dict[str, Any]:
+    """Create embedder config from LLM config.
+
+    Args:
+        llm_config: LLM configuration dict from extract_llm_config()
+
+    Returns:
+        Dict with embedder configuration including provider-specific embedding models
+    """
+    embedder_config = {
+        "provider": llm_config["provider"],
+        "config": llm_config["config"].copy(),
+    }
+
+    # Override model with appropriate embedding model
+    # These match the models displayed in the health check
+    embedder_config["config"]["model"] = get_embedding_model(llm_config)
+    # For any other providers, mem0 will use their default embedding models
+
+    return embedder_config
+
+
+def get_embedding_model(llm_config: dict[str, Any]) -> str:
+    """Get the embedding model name for a given LLM configuration.
+
+    Args:
+        llm_config: LLM configuration dict from extract_llm_config()
+
+    Returns:
+        The embedding model name (without provider suffixes)
+    """
+    if llm_config["provider"] == "openai":
+        return "text-embedding-3-small"
+    elif llm_config["provider"] == "anthropic":
+        return "voyage-2"
+    elif llm_config["provider"] == "azure_openai":
+        return "text-embedding-3-small"
+    elif llm_config["provider"] == "gemini":
+        return "text-embedding-004"
+    else:
+        # Default for unknown providers
+        return "text-embedding-3-small"
+
+
 def get_storage_path(config: AgentConfig) -> Path:
     """Get the storage path for local Chroma database.
 
@@ -191,8 +235,16 @@ def create_memory_instance(config: AgentConfig) -> Any:
     if is_cloud_mode:
         # Cloud mode - use mem0.ai service
         logger.info("Initializing mem0 in cloud mode (mem0.ai)")
+
+        # Extract LLM config
+        llm_config = extract_llm_config(config)
+
+        # Create embedder config (reuse LLM provider credentials)
+        embedder_config = _create_embedder_config(llm_config)
+
         mem0_config = {
-            "llm": extract_llm_config(config),
+            "llm": llm_config,
+            "embedder": embedder_config,
             "vector_store": {
                 "provider": "mem0",
                 "config": {
@@ -209,8 +261,16 @@ def create_memory_instance(config: AgentConfig) -> Any:
         # Ensure storage directory exists
         storage_path.mkdir(parents=True, exist_ok=True)
 
+        # Extract LLM config
+        llm_config = extract_llm_config(config)
+
+        # Create embedder config (reuse LLM provider credentials)
+        # For embeddings, we use the same provider and credentials as the LLM
+        embedder_config = _create_embedder_config(llm_config)
+
         mem0_config = {
-            "llm": extract_llm_config(config),
+            "llm": llm_config,
+            "embedder": embedder_config,
             "vector_store": {
                 "provider": "chroma",
                 "config": {

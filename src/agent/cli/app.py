@@ -463,6 +463,17 @@ def run_health_check() -> None:
                 is_compatible, reason = is_provider_compatible(config)
                 mem0_available = is_compatible
                 unavailable_reason = reason
+
+                # Also check if chromadb is actually installed (only needed for local mode)
+                if is_compatible:
+                    is_cloud = bool(config.mem0_api_key and config.mem0_org_id)
+                    if not is_cloud:  # Only check chromadb for local mode
+                        try:
+                            import chromadb  # noqa: F401
+                        except ImportError:
+                            mem0_available = False
+                            unavailable_reason = "chromadb package not installed"
+
             except ImportError:
                 unavailable_reason = "mem0ai package not installed"
 
@@ -470,10 +481,12 @@ def run_health_check() -> None:
                 # Show actual backend (in_memory) with note about mem0
                 console.print("  [cyan]◉[/cyan] Backend: [cyan]in_memory[/cyan]")
                 console.print(
-                    f"  [yellow]⚠[/yellow]  mem0 not available: [yellow]{unavailable_reason}[/yellow]"
+                    f"  [yellow]⚠[/yellow]  mem0 configured but unavailable: [yellow]{unavailable_reason}[/yellow]"
                 )
+                console.print("  [dim]Run 'agent config memory' to install dependencies[/dim]")
             else:
-                # Show mem0 as backend with configuration
+                # Show mem0 as backend with configuration (only when actually available and working)
+                # This branch is ONLY reached when mem0 is both configured and functional
                 console.print("  [cyan]◉[/cyan] Backend: [cyan]mem0[/cyan]")
 
                 from agent.memory.mem0_utils import get_storage_path
@@ -499,6 +512,33 @@ def run_health_check() -> None:
                 if config.mem0_project_id:
                     namespace = f"{namespace}:{config.mem0_project_id}"
                 console.print(f"  [cyan]◉[/cyan] Namespace: [dim]{namespace}[/dim]")
+
+                # Show embedding model being used (mem0 only - in_memory doesn't use embeddings)
+                try:
+                    from agent.memory.mem0_utils import extract_llm_config, get_embedding_model
+
+                    llm_config = extract_llm_config(config)
+
+                    # Get the embedding model name (without provider suffixes)
+                    embedding_model = get_embedding_model(llm_config)
+
+                    # Add provider context for display
+                    if config.llm_provider == "github":
+                        embedding_display = f"{embedding_model} [dim](via GitHub Models)[/dim]"
+                    elif llm_config["provider"] == "anthropic":
+                        embedding_display = f"{embedding_model} [dim](via Anthropic)[/dim]"
+                    elif llm_config["provider"] == "azure_openai":
+                        embedding_display = f"{embedding_model} [dim](Azure)[/dim]"
+                    elif llm_config["provider"] == "gemini":
+                        embedding_display = f"{embedding_model} [dim](Gemini)[/dim]"
+                    else:
+                        embedding_display = embedding_model
+
+                    console.print(f"  [cyan]◉[/cyan] Embeddings: [dim]{embedding_display}[/dim]")
+                except Exception as e:
+                    # Don't fail health check if we can't determine embedding model
+                    logger.debug(f"Failed to determine embedding model: {e}")
+
         else:
             # in_memory backend
             console.print(f"  [cyan]◉[/cyan] Backend: [cyan]{memory_type}[/cyan]")

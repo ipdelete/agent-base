@@ -37,6 +37,77 @@ from agent.cli.utils import get_console
 console = get_console()
 
 
+def _check_mem0_local_dependencies() -> tuple[bool, list[str]]:
+    """Check if mem0 dependencies (mem0ai, chromadb) are installed.
+
+    Returns:
+        Tuple of (all_installed, missing_packages)
+    """
+    missing = []
+
+    try:
+        import mem0  # type: ignore[import-untyped]  # noqa: F401
+    except ImportError:
+        missing.append("mem0ai")
+
+    try:
+        import chromadb  # noqa: F401
+    except ImportError:
+        missing.append("chromadb")
+
+    return len(missing) == 0, missing
+
+
+def _install_mem0_dependencies() -> bool:
+    """Install mem0 optional dependencies using uv or pip.
+
+    Returns:
+        True if installation succeeded, False otherwise
+    """
+    console.print("\n[bold]Installing mem0 dependencies...[/bold]")
+    console.print("  [dim]This will install: mem0ai, chromadb[/dim]")
+
+    # Try uv first (faster and preferred)
+    try:
+        result = subprocess.run(
+            ["uv", "pip", "install", "mem0ai", "chromadb"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+            console.print("[green]✓[/green] Successfully installed mem0 dependencies")
+            return True
+        else:
+            # uv failed, try pip
+            console.print("[yellow]⚠[/yellow] uv install failed, trying pip...")
+            if result.stderr:
+                console.print(f"  [dim]Error: {result.stderr[:100]}[/dim]")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # uv not found or timed out, try pip
+        pass
+
+    # Fallback to pip
+    try:
+        result = subprocess.run(
+            ["pip", "install", "mem0ai", "chromadb"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+            console.print("[green]✓[/green] Successfully installed mem0 dependencies")
+            return True
+        else:
+            console.print(f"[red]✗[/red] Installation failed: {result.stderr}")
+            return False
+    except Exception as e:
+        console.print(f"[red]✗[/red] Installation failed: {e}")
+        return False
+
+
 def _setup_github_org(provider_obj: Any) -> None:
     """Helper to configure GitHub organization for enterprise rate limits.
 
@@ -1011,7 +1082,47 @@ def config_memory() -> None:
             use_local = Confirm.ask("\nUse local storage (Chroma)?", default=True)
 
             if use_local:
-                # Local mode
+                # Local mode - check if dependencies are installed
+                deps_installed, missing = _check_mem0_local_dependencies()
+
+                if not deps_installed:
+                    console.print(
+                        f"\n[yellow]⚠[/yellow] Missing required packages: {', '.join(missing)}"
+                    )
+                    console.print(
+                        "  [dim]mem0 with local storage requires chromadb for vector storage[/dim]"
+                    )
+
+                    if Confirm.ask("\nInstall missing dependencies now?", default=True):
+                        if _install_mem0_dependencies():
+                            console.print("[green]✓[/green] Dependencies installed successfully\n")
+                        else:
+                            console.print(
+                                "\n[yellow]⚠[/yellow] Installation failed. "
+                                "You can manually install with:"
+                            )
+                            console.print("  [cyan]uv pip install mem0ai chromadb[/cyan]")
+                            console.print("  [dim]or[/dim]")
+                            console.print("  [cyan]pip install mem0ai chromadb[/cyan]\n")
+
+                            if not Confirm.ask(
+                                "Continue with configuration anyway?", default=False
+                            ):
+                                console.print("[dim]Cancelled. No changes made.[/dim]")
+                                return
+                    else:
+                        console.print(
+                            "\n[yellow]⚠[/yellow] You'll need to install dependencies before using mem0:"
+                        )
+                        console.print("  [cyan]uv pip install mem0ai chromadb[/cyan]")
+                        console.print("  [dim]or[/dim]")
+                        console.print("  [cyan]pip install mem0ai chromadb[/cyan]\n")
+
+                        if not Confirm.ask("Continue with configuration anyway?", default=True):
+                            console.print("[dim]Cancelled. No changes made.[/dim]")
+                            return
+
+                # Configure storage path
                 if Confirm.ask("Set custom storage path?", default=False):
                     storage_path_str = Prompt.ask("Enter storage path", default="~/.agent/mem0")
                     settings.memory.mem0.storage_path = storage_path_str
