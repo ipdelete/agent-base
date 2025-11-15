@@ -13,6 +13,8 @@ def mock_console():
         yield mock
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 def test_install_mem0_dependencies_uv_tool(mock_console):
     """Test mem0 dependency installation when running as uv tool."""
     from agent.cli.config_commands import _install_mem0_dependencies
@@ -41,6 +43,8 @@ def test_install_mem0_dependencies_uv_tool(mock_console):
             assert "agent-base" in call_args
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 def test_install_mem0_dependencies_regular_install(mock_console):
     """Test mem0 dependency installation for regular (non-tool) installation."""
     from agent.cli.config_commands import _install_mem0_dependencies
@@ -66,6 +70,8 @@ def test_install_mem0_dependencies_regular_install(mock_console):
             assert "chromadb" in call_args
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 def test_install_mem0_dependencies_uv_tool_failure(mock_console):
     """Test mem0 dependency installation failure when running as uv tool."""
     from agent.cli.config_commands import _install_mem0_dependencies
@@ -82,6 +88,8 @@ def test_install_mem0_dependencies_uv_tool_failure(mock_console):
             assert result is False
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 def test_install_mem0_dependencies_regular_install_fallback_to_pip(mock_console):
     """Test fallback to pip when uv pip install fails."""
     from agent.cli.config_commands import _install_mem0_dependencies
@@ -109,6 +117,8 @@ def test_install_mem0_dependencies_regular_install_fallback_to_pip(mock_console)
             assert second_call_args[1] == "install"
 
 
+@pytest.mark.unit
+@pytest.mark.cli
 def test_install_mem0_dependencies_timeout(mock_console):
     """Test timeout handling during installation."""
     from agent.cli.config_commands import _install_mem0_dependencies

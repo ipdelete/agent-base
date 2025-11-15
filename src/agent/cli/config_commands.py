@@ -1,8 +1,11 @@
 """Interactive CLI commands for managing agent configuration."""
 
 import os
+import re
 import shutil
 import subprocess
+import sys
+import tomllib
 from pathlib import Path
 
 from rich.prompt import Confirm, Prompt
@@ -29,6 +32,7 @@ except ImportError:
 DOCKER_ENABLE_TIMEOUT = 30  # seconds
 MODEL_CHECK_TIMEOUT = 5  # seconds
 MODEL_PULL_TIMEOUT = 1200  # seconds (20 minutes)
+TOOL_REINSTALL_TIMEOUT = 300  # seconds (5 minutes)
 
 # Use shared utility for Windows console encoding setup
 from agent.cli.utils import get_console
@@ -77,9 +81,10 @@ def _install_mem0_dependencies() -> bool:
     console.print("  [dim]This will install: mem0ai, chromadb[/dim]")
 
     # Check if running as a uv tool by examining sys.executable
-    import sys
-
-    is_uv_tool = ".local/share/uv/tools/" in sys.executable
+    # Support both Unix (.local/share/uv/tools/) and Windows (AppData\Local\uv\tools) paths
+    is_uv_tool = (
+        "/uv/tools/" in sys.executable or "\\uv\\tools" in sys.executable
+    )
 
     if is_uv_tool:
         # Running as uv tool - need to reinstall with --with flags
@@ -97,32 +102,58 @@ def _install_mem0_dependencies() -> bool:
             receipt_file = tool_dir / "uv-receipt.toml"
 
             if receipt_file.exists():
-                import tomllib
+                try:
+                    with open(receipt_file, "rb") as f:
+                        receipt = tomllib.load(f)
+                except FileNotFoundError:
+                    # File doesn't exist, use default
+                    pass
+                except (PermissionError, tomllib.TOMLDecodeError) as e:
+                    console.print(f"  [yellow]⚠[/yellow] Could not read install source: {e}")
+                except Exception as e:
+                    console.print(f"  [dim]Unexpected error reading receipt: {e}[/dim]")
+                else:
+                    # Extract the requirement spec
+                    requirements = receipt.get("tool", {}).get("requirements", [])
+                    if requirements and isinstance(requirements, list):
+                        req = requirements[0]  # First requirement is the tool itself
+                        if isinstance(req, dict):
+                            # Build source string from requirement dict
+                            name = req.get("name", "agent-base")
+                            if "git" in req:
+                                git_url = req["git"]
 
-                with open(receipt_file, "rb") as f:
-                    receipt = tomllib.load(f)
+                                # Validate git URL format for security
+                                if not git_url.startswith(("https://", "http://", "git+https://", "git+http://")):
+                                    console.print(f"  [yellow]⚠[/yellow] Invalid git URL format: {git_url}")
+                                else:
+                                    # Handle various git reference formats
+                                    for param in ["?rev=", "?branch=", "?tag="]:
+                                        if param in git_url:
+                                            base_url, ref = git_url.split(param, 1)
+                                            # Extract just the ref value before any other parameters/fragments
+                                            ref = ref.split("&")[0].split("#")[0]
 
-                # Extract the requirement spec
-                requirements = receipt.get("tool", {}).get("requirements", [])
-                if requirements and isinstance(requirements, list):
-                    req = requirements[0]  # First requirement is the tool itself
-                    if isinstance(req, dict):
-                        # Build source string from requirement dict
-                        name = req.get("name", "agent-base")
-                        if "git" in req:
-                            git_url = req["git"]
-                            # Handle git URL with optional rev/branch parameter
-                            if "?rev=" in git_url:
-                                # URL has ?rev=branch format, convert to @branch
-                                base_url, rev_param = git_url.split("?rev=", 1)
-                                package_source = f"git+{base_url}@{rev_param}"
+                                            # Validate revision parameter
+                                            if not re.match(r'^[a-zA-Z0-9._/-]+$', ref):
+                                                console.print(f"  [yellow]⚠[/yellow] Invalid revision parameter: {ref}")
+                                                break
+
+                                            # Ensure git+ prefix
+                                            if not base_url.startswith("git+"):
+                                                base_url = f"git+{base_url}"
+                                            package_source = f"{base_url}@{ref}"
+                                            break
+                                    else:
+                                        # No parameters, just ensure git+ prefix
+                                        if not git_url.startswith("git+"):
+                                            git_url = f"git+{git_url}"
+                                        package_source = git_url
                             else:
-                                package_source = f"git+{git_url}"
-                        else:
-                            package_source = name
+                                package_source = name
         except Exception as e:
             # If we can't read receipt, fall back to package name
-            console.print(f"  [dim]Could not read install source, using default: {e}[/dim]")
+            console.print(f"  [dim]Could not determine original install source ({e}), using package name as fallback[/dim]")
 
         try:
             result = subprocess.run(
@@ -140,7 +171,7 @@ def _install_mem0_dependencies() -> bool:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=300,  # Longer timeout for tool reinstall
+                timeout=TOOL_REINSTALL_TIMEOUT,  # Longer timeout for tool reinstall
             )
 
             if result.returncode == 0:
