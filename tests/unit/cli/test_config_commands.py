@@ -74,9 +74,7 @@ def test_install_mem0_dependencies_uv_tool_failure(mock_console):
     with patch("sys.executable", "/Users/test/.local/share/uv/tools/agent-base/bin/python"):
         # Mock subprocess.run to simulate failed tool reinstall
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1, stderr="Installation failed", stdout=""
-            )
+            mock_run.return_value = MagicMock(returncode=1, stderr="Installation failed", stdout="")
 
             result = _install_mem0_dependencies()
 

@@ -77,13 +77,17 @@ def _install_mem0_dependencies() -> bool:
 
     if is_uv_tool:
         # Running as uv tool - need to reinstall with --with flags
-        console.print("  [dim]Detected uv tool installation, reinstalling with mem0 extras...[/dim]")
+        console.print(
+            "  [dim]Detected uv tool installation, reinstalling with mem0 extras...[/dim]"
+        )
 
         # Determine the package source from uv-receipt.toml
         package_source = "agent-base"  # Default fallback
         try:
             # Parse uv-receipt.toml to get original install source
-            tool_dir = Path(sys.executable).parent.parent  # e.g., ~/.local/share/uv/tools/agent-base
+            tool_dir = Path(
+                sys.executable
+            ).parent.parent  # e.g., ~/.local/share/uv/tools/agent-base
             receipt_file = tool_dir / "uv-receipt.toml"
 
             if receipt_file.exists():
@@ -134,7 +138,9 @@ def _install_mem0_dependencies() -> bool:
             )
 
             if result.returncode == 0:
-                console.print("[green]✓[/green] Successfully reinstalled agent-base with mem0 dependencies")
+                console.print(
+                    "[green]✓[/green] Successfully reinstalled agent-base with mem0 dependencies"
+                )
                 console.print("  [dim]Restart may be required for changes to take effect[/dim]")
                 return True
             else:
