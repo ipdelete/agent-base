@@ -251,9 +251,7 @@ class TestWorkspaceSandboxing:
             assert ".." in result["message"]
 
     @pytest.mark.asyncio
-    async def test_absolute_path_outside_workspace_blocked(
-        self, fs_tools_readonly, temp_workspace
-    ):
+    async def test_absolute_path_outside_workspace_blocked(self, fs_tools_readonly, temp_workspace):
         """Test absolute paths outside workspace are rejected."""
         # Absolute paths outside workspace
         outside_paths = [
@@ -268,9 +266,7 @@ class TestWorkspaceSandboxing:
             assert result["error"] == "path_outside_workspace"
 
     @pytest.mark.asyncio
-    async def test_absolute_path_inside_workspace_allowed(
-        self, fs_tools_readonly, temp_workspace
-    ):
+    async def test_absolute_path_inside_workspace_allowed(self, fs_tools_readonly, temp_workspace):
         """Test absolute paths inside workspace are allowed."""
         # Create a file
         test_file = temp_workspace / "test.txt"
@@ -283,7 +279,9 @@ class TestWorkspaceSandboxing:
         assert result["result"]["type"] == "file"
 
     @pytest.mark.asyncio
-    async def test_symlink_outside_workspace_blocked(self, fs_tools_readonly, temp_workspace, tmp_path):
+    async def test_symlink_outside_workspace_blocked(
+        self, fs_tools_readonly, temp_workspace, tmp_path
+    ):
         """Test symlink pointing outside workspace is blocked."""
         # Create target outside workspace
         outside = tmp_path / "outside"
@@ -579,7 +577,7 @@ class TestReadFile:
         """Test binary files are detected and rejected."""
         # Create binary file with null bytes
         test_file = temp_workspace / "binary.bin"
-        test_file.write_bytes(b"\x00\x01\x02\xFF\xFE")
+        test_file.write_bytes(b"\x00\x01\x02\xff\xfe")
 
         result = await fs_tools_readonly.read_file("binary.bin")
 
@@ -592,7 +590,7 @@ class TestReadFile:
         """Test malformed UTF-8 uses errors='replace' gracefully."""
         # Create file with invalid UTF-8
         test_file = temp_workspace / "invalid.txt"
-        test_file.write_bytes(b"Hello \xFF\xFE World\n")
+        test_file.write_bytes(b"Hello \xff\xfe World\n")
 
         result = await fs_tools_readonly.read_file("invalid.txt")
 
@@ -700,9 +698,7 @@ class TestSearchText:
     @pytest.mark.asyncio
     async def test_search_text_case_insensitive(self, fs_tools_readonly, sample_files):
         """Test case-insensitive search."""
-        result = await fs_tools_readonly.search_text(
-            "HELLO", path=".", case_sensitive=False
-        )
+        result = await fs_tools_readonly.search_text("HELLO", path=".", case_sensitive=False)
 
         assert result["success"] is True
         assert len(result["result"]["matches"]) >= 1
@@ -711,9 +707,7 @@ class TestSearchText:
     @pytest.mark.asyncio
     async def test_search_text_case_sensitive(self, fs_tools_readonly, sample_files):
         """Test case-sensitive search doesn't match different case."""
-        result = await fs_tools_readonly.search_text(
-            "HELLO", path=".", case_sensitive=True
-        )
+        result = await fs_tools_readonly.search_text("HELLO", path=".", case_sensitive=True)
 
         assert result["success"] is True
         assert len(result["result"]["matches"]) == 0  # Should not find lowercase "Hello"
@@ -721,9 +715,7 @@ class TestSearchText:
     @pytest.mark.asyncio
     async def test_search_text_regex_simple(self, fs_tools_readonly, sample_files):
         """Test basic regex pattern search."""
-        result = await fs_tools_readonly.search_text(
-            r"Line \d+", path=".", use_regex=True
-        )
+        result = await fs_tools_readonly.search_text(r"Line \d+", path=".", use_regex=True)
 
         assert result["success"] is True
         assert result["result"]["use_regex"] is True
@@ -737,9 +729,7 @@ class TestSearchText:
     @pytest.mark.asyncio
     async def test_search_text_regex_invalid(self, fs_tools_readonly, sample_files):
         """Test invalid regex pattern returns error."""
-        result = await fs_tools_readonly.search_text(
-            r"[invalid(", path=".", use_regex=True
-        )
+        result = await fs_tools_readonly.search_text(r"[invalid(", path=".", use_regex=True)
 
         assert result["success"] is False
         assert result["error"] == "invalid_regex"
@@ -773,7 +763,7 @@ class TestSearchText:
     async def test_search_text_binary_files_skipped(self, fs_tools_readonly, temp_workspace):
         """Test binary files are automatically skipped."""
         # Create binary file
-        (temp_workspace / "binary.bin").write_bytes(b"\x00\x01MATCH\xFF\xFE")
+        (temp_workspace / "binary.bin").write_bytes(b"\x00\x01MATCH\xff\xfe")
         # Create text file
         (temp_workspace / "text.txt").write_text("MATCH\n")
 
@@ -824,9 +814,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_file_mode_create(self, fs_tools_writable, temp_workspace):
         """Test creating new file with mode='create'."""
-        result = await fs_tools_writable.write_file(
-            "new.txt", "Hello World", mode="create"
-        )
+        result = await fs_tools_writable.write_file("new.txt", "Hello World", mode="create")
 
         assert result["success"] is True
         assert result["result"]["path"] == "new.txt"
@@ -846,9 +834,7 @@ class TestWriteFile:
         existing = temp_workspace / "existing.txt"
         existing.write_text("Old content")
 
-        result = await fs_tools_writable.write_file(
-            "existing.txt", "New content", mode="overwrite"
-        )
+        result = await fs_tools_writable.write_file("existing.txt", "New content", mode="overwrite")
 
         assert result["success"] is True
         assert result["result"]["mode"] == "overwrite"
@@ -864,9 +850,7 @@ class TestWriteFile:
         existing = temp_workspace / "append.txt"
         existing.write_text("Line 1\n")
 
-        result = await fs_tools_writable.write_file(
-            "append.txt", "Line 2\n", mode="append"
-        )
+        result = await fs_tools_writable.write_file("append.txt", "Line 2\n", mode="append")
 
         assert result["success"] is True
         assert result["result"]["mode"] == "append"
@@ -878,9 +862,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_file_mode_append_new_file(self, fs_tools_writable, temp_workspace):
         """Test append mode creates file if it doesn't exist."""
-        result = await fs_tools_writable.write_file(
-            "new_append.txt", "Content", mode="append"
-        )
+        result = await fs_tools_writable.write_file("new_append.txt", "Content", mode="append")
 
         assert result["success"] is True
         assert result["result"]["existed_before"] is False
@@ -897,9 +879,7 @@ class TestWriteFile:
         existing = temp_workspace / "exists.txt"
         existing.write_text("Existing")
 
-        result = await fs_tools_writable.write_file(
-            "exists.txt", "New", mode="create"
-        )
+        result = await fs_tools_writable.write_file("exists.txt", "New", mode="create")
 
         assert result["success"] is False
         assert result["error"] == "file_exists"
@@ -912,9 +892,7 @@ class TestWriteFile:
         max_bytes = fs_tools_writable.config.filesystem_max_write_bytes
         large_content = "x" * (max_bytes + 1000)
 
-        result = await fs_tools_writable.write_file(
-            "large.txt", large_content, mode="create"
-        )
+        result = await fs_tools_writable.write_file("large.txt", large_content, mode="create")
 
         assert result["success"] is False
         assert result["error"] == "write_too_large"
@@ -922,9 +900,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_file_invalid_mode(self, fs_tools_writable):
         """Test invalid write mode returns error."""
-        result = await fs_tools_writable.write_file(
-            "test.txt", "content", mode="invalid"
-        )
+        result = await fs_tools_writable.write_file("test.txt", "content", mode="invalid")
 
         assert result["success"] is False
         assert result["error"] == "invalid_mode"
@@ -936,9 +912,7 @@ class TestWriteFile:
         subdir = temp_workspace / "subdir"
         subdir.mkdir()
 
-        result = await fs_tools_writable.write_file(
-            "subdir/file.txt", "content", mode="create"
-        )
+        result = await fs_tools_writable.write_file("subdir/file.txt", "content", mode="create")
 
         assert result["success"] is True
         assert (subdir / "file.txt").read_text() == "content"
@@ -961,9 +935,7 @@ class TestApplyTextEdit:
         test_file = temp_workspace / "test.txt"
         test_file.write_text("content")
 
-        result = await fs_tools_readonly.apply_text_edit(
-            "test.txt", "content", "new"
-        )
+        result = await fs_tools_readonly.apply_text_edit("test.txt", "content", "new")
 
         assert result["success"] is False
         assert result["error"] == "writes_disabled"
@@ -974,9 +946,7 @@ class TestApplyTextEdit:
         test_file = temp_workspace / "edit.txt"
         test_file.write_text("Hello World\nGoodbye World\n")
 
-        result = await fs_tools_writable.apply_text_edit(
-            "edit.txt", "Hello", "Hi"
-        )
+        result = await fs_tools_writable.apply_text_edit("edit.txt", "Hello", "Hi")
 
         assert result["success"] is True
         assert result["result"]["replacements"] == 1
@@ -1009,9 +979,7 @@ class TestApplyTextEdit:
         test_file = temp_workspace / "all.txt"
         test_file.write_text("foo bar foo baz foo\n")
 
-        result = await fs_tools_writable.apply_text_edit(
-            "all.txt", "foo", "qux", replace_all=True
-        )
+        result = await fs_tools_writable.apply_text_edit("all.txt", "foo", "qux", replace_all=True)
 
         assert result["success"] is True
         assert result["result"]["replacements"] == 3
@@ -1025,9 +993,7 @@ class TestApplyTextEdit:
         test_file = temp_workspace / "nomatch.txt"
         test_file.write_text("Hello World\n")
 
-        result = await fs_tools_writable.apply_text_edit(
-            "nomatch.txt", "NONEXISTENT", "something"
-        )
+        result = await fs_tools_writable.apply_text_edit("nomatch.txt", "NONEXISTENT", "something")
 
         assert result["success"] is False
         assert result["error"] == "match_not_found"
@@ -1041,9 +1007,7 @@ class TestApplyTextEdit:
         test_file = temp_workspace / "test.txt"
         test_file.write_text("content")
 
-        result = await fs_tools_writable.apply_text_edit(
-            "test.txt", "", "replacement"
-        )
+        result = await fs_tools_writable.apply_text_edit("test.txt", "", "replacement")
 
         assert result["success"] is False
         assert result["error"] == "empty_expected_text"
@@ -1056,9 +1020,7 @@ class TestApplyTextEdit:
         test_file.write_text(original)
 
         result = await fs_tools_writable.apply_text_edit(
-            "multiline.txt",
-            "OLD BLOCK\nLine 2",
-            "NEW BLOCK\nUpdated Line"
+            "multiline.txt", "OLD BLOCK\nLine 2", "NEW BLOCK\nUpdated Line"
         )
 
         assert result["success"] is True
@@ -1070,9 +1032,7 @@ class TestApplyTextEdit:
         test_file = temp_workspace / "delete.txt"
         test_file.write_text("Keep DELETE_THIS Keep\n")
 
-        result = await fs_tools_writable.apply_text_edit(
-            "delete.txt", "DELETE_THIS ", ""
-        )
+        result = await fs_tools_writable.apply_text_edit("delete.txt", "DELETE_THIS ", "")
 
         assert result["success"] is True
         assert test_file.read_text() == "Keep Keep\n"
@@ -1084,9 +1044,7 @@ class TestApplyTextEdit:
         test_file.write_text("Hello  World\n")  # Two spaces
 
         # Try to match with one space (should fail)
-        result = await fs_tools_writable.apply_text_edit(
-            "whitespace.txt", "Hello World", "Hi"
-        )
+        result = await fs_tools_writable.apply_text_edit("whitespace.txt", "Hello World", "Hi")
 
         assert result["success"] is False
         assert result["error"] == "match_not_found"
@@ -1101,9 +1059,7 @@ class TestApplyTextEdit:
         test_file.write_text("Original content\n")
 
         # Successful edit
-        result = await fs_tools_writable.apply_text_edit(
-            "atomic.txt", "Original", "Modified"
-        )
+        result = await fs_tools_writable.apply_text_edit("atomic.txt", "Original", "Modified")
 
         assert result["success"] is True
         # File should have new content
@@ -1147,9 +1103,7 @@ class TestCreateDirectory:
     @pytest.mark.asyncio
     async def test_create_directory_with_parents(self, fs_tools_writable, temp_workspace):
         """Test creating nested directory structure."""
-        result = await fs_tools_writable.create_directory(
-            "parent/child/grandchild", parents=True
-        )
+        result = await fs_tools_writable.create_directory("parent/child/grandchild", parents=True)
 
         assert result["success"] is True
         assert result["result"]["created"] is True
@@ -1186,9 +1140,7 @@ class TestCreateDirectory:
     @pytest.mark.asyncio
     async def test_create_directory_without_parents_fails(self, fs_tools_writable, temp_workspace):
         """Test creating nested directory without parents fails."""
-        result = await fs_tools_writable.create_directory(
-            "parent/child", parents=False
-        )
+        result = await fs_tools_writable.create_directory("parent/child", parents=False)
 
         assert result["success"] is False
         assert result["error"] == "parent_not_found"

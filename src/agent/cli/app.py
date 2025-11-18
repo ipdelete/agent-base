@@ -87,6 +87,7 @@ def main(
 
     if tools:
         from agent.cli.health import show_tool_configuration
+
         show_tool_configuration(console)
         return
 

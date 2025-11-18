@@ -19,7 +19,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import Field
 
@@ -325,7 +325,9 @@ class FileSystemTools(AgentToolset):
         path: Annotated[str, Field(description="Directory path relative to workspace")] = ".",
         recursive: Annotated[bool, Field(description="Recursively list subdirectories")] = False,
         max_entries: Annotated[int, Field(description="Maximum entries to return")] = 200,
-        include_hidden: Annotated[bool, Field(description="Include hidden files (dotfiles)")] = False,
+        include_hidden: Annotated[
+            bool, Field(description="Include hidden files (dotfiles)")
+        ] = False,
     ) -> dict:
         """List directory contents with metadata.
 
@@ -573,14 +575,14 @@ class FileSystemTools(AgentToolset):
                         error="is_binary",
                         message=f"File appears to be binary (contains null bytes): {path}",
                     )
-        except (OSError, IOError) as e:
+        except OSError as e:
             return self._create_error_response(
                 error="permission_denied", message=f"Cannot read file {path}: {str(e)}"
             )
 
         # Read file contents
         try:
-            with open(resolved, "r", encoding="utf-8", errors="replace") as f:
+            with open(resolved, encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
 
             total_lines = len(lines)
@@ -631,7 +633,7 @@ class FileSystemTools(AgentToolset):
             return self._create_error_response(
                 error="permission_denied", message=f"Permission denied reading file: {path}"
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             return self._create_error_response(
                 error="os_error", message=f"Error reading file {path}: {str(e)}"
             )
@@ -640,7 +642,9 @@ class FileSystemTools(AgentToolset):
         self,
         query: Annotated[str, Field(description="Search pattern (literal or regex)")],
         path: Annotated[str, Field(description="Directory or file to search")] = ".",
-        glob: Annotated[str, Field(description="File pattern (e.g., '*.py', 'src/**/*.ts')")] = "**/*",
+        glob: Annotated[
+            str, Field(description="File pattern (e.g., '*.py', 'src/**/*.ts')")
+        ] = "**/*",
         max_matches: Annotated[int, Field(description="Maximum matches to return")] = 50,
         use_regex: Annotated[bool, Field(description="Enable regex mode")] = False,
         case_sensitive: Annotated[bool, Field(description="Case-sensitive search")] = True,
@@ -722,7 +726,9 @@ class FileSystemTools(AgentToolset):
                     if file_path.is_file():
                         # Apply glob filter
                         relative = file_path.relative_to(resolved)
-                        if fnmatch.fnmatch(str(relative), glob) or fnmatch.fnmatch(file_path.name, glob):
+                        if fnmatch.fnmatch(str(relative), glob) or fnmatch.fnmatch(
+                            file_path.name, glob
+                        ):
                             files_to_search.append(file_path)
             else:
                 return self._create_error_response(
@@ -753,7 +759,7 @@ class FileSystemTools(AgentToolset):
                         continue  # Skip binary file
 
                 # Search file contents
-                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(file_path, encoding="utf-8", errors="replace") as f:
                     for line_num, line in enumerate(f, start=1):
                         if len(matches) >= max_matches:
                             truncated = True
@@ -796,7 +802,7 @@ class FileSystemTools(AgentToolset):
                             }
                         )
 
-            except (OSError, IOError, PermissionError):
+            except (OSError, PermissionError):
                 # Skip files we can't read
                 continue
             except Exception as e:
@@ -922,7 +928,7 @@ class FileSystemTools(AgentToolset):
             return self._create_error_response(
                 error="permission_denied", message=f"Permission denied writing to: {path}"
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             return self._create_error_response(
                 error="os_error", message=f"Error writing to {path}: {str(e)}"
             )
@@ -1000,7 +1006,7 @@ class FileSystemTools(AgentToolset):
 
         # Read file contents
         try:
-            with open(resolved, "r", encoding="utf-8", errors="replace") as f:
+            with open(resolved, encoding="utf-8", errors="replace") as f:
                 original_content = f.read()
 
             original_size = len(original_content.encode("utf-8"))
@@ -1009,7 +1015,7 @@ class FileSystemTools(AgentToolset):
             return self._create_error_response(
                 error="permission_denied", message=f"Permission denied reading file: {path}"
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             return self._create_error_response(
                 error="os_error", message=f"Error reading file {path}: {str(e)}"
             )
@@ -1096,7 +1102,7 @@ class FileSystemTools(AgentToolset):
             return self._create_error_response(
                 error="permission_denied", message=f"Permission denied writing to: {path}"
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             return self._create_error_response(
                 error="os_error", message=f"Error writing to {path}: {str(e)}"
             )
@@ -1193,7 +1199,7 @@ class FileSystemTools(AgentToolset):
             return self._create_error_response(
                 error="permission_denied", message=f"Permission denied creating directory: {path}"
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             return self._create_error_response(
                 error="os_error", message=f"Error creating directory {path}: {str(e)}"
             )
