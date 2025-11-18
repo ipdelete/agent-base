@@ -119,11 +119,27 @@ class AgentConfig(BaseModel):
     data_dir: str = "~/.agent"
     log_level: str = "info"
 
+    # Filesystem tools configuration
+    workspace_root: Path | None = None
+    filesystem_writes_enabled: bool = False
+    filesystem_max_read_bytes: int = 10_485_760  # 10MB default
+    filesystem_max_write_bytes: int = 1_048_576  # 1MB default
+
     @field_validator("data_dir")
     @classmethod
     def expand_data_dir(cls, v: str) -> str:
         """Expand user home directory in data_dir."""
         return str(Path(v).expanduser())
+
+    @field_validator("workspace_root")
+    @classmethod
+    def expand_workspace_root(cls, v: Path | None) -> Path | None:
+        """Expand user home directory in workspace_root and resolve to absolute path."""
+        if v is None:
+            return None
+        # Convert to Path if string, expand user, and resolve to absolute
+        path = Path(v).expanduser().resolve()
+        return path
 
 
 class TelemetryConfig(BaseModel):
