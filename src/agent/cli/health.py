@@ -210,20 +210,17 @@ def show_tool_configuration(console: Console | None = None) -> None:
 
         console.print("\n[bold]Filesystem Tools:[/bold]")
 
-        from pathlib import Path as PathLib
+        from pathlib import Path
 
         # Determine workspace root and source
-        workspace_root = None
-        workspace_source = "cwd"
-
         if hasattr(config, "workspace_root") and config.workspace_root is not None:
             workspace_root = config.workspace_root
             workspace_source = "config"
         elif env_workspace := os.getenv("AGENT_WORKSPACE_ROOT"):
-            workspace_root = PathLib(env_workspace).expanduser().resolve()
+            workspace_root = Path(env_workspace).expanduser().resolve()
             workspace_source = "env"
         else:
-            workspace_root = PathLib.cwd().resolve()
+            workspace_root = Path.cwd().resolve()
             workspace_source = "cwd"
 
         console.print(

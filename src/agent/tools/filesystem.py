@@ -18,6 +18,7 @@ All operations are sandboxed to workspace_root (defaults to current directory).
 import logging
 import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -167,10 +168,12 @@ class FileSystemTools(AgentToolset):
 
             if requested_path.is_absolute():
                 # For absolute paths, verify they start with workspace_root
+                unresolved = requested_path
                 resolved = requested_path.resolve()
             else:
                 # For relative paths, combine with workspace_root
-                resolved = (workspace_root / requested_path).resolve()
+                unresolved = workspace_root / requested_path
+                resolved = unresolved.resolve()
 
             # Check if resolved path is within workspace
             try:
@@ -192,12 +195,11 @@ class FileSystemTools(AgentToolset):
                 )
 
             # Additional check: if symlink, verify target is in workspace
-            if resolved.is_symlink():
-                target = resolved.resolve()
+            if unresolved.is_symlink():
                 try:
-                    if not target.is_relative_to(workspace_root):
+                    if not resolved.is_relative_to(workspace_root):
                         logger.warning(
-                            f"Symlink target outside workspace: {relative_path} -> {target}"
+                            f"Symlink target outside workspace: {relative_path} -> {resolved}"
                         )
                         return self._create_error_response(
                             error="symlink_outside_workspace",
@@ -257,6 +259,14 @@ class FileSystemTools(AgentToolset):
         if isinstance(resolved, dict):
             return resolved  # Error response
 
+        # Get unresolved path for symlink detection
+        workspace_root = self._get_workspace_root()
+        requested_path = Path(path)
+        if requested_path.is_absolute():
+            unresolved = requested_path
+        else:
+            unresolved = workspace_root / requested_path
+
         # Gather metadata
         try:
             exists = resolved.exists()
@@ -275,15 +285,15 @@ class FileSystemTools(AgentToolset):
                     result=info, message=f"Path does not exist: {path}"
                 )
 
-            # Determine type
-            if resolved.is_file():
+            # Determine type - check symlink before resolved types
+            if unresolved.is_symlink():
+                path_type = "symlink"
+                size = None
+            elif resolved.is_file():
                 path_type = "file"
                 size = resolved.stat().st_size
             elif resolved.is_dir():
                 path_type = "directory"
-                size = None
-            elif resolved.is_symlink():
-                path_type = "symlink"
                 size = None
             else:
                 path_type = "other"
@@ -906,7 +916,7 @@ class FileSystemTools(AgentToolset):
         if mode == "create" and existed_before:
             return self._create_error_response(
                 error="file_exists",
-                message=f"File already exists (mode=create): {path}. Use mode='overwrite' to replace.",
+                message=f"File already exists (mode=create): {path}. Use mode='overwrite' to replace or mode='append' to add content.",
             )
 
         if mode == "overwrite" and not existed_before:
@@ -1072,8 +1082,6 @@ class FileSystemTools(AgentToolset):
 
         # Write atomically (temp file + rename)
         try:
-            import tempfile
-
             # Create temp file in same directory for atomic rename
             temp_fd, temp_path = tempfile.mkstemp(
                 dir=resolved.parent, prefix=f".{resolved.name}.", suffix=".tmp"
@@ -1092,6 +1100,7 @@ class FileSystemTools(AgentToolset):
                 try:
                     os.unlink(temp_path)
                 except OSError:
+                    # Ignore errors during temp file cleanup; not critical if deletion fails
                     pass
                 raise
 

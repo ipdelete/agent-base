@@ -120,10 +120,20 @@ class AgentConfig(BaseModel):
     log_level: str = "info"
 
     # Filesystem tools configuration
-    workspace_root: Path | None = None
-    filesystem_writes_enabled: bool = False
-    filesystem_max_read_bytes: int = 10_485_760  # 10MB default
-    filesystem_max_write_bytes: int = 1_048_576  # 1MB default
+    workspace_root: Path | None = Field(
+        default=None,
+        description="Root directory for filesystem tools. Defaults to current working directory if not set.",
+    )
+    filesystem_writes_enabled: bool = Field(
+        default=False,
+        description="Enable filesystem write operations (write_file, apply_text_edit, create_directory)",
+    )
+    filesystem_max_read_bytes: int = Field(
+        default=10_485_760, description="Maximum file size in bytes for read operations"  # 10MB
+    )
+    filesystem_max_write_bytes: int = Field(
+        default=1_048_576, description="Maximum content size in bytes for write operations"  # 1MB
+    )
 
     @field_validator("data_dir")
     @classmethod
