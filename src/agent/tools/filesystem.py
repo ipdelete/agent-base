@@ -691,7 +691,6 @@ class FileSystemTools(AgentToolset):
             >>> for match in result["result"]["matches"]:
             ...     print(f"{match['file']}:{match['line']}: {match['snippet']}")
         """
-        import fnmatch
 
         # Resolve and validate path
         resolved = self._resolve_path(path)
@@ -723,14 +722,22 @@ class FileSystemTools(AgentToolset):
                 files_to_search = [resolved]
             elif resolved.is_dir():
                 # Directory search with glob filtering
-                for file_path in resolved.rglob("*"):
-                    if file_path.is_file():
-                        # Apply glob filter
-                        relative = file_path.relative_to(resolved)
-                        if fnmatch.fnmatch(str(relative), glob) or fnmatch.fnmatch(
-                            file_path.name, glob
-                        ):
+                # Use pathlib's glob matching instead of fnmatch for ** support
+                if glob == "**/*" or glob == "*":
+                    # Match all files (optimization)
+                    for file_path in resolved.rglob("*"):
+                        if file_path.is_file():
                             files_to_search.append(file_path)
+                else:
+                    # Use glob pattern matching
+                    for file_path in resolved.glob(glob):
+                        if file_path.is_file():
+                            files_to_search.append(file_path)
+                    # Also try rglob if glob contains **
+                    if "**" in glob:
+                        for file_path in resolved.glob(glob):
+                            if file_path.is_file() and file_path not in files_to_search:
+                                files_to_search.append(file_path)
             else:
                 return self._create_error_response(
                     error="invalid_path_type", message=f"Path is neither file nor directory: {path}"
