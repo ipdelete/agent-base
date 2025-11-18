@@ -215,7 +215,9 @@ class AgentConfig:
         workspace_root_env = os.getenv("AGENT_WORKSPACE_ROOT")
         if workspace_root_env:
             config.workspace_root = Path(workspace_root_env).expanduser().resolve()
-        config.filesystem_writes_enabled = os.getenv("FILESYSTEM_WRITES_ENABLED", "false").lower() == "true"
+        config.filesystem_writes_enabled = (
+            os.getenv("FILESYSTEM_WRITES_ENABLED", "false").lower() == "true"
+        )
         config.filesystem_max_read_bytes = int(os.getenv("FILESYSTEM_MAX_READ_BYTES", "10485760"))
         config.filesystem_max_write_bytes = int(os.getenv("FILESYSTEM_MAX_WRITE_BYTES", "1048576"))
 

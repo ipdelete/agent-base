@@ -9,15 +9,12 @@ Comprehensive test suite covering:
 """
 
 import logging
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
 
 from agent.config import AgentConfig
 from agent.tools.filesystem import FileSystemTools
-
 
 # ============================================================================
 # Fixtures
@@ -296,7 +293,8 @@ class TestWorkspaceSandboxing:
         # Should be blocked
         result = await fs_tools_readonly.get_path_info("escape_link")
         assert result["success"] is False
-        assert result["error"] == "symlink_outside_workspace"
+        # Symlinks outside workspace are caught as path_outside_workspace
+        assert result["error"] == "path_outside_workspace"
 
     @pytest.mark.asyncio
     async def test_symlink_within_workspace_allowed(self, fs_tools_readonly, temp_workspace):

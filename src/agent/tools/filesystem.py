@@ -19,7 +19,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import Field
 
@@ -262,7 +262,7 @@ class FileSystemTools(AgentToolset):
             exists = resolved.exists()
 
             if not exists:
-                info = {
+                info: dict[str, Any] = {
                     "exists": False,
                     "type": None,
                     "size": None,
@@ -296,7 +296,7 @@ class FileSystemTools(AgentToolset):
             is_readable = os.access(resolved, os.R_OK)
             is_writable = os.access(resolved, os.W_OK)
 
-            info = {
+            exists_info: dict[str, Any] = {
                 "exists": True,
                 "type": path_type,
                 "size": size,
@@ -307,7 +307,7 @@ class FileSystemTools(AgentToolset):
             }
 
             return self._create_success_response(
-                result=info, message=f"Retrieved metadata for: {path}"
+                result=exists_info, message=f"Retrieved metadata for: {path}"
             )
 
         except PermissionError:
@@ -380,7 +380,7 @@ class FileSystemTools(AgentToolset):
 
         # Get workspace root for relative path calculation
         workspace_root = self._get_workspace_root()
-        entries = []
+        entries: list[dict[str, Any]] = []
         truncated = False
 
         try:
@@ -591,7 +591,8 @@ class FileSystemTools(AgentToolset):
             if start_line < 1:
                 start_line = 1
 
-            if start_line > total_lines:
+            # Allow start_line beyond file length for empty files
+            if total_lines > 0 and start_line > total_lines:
                 return self._create_error_response(
                     error="line_out_of_range",
                     message=f"start_line ({start_line}) exceeds file length ({total_lines} lines): {path}",
@@ -740,7 +741,7 @@ class FileSystemTools(AgentToolset):
             )
 
         # Search files
-        matches = []
+        matches: list[dict[str, Any]] = []
         files_searched = 0
         truncated = False
 
@@ -768,7 +769,10 @@ class FileSystemTools(AgentToolset):
                         # Perform search
                         if use_regex:
                             # Regex search
-                            match_obj = regex_pattern.search(line)
+                            if regex_pattern is not None:
+                                match_obj = regex_pattern.search(line)
+                            else:
+                                match_obj = None
                             if match_obj:
                                 match_start = match_obj.start()
                                 match_end = match_obj.end()
