@@ -72,6 +72,7 @@ class Agent:
 
         # Initialize skill instructions list (may be populated later)
         self.skill_instructions: list[str] = []
+        self.skill_instructions_tokens: int = 0  # Token count for context tracking
 
         # Dependency injection for testing
         if chat_client is not None:
@@ -94,16 +95,20 @@ class Agent:
         if toolsets is None:
             toolsets = [HelloTools(self.config), FileSystemTools(self.config)]
 
-            # Load skills if enabled
-            if hasattr(self.config, "enabled_skills") and self.config.enabled_skills:
-                try:
+            # Load skills (if config has skills section)
+            try:
+                skills_config = getattr(self.config, "skills", None)
+                if skills_config is None:
+                    # No skills configuration - skip skills loading
+                    logger.debug("No skills configuration found - skipping skills loading")
+                else:
                     from agent.skills.loader import SkillLoader
 
-                    # Set default core_skills_dir if not configured
-                    if self.config.core_skills_dir is None:
-                        # Default to <repo>/skills/core
+                    # Auto-detect bundled_dir if not set
+                    if skills_config.bundled_dir is None:
                         repo_root = Path(__file__).parent.parent.parent
-                        self.config.core_skills_dir = repo_root / "skills" / "core"
+                        skills_config.bundled_dir = str(repo_root / "skills" / "core")
+                        logger.debug(f"Auto-detected bundled_dir: {skills_config.bundled_dir}")
 
                     skill_loader = SkillLoader(self.config)
                     skill_toolsets, script_tools, skill_instructions = (
@@ -112,6 +117,13 @@ class Agent:
 
                     # Store skill instructions for system prompt injection
                     self.skill_instructions = skill_instructions
+
+                    # Calculate token count for skill instructions
+                    if skill_instructions:
+                        from agent.utils.tokens import count_tokens
+
+                        total_tokens = sum(count_tokens(s) for s in skill_instructions)
+                        self.skill_instructions_tokens = total_tokens
 
                     if skill_toolsets:
                         toolsets.extend(skill_toolsets)
@@ -125,12 +137,13 @@ class Agent:
 
                     if skill_instructions:
                         logger.info(
-                            f"Collected {len(skill_instructions)} skill instruction blocks for system prompt"
+                            f"Collected {len(skill_instructions)} skill instruction blocks "
+                            f"({self.skill_instructions_tokens} tokens)"
                         )
 
-                except Exception as e:
-                    logger.error(f"Failed to load skills: {e}", exc_info=True)
-                    # Continue without skills - graceful degradation
+            except Exception as e:
+                logger.error(f"Failed to load skills: {e}", exc_info=True)
+                # Continue without skills - graceful degradation
 
         self.toolsets = toolsets
 

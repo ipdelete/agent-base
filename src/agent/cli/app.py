@@ -299,5 +299,62 @@ def config_memory_command() -> None:
     config_memory()
 
 
+# Skill command group
+skill_app = typer.Typer(help="Manage agent skills (bundled and plugins)")
+app.add_typer(skill_app, name="skill")
+
+
+@skill_app.callback(invoke_without_command=True)
+def skill_callback(ctx: typer.Context) -> None:
+    """Skill command callback - shows help if no subcommand given."""
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+
+
+@skill_app.command("list")
+def skill_list_command() -> None:
+    """List all bundled and installed plugin skills with status."""
+    from agent.cli.skill_commands import list_skills
+
+    list_skills()
+
+
+@skill_app.command("install")
+def skill_install_command(
+    git_url: str = typer.Argument(None, help="Git repository URL (prompts if not provided)"),
+    name: str = typer.Option(None, "--name", help="Override skill name"),
+    branch: str = typer.Option("main", "--branch", help="Git branch to use"),
+) -> None:
+    """Install plugin skill(s) from a git repository.
+
+    Supports single-skill and monorepo structures.
+
+    Examples:
+        agent skill install                                          # Interactive
+        agent skill install https://github.com/user/my-skill.git     # Direct
+        agent skill install https://github.com/user/my-skill.git --branch develop
+    """
+    from agent.cli.skill_commands import install_skill
+
+    install_skill(git_url, name, branch)
+
+
+@skill_app.command("manage")
+def skill_manage_command() -> None:
+    """Manage skills interactively (enable/disable/update/remove).
+
+    Shows all installed skills and allows:
+    - Toggle enable/disable
+    - Update plugin skills
+    - Remove plugin skills
+
+    Example:
+        agent skill manage
+    """
+    from agent.cli.skill_commands import manage_skills
+
+    manage_skills()
+
+
 if __name__ == "__main__":
     app()

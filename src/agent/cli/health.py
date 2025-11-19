@@ -197,7 +197,7 @@ async def _test_all_providers(config: AgentConfig) -> list[tuple[str, str, bool,
 
 
 def show_tool_configuration(console: Console | None = None) -> None:
-    """Display detailed tool configuration.
+    """Display tool configuration with nested config under each toolset.
 
     Args:
         console: Rich console instance for output
@@ -208,37 +208,73 @@ def show_tool_configuration(console: Console | None = None) -> None:
     try:
         config = AgentConfig.from_combined()
 
-        console.print("\n[bold]Filesystem Tools:[/bold]")
-
         from pathlib import Path
 
-        # Determine workspace root and source
-        if hasattr(config, "workspace_root") and config.workspace_root is not None:
-            workspace_root = config.workspace_root
-            workspace_source = "config"
-        elif env_workspace := os.getenv("AGENT_WORKSPACE_ROOT"):
-            workspace_root = Path(env_workspace).expanduser().resolve()
-            workspace_source = "env"
-        else:
-            workspace_root = Path.cwd().resolve()
-            workspace_source = "cwd"
+        # Import here to avoid circular dependencies
+        from agent.agent import Agent
 
-        console.print(
-            f"  [cyan]◉[/cyan] Workspace: [cyan]{workspace_root}[/cyan] [dim]({workspace_source})[/dim]"
-        )
-
-        # Write status
-        writes_enabled = getattr(config, "filesystem_writes_enabled", False)
-        write_status = "[green]Enabled[/green]" if writes_enabled else "[yellow]Disabled[/yellow]"
-        console.print(f"  [cyan]◉[/cyan] Writes: {write_status}")
-
-        # Size limits
-        read_limit_mb = getattr(config, "filesystem_max_read_bytes", 10_485_760) // 1_048_576
-        write_limit_mb = getattr(config, "filesystem_max_write_bytes", 1_048_576) // 1_048_576
-        console.print(f"  [cyan]◉[/cyan] Read Limit: [dim]{read_limit_mb}MB[/dim]")
-        console.print(f"  [cyan]◉[/cyan] Write Limit: [dim]{write_limit_mb}MB[/dim]")
+        # Create agent instance to load toolsets
+        agent = Agent(config)
 
         console.print()
+
+        # Display each toolset with nested configuration
+        for toolset in agent.toolsets:
+            toolset_name = type(toolset).__name__
+            tools = toolset.get_tools()
+
+            # Toolset header
+            console.print(f"● [bold]{toolset_name}[/bold] · {len(tools)} tools")
+
+            # Nest configuration under specific toolsets
+            if toolset_name == "FileSystemTools":
+                # Determine workspace root and source
+                if hasattr(config, "workspace_root") and config.workspace_root is not None:
+                    workspace_root = config.workspace_root
+                    workspace_source = "config"
+                elif env_workspace := os.getenv("AGENT_WORKSPACE_ROOT"):
+                    workspace_root = Path(env_workspace).expanduser().resolve()
+                    workspace_source = "env"
+                else:
+                    workspace_root = Path.cwd().resolve()
+                    workspace_source = "cwd"
+
+                # Filesystem configuration
+                writes_enabled = getattr(config, "filesystem_writes_enabled", False)
+                write_status = (
+                    "[green]Enabled[/green]" if writes_enabled else "[yellow]Disabled[/yellow]"
+                )
+                write_bullet = "[green]◉[/green]" if writes_enabled else "[red]◉[/red]"
+                read_limit_mb = (
+                    getattr(config, "filesystem_max_read_bytes", 10_485_760) // 1_048_576
+                )
+                write_limit_mb = (
+                    getattr(config, "filesystem_max_write_bytes", 1_048_576) // 1_048_576
+                )
+
+                console.print(
+                    f"└─ [cyan]◉[/cyan] Workspace: [cyan]{workspace_root}[/cyan] [dim]({workspace_source})[/dim]"
+                )
+                console.print(
+                    f"└─ {write_bullet} Writes: {write_status} · Read: [dim]{read_limit_mb}MB[/dim] · Write: [dim]{write_limit_mb}MB[/dim]"
+                )
+
+            elif toolset_name == "ScriptToolset":
+                # Skills configuration (only counts enabled skills)
+                if agent.skill_instructions:
+                    skill_count = len(agent.skill_instructions)
+                    token_count = getattr(agent, "skill_instructions_tokens", 0)
+                    console.print(
+                        f"└─ [green]◉[/green] skills enabled [dim]({skill_count} skills · {token_count} tokens)[/dim]"
+                    )
+
+            # Tool list (use • bullet for individual tools)
+            for tool in tools:
+                console.print(f"  [dim]• {tool.__name__}[/dim]")
+
+            # Add blank line after each toolset except the last
+            if toolset != agent.toolsets[-1]:
+                console.print()
 
     except Exception as e:
         console.print(f"[red]✗[/red] Error loading tool configuration: {e}")

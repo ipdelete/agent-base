@@ -116,6 +116,9 @@ agent
 # Check the agent configuration
 agent --check
 
+# Check the tools being exposed to the agent
+agent --tools
+
 # Single query (clean output for scripting)
 agent -p "Say hello to Alice"
 
@@ -145,98 +148,29 @@ See [USAGE.md](USAGE.md) for complete examples.
 
 ## Skills
 
-agent-base supports a plugin system for domain-specific capabilities through **skills** - self-contained packages that extend the agent with specialized tools without bloating the core codebase.
+Skills are lightweight extensions that add domain-specific capabilities to an agent without increasing the core footprint. They’re automatically discovered at runtime and come in two forms: bundled skills that ship with the agent, and plugin skills that can install from any git repository. Each skill loads only its minimal metadata by default, with additional tools or scripts activated on demand to keep token usage low.
 
-### What are Skills?
+### Installing Skills
 
-Skills are git-based packages combining:
-- **Python Toolsets**: Testable, type-safe tool classes for frequent operations
-- **Standalone Scripts**: PEP 723 scripts for context-heavy operations (progressive disclosure)
-- **SKILL.md Manifest**: YAML front matter + markdown instructions
-
-### Using Skills
+Agent Base supports installing skills directly from any git repository:
 
 ```bash
-# Enable skills via environment variable
-export AGENT_SKILLS="kalshi-markets,hello-extended"
-
-# Or load all bundled skills
-export AGENT_SKILLS="all"
-
-# Run agent with skills enabled
-agent
+agent skill install <git-url>
 ```
 
-### Available Tools
+Once installed, skills are automatically discovered and integrated into the agent runtime.
 
-When skills are loaded, you get:
-- **Skill toolset methods** - Direct tool calls (e.g., `greet_in_language`)
-- **Script wrapper tools** - Progressive disclosure pattern:
-  - `script_list` - List available scripts
-  - `script_help` - Get help for a script
-  - `script_run` - Execute a script with arguments
+### Managing Skills
 
-### Example: Using Kalshi Markets
+Use the built-in management commands to view, enable/disable, or update installed skills:
 
 ```bash
-# Enable kalshi-markets skill
-export AGENT_SKILLS="kalshi-markets"
-
-# Start agent and use script tools
-agent -p "Use script_list to see available kalshi scripts"
-agent -p "Use script_help to learn about the status script"
-agent -p "Use script_run to check Kalshi exchange status"
+agent skill list
+agent skill manage
 ```
 
-### Bundled Skills
+See [SKILLS.md](docs/design/skills.md) for additional details and information on constructing skills.
 
-**kalshi-markets** - Access Kalshi prediction market data (10 scripts)
-- Market prices, orderbooks, trades
-- Event and series information
-- Progressive disclosure: Scripts not loaded until executed
-
-**hello-extended** - Extended greeting capabilities (hybrid example)
-- Python toolset: `greet_in_language`, `greet_multiple`
-- Script: Advanced greeting with time-awareness
-
-**web-access** - Internet search and web content retrieval (script-based)
-- `fetch.py` - Retrieve web pages as markdown
-- `search.py` - Brave Search API integration
-- Requires `BRAVE_API_KEY` environment variable for search
-
-### Creating Custom Skills
-
-See [docs/SKILLS.md](docs/SKILLS.md) for the complete skill development guide.
-
-Minimal skill structure:
-```
-my-skill/
-├── SKILL.md              # Manifest with YAML front matter
-├── toolsets/             # Optional: Python toolset classes
-│   └── mytools.py
-└── scripts/              # Optional: PEP 723 standalone scripts
-    └── myscript.py
-```
-
-Example SKILL.md:
-```yaml
----
-name: my-skill
-description: Brief description of what this skill does
-toolsets:
-  - toolsets.mytools:MyToolset
----
-
-# Usage instructions in markdown...
-```
-
-### Context Efficiency
-
-Skills use progressive disclosure to maintain <5K token overhead:
-- Only SKILL.md manifest loaded into context
-- Scripts discovered but NOT loaded (just metadata)
-- Execute scripts on-demand via `script_run`
-- 10+ tools available with minimal context usage
 
 ## Contributing
 
