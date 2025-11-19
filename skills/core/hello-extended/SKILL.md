@@ -23,6 +23,6 @@ toolsets:
   Usage: `script_run hello-extended advanced_greeting.py --json`
 
 ## Quick Guide
-- One person, specific language → `greet_in_language("Alice", "Spanish")`
+- One person, specific language → `greet_in_language("Alice", "es")`
 - Multiple people → `greet_multiple(["Alice", "Bob", "Charlie"])`
 - Fancy formatting → `script_run hello-extended advanced_greeting.py --json`
