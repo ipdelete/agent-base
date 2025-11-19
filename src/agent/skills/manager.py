@@ -101,16 +101,27 @@ class SkillManager:
             # Get commit SHA
             commit_sha = pin_commit_sha(temp_dir)
 
-            # Detect repository structure
+            # Detect repository structure (priority order)
             root_manifest = temp_dir / "SKILL.md"
+            skill_subdir_manifest = temp_dir / "skill" / "SKILL.md"
 
             if root_manifest.exists():
-                # Single-skill repository (SKILL.md in root)
+                # Scenario 1: Single-skill repository (SKILL.md in root)
+                logger.info("Detected single-skill repo (SKILL.md at root)")
                 return self._install_single_skill(
                     temp_dir, git_url, commit_sha, branch, tag, trusted, skill_name
                 )
+            elif skill_subdir_manifest.exists():
+                # Scenario 2: Single-skill in skill/ subdirectory
+                # Common for repos with docs/tests at root, skill in subfolder
+                logger.info("Detected single-skill repo (SKILL.md in skill/ subdirectory)")
+                skill_dir = temp_dir / "skill"
+                return self._install_single_skill(
+                    skill_dir, git_url, commit_sha, branch, tag, trusted, skill_name
+                )
             else:
-                # Potential monorepo - scan for subdirectories with SKILL.md
+                # Scenario 3: Monorepo - scan for subdirectories with SKILL.md
+                logger.info("Scanning for monorepo structure (multiple skills)")
                 return self._install_monorepo_skills(
                     temp_dir, git_url, commit_sha, branch, tag, trusted
                 )

@@ -23,16 +23,165 @@ console = get_console()
 logger = logging.getLogger(__name__)
 
 
+def skill_main_menu() -> None:
+    """Main skill management menu (shown when running 'agent skill' with no subcommand)."""
+    console.print("\n[bold]Agent Skills[/bold]\n")
+
+    console.print("1. List all skills (bundled + plugins)")
+    console.print("2. Install plugin from git repository")
+    console.print("3. Manage skills (enable/disable/remove/update)")
+    console.print("4. Exit")
+
+    choice = Prompt.ask("\nChoose an option", default="4")
+
+    if choice == "1":
+        list_skills()
+    elif choice == "2":
+        console.print()
+        git_url = Prompt.ask("Git repository URL")
+        branch = Prompt.ask("Branch", default="main")
+        install_skill(git_url, None, branch)
+    elif choice == "3":
+        manage_skills()
+    elif choice == "4":
+        console.print()
+        return
+    else:
+        console.print(f"[red]Invalid choice: {choice}[/red]\n")
+        raise typer.Exit(1)
+
+
+def manage_skills() -> None:
+    """Unified skill management interface (enable/disable/remove/update)."""
+    console.print("\n[bold]Manage Skills[/bold]\n")
+
+    try:
+        settings = load_config()
+
+        # Get all skills (bundled + plugins)
+        bundled_dir = settings.skills.bundled_dir
+        if bundled_dir is None:
+            repo_root = Path(__file__).parent.parent.parent.parent
+            bundled_dir = str(repo_root / "skills" / "core")
+
+        # Scan bundled skills
+        bundled_path = Path(bundled_dir)
+        all_skills = []
+
+        if bundled_path.exists():
+            from agent.skills.loader import SkillLoader
+            class MockConfig:
+                pass
+            loader = SkillLoader(MockConfig())
+            bundled_skills = loader.scan_skill_directory(bundled_path)
+
+            disabled_bundled = {normalize_skill_name(s) for s in settings.skills.disabled_bundled}
+
+            for skill_dir in bundled_skills:
+                skill_name = skill_dir.name
+                canonical = normalize_skill_name(skill_name)
+                enabled = canonical not in disabled_bundled
+                all_skills.append({
+                    "name": skill_name,
+                    "type": "bundled",
+                    "enabled": enabled,
+                    "source": "core",
+                })
+
+        # Add plugin skills
+        for plugin in settings.skills.plugins:
+            source_name = plugin.git_url.split("/")[-1].replace(".git", "")
+            all_skills.append({
+                "name": plugin.name,
+                "type": "plugin",
+                "enabled": plugin.enabled,
+                "source": source_name,
+                "git_url": plugin.git_url,
+            })
+
+        if not all_skills:
+            console.print("[yellow]No skills available[/yellow]\n")
+            return
+
+        # Display skills with status
+        console.print("[bold]Installed Skills:[/bold]\n")
+        for i, skill in enumerate(all_skills, 1):
+            status_icon = "[green]◉[/green]" if skill["enabled"] else "[dim]○[/dim]"
+            type_label = f"[dim]({skill['type']})[/dim]"
+            console.print(f"{i}. {status_icon} {skill['name']} {type_label} · {skill['source']}")
+
+        console.print(f"{len(all_skills) + 1}. Back")
+
+        choice = Prompt.ask("\nSelect skill to manage", default=str(len(all_skills) + 1))
+
+        try:
+            choice_num = int(choice)
+            if choice_num == len(all_skills) + 1:
+                console.print()
+                return
+            if choice_num < 1 or choice_num > len(all_skills):
+                console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                return
+
+            selected_skill = all_skills[choice_num - 1]
+
+            # Show actions for selected skill
+            console.print(f"\n[bold]{selected_skill['name']}[/bold] ({selected_skill['type']})\n")
+
+            actions = []
+            if selected_skill["enabled"]:
+                actions.append(("1", "Disable", "disable"))
+            else:
+                actions.append(("1", "Enable", "enable"))
+
+            if selected_skill["type"] == "plugin":
+                actions.append(("2", "Update", "update"))
+                actions.append(("3", "Remove", "remove"))
+                actions.append(("4", "Cancel", "cancel"))
+            else:
+                actions.append(("2", "Cancel", "cancel"))
+
+            for num, label, _ in actions:
+                console.print(f"{num}. {label}")
+
+            action_choice = Prompt.ask("\nChoose action", default=actions[-1][0])
+
+            selected_action = next((a for a in actions if a[0] == action_choice), None)
+
+            if not selected_action or selected_action[2] == "cancel":
+                console.print()
+                return
+
+            # Execute action
+            if selected_action[2] == "enable":
+                enable_skill(selected_skill["name"])
+            elif selected_action[2] == "disable":
+                disable_skill(selected_skill["name"])
+            elif selected_action[2] == "update":
+                update_skill(selected_skill["name"])
+            elif selected_action[2] == "remove":
+                remove_skill(selected_skill["name"], yes=True)
+
+        except ValueError:
+            console.print(f"[red]Invalid choice: {choice}[/red]\n")
+            return
+
+    except Exception as e:
+        console.print(f"[red]Error managing skills: {e}[/red]")
+        raise typer.Exit(1)
+
+
 def list_skills() -> None:
     """List all bundled and installed plugin skills with their status.
 
     Shows:
     - Bundled skills (auto-discovered from skills/core/)
     - Plugin skills (from config.skills.plugins)
-    - Status: enabled/disabled
-    - Source: bundled/plugin (git URL for plugins)
+    - Status: ◉ enabled / ○ disabled
+    - Token count per skill (context cost)
+    - Inline info matching --tools style
     """
-    console.print("\n[bold]Agent Skills[/bold]\n")
+    console.print()
 
     try:
         # Load config
@@ -42,7 +191,6 @@ def list_skills() -> None:
         bundled_dir = settings.skills.bundled_dir
         if bundled_dir is None:
             # Auto-detect
-            from agent.agent import Agent
             repo_root = Path(__file__).parent.parent.parent.parent
             bundled_dir = str(repo_root / "skills" / "core")
 
@@ -51,66 +199,88 @@ def list_skills() -> None:
         bundled_skills = []
         if bundled_path.exists():
             from agent.skills.loader import SkillLoader
+            from agent.skills.manifest import parse_skill_manifest
+            from agent.utils.tokens import count_tokens
+
             class MockConfig:
-                def __init__(self):
-                    pass
+                pass
             loader = SkillLoader(MockConfig())
             bundled_skills = loader.scan_skill_directory(bundled_path)
 
-        # Create table for bundled skills
+        # Display bundled skills
         if bundled_skills:
-            table = Table(title="Bundled Skills (Auto-Discovered)", show_header=True)
-            table.add_column("Name", style="cyan")
-            table.add_column("Status", style="green")
-            table.add_column("Location", style="dim")
-
+            console.print("[bold]Bundled:[/bold]")
             disabled_bundled = {normalize_skill_name(s) for s in settings.skills.disabled_bundled}
 
             for skill_dir in bundled_skills:
+                from agent.skills.manifest import parse_skill_manifest
+                from agent.utils.tokens import count_tokens
+
                 skill_name = skill_dir.name
                 canonical = normalize_skill_name(skill_name)
-                status = "[red]disabled[/red]" if canonical in disabled_bundled else "[green]enabled[/green]"
-                table.add_row(skill_name, status, str(skill_dir.relative_to(bundled_path.parent)))
+                enabled = canonical not in disabled_bundled
 
-            console.print(table)
-            console.print()
+                # Calculate token count for this skill's instructions
+                try:
+                    manifest = parse_skill_manifest(skill_dir)
+                    token_count = count_tokens(manifest.instructions) if manifest.instructions else 0
+                except Exception:
+                    token_count = 0
+
+                status_icon = "[green]◉[/green]" if enabled else "[dim]○[/dim]"
+                location = str(skill_dir.relative_to(bundled_path.parent))
+
+                console.print(
+                    f"  {status_icon} {skill_name} [dim]({location})[/dim] · [dim]{token_count} tokens[/dim]"
+                )
         else:
-            console.print("[dim]No bundled skills found[/dim]\n")
+            console.print("[bold]Bundled:[/bold] [dim]None found[/dim]")
 
-        # Create table for plugin skills
+        # Display plugin skills
+        console.print()  # Blank line before plugins section
         if settings.skills.plugins:
-            table = Table(title="Plugin Skills (Installed)", show_header=True)
-            table.add_column("Name", style="cyan")
-            table.add_column("Status", style="green")
-            table.add_column("Source", style="blue")
-            table.add_column("Branch", style="dim")
+            console.print("[bold]Plugins:[/bold]")
+
+            # Load registry to get commit SHA info
+            registry = SkillRegistry()
+            from agent.skills.manifest import parse_skill_manifest
+            from agent.utils.tokens import count_tokens
 
             for plugin in settings.skills.plugins:
-                status = "[green]enabled[/green]" if plugin.enabled else "[red]disabled[/red]"
+                status_icon = "[green]◉[/green]" if plugin.enabled else "[dim]○[/dim]"
                 git_url_short = plugin.git_url.split("/")[-1].replace(".git", "")
-                table.add_row(plugin.name, status, git_url_short, plugin.branch)
 
-            console.print(table)
-            console.print()
+                # Get commit SHA from registry
+                canonical_name = normalize_skill_name(plugin.name)
+                commit_short = "unknown"
+                token_count = 0
+
+                try:
+                    entry = registry.get(canonical_name)
+                    commit_short = entry.commit_sha[:7] if entry.commit_sha else "unknown"
+
+                    # Calculate token count from installed skill
+                    if entry.installed_path and Path(entry.installed_path).exists():
+                        manifest = parse_skill_manifest(Path(entry.installed_path))
+                        token_count = count_tokens(manifest.instructions) if manifest.instructions else 0
+                except Exception:
+                    # Registry entry not found or error reading manifest
+                    pass
+
+                source_info = f"{git_url_short}, {plugin.branch}@{commit_short}"
+
+                console.print(
+                    f"  {status_icon} {plugin.name} [dim]({source_info})[/dim] · [dim]{token_count} tokens[/dim]"
+                )
         else:
-            console.print("[dim]No plugin skills installed[/dim]\n")
-
-        # Show summary
-        total_bundled = len(bundled_skills)
-        total_plugins = len(settings.skills.plugins)
-        enabled_bundled = total_bundled - len(settings.skills.disabled_bundled)
-        enabled_plugins = sum(1 for p in settings.skills.plugins if p.enabled)
-
-        console.print(f"[bold]Summary:[/bold] {enabled_bundled}/{total_bundled} bundled enabled, "
-                     f"{enabled_plugins}/{total_plugins} plugins enabled")
-        console.print()
+            console.print("[bold]Plugins:[/bold] [dim]None installed[/dim]")
 
     except Exception as e:
         console.print(f"[red]Error listing skills: {e}[/red]")
         raise typer.Exit(1)
 
 
-def install_skill(git_url: str, name: str | None = None, branch: str = "main") -> None:
+def install_skill(git_url: str | None = None, name: str | None = None, branch: str = "main") -> None:
     """Install plugin skill(s) from a git repository.
 
     Supports both single-skill and monorepo structures:
@@ -118,10 +288,18 @@ def install_skill(git_url: str, name: str | None = None, branch: str = "main") -
     - Monorepo: Multiple subdirectories each with SKILL.md
 
     Args:
-        git_url: Git repository URL (e.g., https://github.com/user/skill.git)
+        git_url: Git repository URL (prompts if None)
         name: Optional skill name override for single-skill repos (default: inferred from SKILL.md)
         branch: Git branch to use (default: main)
     """
+    # Prompt for git_url if not provided
+    if git_url is None:
+        console.print()
+        git_url = Prompt.ask("[bold]Git repository URL[/bold]")
+        if not git_url:
+            console.print("[yellow]Cancelled[/yellow]\n")
+            return
+
     console.print(f"\n[bold]Installing skill(s) from:[/bold] {git_url}\n")
 
     try:
@@ -228,18 +406,53 @@ def update_skill(name: str) -> None:
         raise typer.Exit(1)
 
 
-def remove_skill(name: str, keep_files: bool = False) -> None:
+def remove_skill(name: str | None = None, keep_files: bool = False, yes: bool = False) -> None:
     """Remove an installed plugin skill.
 
     Args:
-        name: Skill name to remove
+        name: Skill name to remove (shows picker if None)
         keep_files: If True, keep files but remove from config only
+        yes: If True, skip confirmation prompt
     """
-    console.print(f"\n[bold]Removing skill:[/bold] {name}\n")
-
     try:
         # Load config
         settings = load_config()
+
+        # If no name provided, show picker
+        if name is None:
+            if not settings.skills.plugins:
+                console.print("\n[yellow]No plugin skills installed[/yellow]")
+                console.print("[dim]Run 'agent skill install <git-url>' to install skills[/dim]\n")
+                return
+
+            console.print("\n[bold]Select skill to remove:[/bold]\n")
+            for i, plugin in enumerate(settings.skills.plugins, 1):
+                status = "[green]enabled[/green]" if plugin.enabled else "[red]disabled[/red]"
+                console.print(f"{i}. {plugin.name} · {status}")
+
+            console.print(f"{len(settings.skills.plugins) + 1}. Cancel")
+
+            choice = Prompt.ask(
+                "\nChoose skill number",
+                default=str(len(settings.skills.plugins) + 1)
+            )
+
+            try:
+                choice_num = int(choice)
+                if choice_num == len(settings.skills.plugins) + 1:
+                    console.print("Cancelled\n")
+                    return
+                if choice_num < 1 or choice_num > len(settings.skills.plugins):
+                    console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                    raise typer.Exit(1)
+
+                name = settings.skills.plugins[choice_num - 1].name
+            except ValueError:
+                console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                raise typer.Exit(1)
+
+        console.print(f"\n[bold]Removing skill:[/bold] {name}\n")
+
         canonical_name = normalize_skill_name(name)
 
         # Find plugin in config
@@ -250,8 +463,8 @@ def remove_skill(name: str, keep_files: bool = False) -> None:
             console.print(f"[dim]Run 'agent skill list' to see installed skills[/dim]")
             raise typer.Exit(1)
 
-        # Confirm removal
-        if not Confirm.ask(f"Remove skill '{name}' from configuration?"):
+        # Confirm removal (unless --yes flag is set)
+        if not yes and not Confirm.ask(f"Remove skill '{name}' from configuration?"):
             console.print("Cancelled")
             return
 
@@ -274,20 +487,84 @@ def remove_skill(name: str, keep_files: bool = False) -> None:
         raise typer.Exit(1)
 
 
-def enable_skill(name: str) -> None:
+def enable_skill(name: str | None = None) -> None:
     """Enable a skill (bundled or plugin).
 
     For bundled skills: Removes from disabled_bundled list
     For plugin skills: Sets enabled=true
 
     Args:
-        name: Skill name to enable
+        name: Skill name to enable (shows picker if None)
     """
-    console.print(f"\n[bold]Enabling skill:[/bold] {name}\n")
-
     try:
         # Load config
         settings = load_config()
+
+        # If no name provided, show picker of disabled skills
+        if name is None:
+            # Get bundled skills directory to scan for disabled bundled skills
+            bundled_dir = settings.skills.bundled_dir
+            if bundled_dir is None:
+                from agent.agent import Agent
+                repo_root = Path(__file__).parent.parent.parent.parent
+                bundled_dir = str(repo_root / "skills" / "core")
+
+            # Scan for bundled skills
+            bundled_path = Path(bundled_dir)
+            disabled_skills = []
+
+            if bundled_path.exists():
+                from agent.skills.loader import SkillLoader
+                class MockConfig:
+                    pass
+                loader = SkillLoader(MockConfig())
+                bundled_skills = loader.scan_skill_directory(bundled_path)
+
+                disabled_bundled = {normalize_skill_name(s) for s in settings.skills.disabled_bundled}
+
+                for skill_dir in bundled_skills:
+                    skill_name = skill_dir.name
+                    canonical = normalize_skill_name(skill_name)
+                    if canonical in disabled_bundled:
+                        disabled_skills.append((skill_name, "bundled"))
+
+            # Add disabled plugin skills
+            for plugin in settings.skills.plugins:
+                if not plugin.enabled:
+                    disabled_skills.append((plugin.name, "plugin"))
+
+            if not disabled_skills:
+                console.print("\n[yellow]All skills are already enabled[/yellow]")
+                console.print("[dim]Run 'agent skill list' to see all skills[/dim]\n")
+                return
+
+            console.print("\n[bold]Select skill to enable:[/bold]\n")
+            for i, (skill_name, skill_type) in enumerate(disabled_skills, 1):
+                console.print(f"{i}. {skill_name} [dim]({skill_type})[/dim]")
+
+            console.print(f"{len(disabled_skills) + 1}. Cancel")
+
+            choice = Prompt.ask(
+                "\nChoose skill number",
+                default=str(len(disabled_skills) + 1)
+            )
+
+            try:
+                choice_num = int(choice)
+                if choice_num == len(disabled_skills) + 1:
+                    console.print("Cancelled\n")
+                    return
+                if choice_num < 1 or choice_num > len(disabled_skills):
+                    console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                    raise typer.Exit(1)
+
+                name = disabled_skills[choice_num - 1][0]
+            except ValueError:
+                console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                raise typer.Exit(1)
+
+        console.print(f"\n[bold]Enabling skill:[/bold] {name}\n")
+
         canonical_name = normalize_skill_name(name)
 
         # Check if it's a plugin
@@ -323,20 +600,82 @@ def enable_skill(name: str) -> None:
         raise typer.Exit(1)
 
 
-def disable_skill(name: str) -> None:
+def disable_skill(name: str | None = None) -> None:
     """Disable a skill (bundled or plugin).
 
     For bundled skills: Adds to disabled_bundled list
     For plugin skills: Sets enabled=false
 
     Args:
-        name: Skill name to disable
+        name: Skill name to disable (shows picker if None)
     """
-    console.print(f"\n[bold]Disabling skill:[/bold] {name}\n")
-
     try:
         # Load config
         settings = load_config()
+
+        # If no name provided, show picker of enabled skills
+        if name is None:
+            # Get bundled skills directory
+            bundled_dir = settings.skills.bundled_dir
+            if bundled_dir is None:
+                repo_root = Path(__file__).parent.parent.parent.parent
+                bundled_dir = str(repo_root / "skills" / "core")
+
+            # Scan for enabled bundled skills
+            bundled_path = Path(bundled_dir)
+            enabled_skills = []
+
+            if bundled_path.exists():
+                from agent.skills.loader import SkillLoader
+                class MockConfig:
+                    pass
+                loader = SkillLoader(MockConfig())
+                bundled_skills = loader.scan_skill_directory(bundled_path)
+
+                disabled_bundled = {normalize_skill_name(s) for s in settings.skills.disabled_bundled}
+
+                for skill_dir in bundled_skills:
+                    skill_name = skill_dir.name
+                    canonical = normalize_skill_name(skill_name)
+                    if canonical not in disabled_bundled:
+                        enabled_skills.append((skill_name, "bundled"))
+
+            # Add enabled plugin skills
+            for plugin in settings.skills.plugins:
+                if plugin.enabled:
+                    enabled_skills.append((plugin.name, "plugin"))
+
+            if not enabled_skills:
+                console.print("\n[yellow]No skills are currently enabled[/yellow]\n")
+                return
+
+            console.print("\n[bold]Select skill to disable:[/bold]\n")
+            for i, (skill_name, skill_type) in enumerate(enabled_skills, 1):
+                console.print(f"{i}. {skill_name} [dim]({skill_type})[/dim]")
+
+            console.print(f"{len(enabled_skills) + 1}. Cancel")
+
+            choice = Prompt.ask(
+                "\nChoose skill number",
+                default=str(len(enabled_skills) + 1)
+            )
+
+            try:
+                choice_num = int(choice)
+                if choice_num == len(enabled_skills) + 1:
+                    console.print("Cancelled\n")
+                    return
+                if choice_num < 1 or choice_num > len(enabled_skills):
+                    console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                    raise typer.Exit(1)
+
+                name = enabled_skills[choice_num - 1][0]
+            except ValueError:
+                console.print(f"[red]Invalid choice: {choice}[/red]\n")
+                raise typer.Exit(1)
+
+        console.print(f"\n[bold]Disabling skill:[/bold] {name}\n")
+
         canonical_name = normalize_skill_name(name)
 
         # Check if it's a plugin

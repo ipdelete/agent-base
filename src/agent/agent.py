@@ -72,6 +72,7 @@ class Agent:
 
         # Initialize skill instructions list (may be populated later)
         self.skill_instructions: list[str] = []
+        self.skill_instructions_tokens: int = 0  # Token count for context tracking
 
         # Dependency injection for testing
         if chat_client is not None:
@@ -115,6 +116,13 @@ class Agent:
                     # Store skill instructions for system prompt injection
                     self.skill_instructions = skill_instructions
 
+                    # Calculate token count for skill instructions
+                    if skill_instructions:
+                        from agent.utils.tokens import count_tokens
+
+                        total_tokens = sum(count_tokens(s) for s in skill_instructions)
+                        self.skill_instructions_tokens = total_tokens
+
                     if skill_toolsets:
                         toolsets.extend(skill_toolsets)
                         logger.info(f"Loaded {len(skill_toolsets)} skill toolsets")
@@ -125,7 +133,8 @@ class Agent:
 
                     if skill_instructions:
                         logger.info(
-                            f"Collected {len(skill_instructions)} skill instruction blocks for system prompt"
+                            f"Collected {len(skill_instructions)} skill instruction blocks "
+                            f"({self.skill_instructions_tokens} tokens)"
                         )
 
             except Exception as e:
