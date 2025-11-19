@@ -1,47 +1,28 @@
 ---
 name: hello-extended
-description: Extended hello skill demonstrating both Python toolsets and standalone scripts for greeting capabilities.
-version: 1.0.0
-author: agent-base
+description: Multi-language greetings in 6 languages. Use for non-English greetings or multiple people.
 toolsets:
   - toolsets.hello:HelloExtended
-scripts_ignore:
-  - "*_test.py"
-  - "_*.py"
 ---
 
-# Hello Extended
+# hello-extended
 
-Example skill demonstrating the hybrid approach: structured Python toolsets for
-frequently-used operations AND standalone PEP 723 scripts for context-heavy operations.
+## 🎯 Triggers
+**USE:** greetings in Spanish/French/German/Japanese/Chinese, multiple greetings
+**SKIP:** simple English greetings (use built-in `greet_user`)
 
-## When to Use This Skill
+## Tools
 
-Use when you need:
-- Multi-language greeting generation (toolset)
-- Time-aware personalized greetings (script)
-- Advanced greeting formatting (script)
+**Direct (instant):**
+- `greet_in_language(name, language)` - Culturally appropriate greeting
+  Languages: Spanish (es), French (fr), German (de), Japanese (ja), Chinese (zh), English (en)
+- `greet_multiple(names)` - Greet list of people
 
-## Python Toolsets
+**Script (advanced):**
+- `advanced_greeting.py` - Time-aware, formatted greetings
+  Usage: `script_run hello-extended advanced_greeting.py --json`
 
-### HelloExtended Toolset
-Provides structured, testable greeting methods:
-- `greet_in_language()` - Generate greetings in different languages
-- `greet_multiple()` - Generate multiple greetings at once
-
-Access these through normal tool calls (loaded into agent context).
-
-## Standalone Scripts
-
-### `scripts/advanced_greeting.py`
-Context-heavy greeting script with complex formatting options.
-Use `--help` to see all options, then `--json` for structured output.
-
-**Progressive disclosure**: This script is NOT loaded until you execute it.
-
-## Usage Pattern
-
-1. For simple, frequent greetings → Use HelloExtended toolset methods
-2. For complex, rare greetings → Use `script_help` then `script_run` on advanced_greeting.py
-
-This hybrid approach balances developer experience (toolsets) with LLM efficiency (scripts).
+## Quick Guide
+- One person, specific language → `greet_in_language("Alice", "es")`
+- Multiple people → `greet_multiple(["Alice", "Bob", "Charlie"])`
+- Fancy formatting → `script_run hello-extended advanced_greeting.py --json`

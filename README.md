@@ -199,6 +199,11 @@ agent -p "Use script_run to check Kalshi exchange status"
 - Python toolset: `greet_in_language`, `greet_multiple`
 - Script: Advanced greeting with time-awareness
 
+**web-access** - Internet search and web content retrieval (script-based)
+- `fetch.py` - Retrieve web pages as markdown
+- `search.py` - Brave Search API integration
+- Requires `BRAVE_API_KEY` environment variable for search
+
 ### Creating Custom Skills
 
 See [docs/SKILLS.md](docs/SKILLS.md) for the complete skill development guide.
