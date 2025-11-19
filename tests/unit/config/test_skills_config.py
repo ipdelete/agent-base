@@ -161,7 +161,7 @@ class TestSkillsConfiguration:
 
             # Verify all skills config is transferred
             assert config.enabled_skills == ["skill1"]
-            assert config.core_skills_dir == "/path/to/core"
+            assert str(config.core_skills_dir) == "/path/to/core"
             # agent_skills_dir gets expanded (~/ -> /Users/...)
             assert str(config.agent_skills_dir).endswith("/.agent/skills")
             assert config.script_timeout == 120
