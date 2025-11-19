@@ -373,9 +373,7 @@ Be helpful, concise, and clear in your responses."""
 
         # Inject skill instructions into system prompt
         if hasattr(self, "skill_instructions") and self.skill_instructions:
-            skills_section = "\n\n## Available Skills\n\n" + "\n\n".join(
-                self.skill_instructions
-            )
+            skills_section = "\n\n## Available Skills\n\n" + "\n\n".join(self.skill_instructions)
             instructions += skills_section
             logger.info(
                 f"Injected {len(self.skill_instructions)} skill instruction blocks into system prompt"

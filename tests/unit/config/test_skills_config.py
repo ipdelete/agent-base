@@ -9,7 +9,6 @@ Related bugs:
 """
 
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -170,9 +169,7 @@ class TestSkillsConfiguration:
 
     def test_agent_skills_all_untrusted(self):
         """Test that from_env() handles AGENT_SKILLS=all-untrusted."""
-        with patch.dict(
-            os.environ, {"AGENT_SKILLS": "all-untrusted", "LLM_PROVIDER": "openai"}
-        ):
+        with patch.dict(os.environ, {"AGENT_SKILLS": "all-untrusted", "LLM_PROVIDER": "openai"}):
             config = AgentConfig.from_env()
 
             assert config.enabled_skills == ["all-untrusted"]

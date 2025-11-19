@@ -302,9 +302,7 @@ class SkillLoader:
 
                     # Collect skill instructions for system prompt
                     if manifest.instructions:
-                        skill_instructions.append(
-                            f"# {manifest.name}\n\n{manifest.instructions}"
-                        )
+                        skill_instructions.append(f"# {manifest.name}\n\n{manifest.instructions}")
 
                     logger.info(
                         f"Loaded skill '{manifest.name}': "
