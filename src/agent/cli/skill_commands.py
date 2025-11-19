@@ -20,6 +20,24 @@ console = get_console()
 logger = logging.getLogger(__name__)
 
 
+def _get_repo_paths() -> tuple[Path, str]:
+    """Get repository root and bundled skills directory paths.
+
+    Assumes this file is at src/agent/cli/skill_commands.py; repo root is three levels up.
+
+    Returns:
+        tuple: (repo_root, bundled_dir) where bundled_dir is a string path
+    """
+    repo_root = Path(__file__).resolve().parents[3]
+    bundled_dir = str(repo_root / "skills" / "core")
+    return repo_root, bundled_dir
+
+
+class _MockConfig:
+    """Empty config class for SkillLoader when we don't need full configuration."""
+    pass
+
+
 def manage_skills() -> None:
     """Unified skill management interface (enable/disable/remove/update)."""
     console.print("\n[bold]Manage Skills[/bold]\n")
@@ -30,8 +48,7 @@ def manage_skills() -> None:
         # Get all skills (bundled + plugins)
         bundled_dir = settings.skills.bundled_dir
         if bundled_dir is None:
-            repo_root = Path(__file__).parent.parent.parent.parent
-            bundled_dir = str(repo_root / "skills" / "core")
+            _, bundled_dir = _get_repo_paths()
 
         # Scan bundled skills
         bundled_path = Path(bundled_dir)
@@ -40,10 +57,7 @@ def manage_skills() -> None:
         if bundled_path.exists():
             from agent.skills.loader import SkillLoader
 
-            class MockConfig:
-                pass
-
-            loader = SkillLoader(MockConfig())
+            loader = SkillLoader(_MockConfig())
             bundled_skills = loader.scan_skill_directory(bundled_path)
 
             disabled_bundled = {normalize_skill_name(s) for s in settings.skills.disabled_bundled}
@@ -169,8 +183,7 @@ def list_skills() -> None:
         bundled_dir = settings.skills.bundled_dir
         if bundled_dir is None:
             # Auto-detect
-            repo_root = Path(__file__).parent.parent.parent.parent
-            bundled_dir = str(repo_root / "skills" / "core")
+            _, bundled_dir = _get_repo_paths()
 
         # Scan bundled skills
         bundled_path = Path(bundled_dir)
@@ -180,10 +193,7 @@ def list_skills() -> None:
             from agent.skills.manifest import parse_skill_manifest
             from agent.utils.tokens import count_tokens
 
-            class MockConfig:
-                pass
-
-            loader = SkillLoader(MockConfig())
+            loader = SkillLoader(_MockConfig())
             bundled_skills = loader.scan_skill_directory(bundled_path)
 
         # Display bundled skills
@@ -504,9 +514,7 @@ def enable_skill(name: str | None = None) -> None:
             # Get bundled skills directory to scan for disabled bundled skills
             bundled_dir = settings.skills.bundled_dir
             if bundled_dir is None:
-
-                repo_root = Path(__file__).parent.parent.parent.parent
-                bundled_dir = str(repo_root / "skills" / "core")
+                _, bundled_dir = _get_repo_paths()
 
             # Scan for bundled skills
             bundled_path = Path(bundled_dir)
@@ -515,10 +523,7 @@ def enable_skill(name: str | None = None) -> None:
             if bundled_path.exists():
                 from agent.skills.loader import SkillLoader
 
-                class MockConfig:
-                    pass
-
-                loader = SkillLoader(MockConfig())
+                loader = SkillLoader(_MockConfig())
                 bundled_skills = loader.scan_skill_directory(bundled_path)
 
                 disabled_bundled = {
@@ -626,8 +631,7 @@ def disable_skill(name: str | None = None) -> None:
             # Get bundled skills directory
             bundled_dir = settings.skills.bundled_dir
             if bundled_dir is None:
-                repo_root = Path(__file__).parent.parent.parent.parent
-                bundled_dir = str(repo_root / "skills" / "core")
+                _, bundled_dir = _get_repo_paths()
 
             # Scan for enabled bundled skills
             bundled_path = Path(bundled_dir)
@@ -636,10 +640,7 @@ def disable_skill(name: str | None = None) -> None:
             if bundled_path.exists():
                 from agent.skills.loader import SkillLoader
 
-                class MockConfig:
-                    pass
-
-                loader = SkillLoader(MockConfig())
+                loader = SkillLoader(_MockConfig())
                 bundled_skills = loader.scan_skill_directory(bundled_path)
 
                 disabled_bundled = {

@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 # Cache encoding to avoid repeated loading
 _encoding_cache: dict[str, Any] = {}
 
+# Empirical estimation constant for English text
+# Based on analysis of typical English prose; may vary for other languages
+TOKENS_PER_WORD_ESTIMATE = 1.3
+
 
 def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
     """Count tokens in text using tiktoken encoding.
@@ -86,8 +90,12 @@ def count_tokens_for_model(text: str, model: str) -> int:
         model_lower = model.lower()
 
         if "gpt-4" in model_lower or "gpt-3.5" in model_lower:
-            # Use tiktoken's model-specific encoding
-            enc = tiktoken.encoding_for_model(model)
+            # Use tiktoken's model-specific encoding, fallback to cl100k_base if unknown
+            try:
+                enc = tiktoken.encoding_for_model(model)
+            except Exception:
+                logger.warning(f"Unknown model '{model}' for tiktoken, using cl100k_base encoding")
+                enc = tiktoken.get_encoding("cl100k_base")
         elif "claude" in model_lower:
             # Claude uses similar tokenization to GPT-4
             enc = tiktoken.get_encoding("cl100k_base")
@@ -120,7 +128,7 @@ def _estimate_tokens_from_words(text: str) -> int:
         Estimated token count
     """
     word_count = len(text.split())
-    return int(word_count * 1.3)
+    return int(word_count * TOKENS_PER_WORD_ESTIMATE)
 
 
 def format_token_count(count: int) -> str:

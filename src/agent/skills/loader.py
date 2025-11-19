@@ -12,7 +12,7 @@ from typing import Any
 from agent.skills.errors import SkillManifestError
 from agent.skills.manifest import SkillManifest, parse_skill_manifest
 from agent.skills.registry import SkillRegistry
-from agent.skills.security import normalize_script_name
+from agent.skills.security import normalize_script_name, normalize_skill_name
 from agent.tools.toolset import AgentToolset
 
 logger = logging.getLogger(__name__)
@@ -254,8 +254,6 @@ class SkillLoader:
         disabled_bundled = getattr(skills_config, "disabled_bundled", [])
 
         # Get canonical names for disabled skills (normalize for matching)
-        from agent.skills.security import normalize_skill_name
-
         disabled_canonical = {normalize_skill_name(name) for name in disabled_bundled}
 
         # Collect all skill directories to scan
