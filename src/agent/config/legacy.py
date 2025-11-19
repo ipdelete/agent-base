@@ -475,6 +475,31 @@ class AgentConfig:
         if hasattr(settings.agent, "filesystem_max_write_bytes"):
             config.filesystem_max_write_bytes = settings.agent.filesystem_max_write_bytes
 
+        # Skills configuration
+        # ENV takes precedence for enabled_skills (like LLM_PROVIDER)
+        # This allows AGENT_SKILLS=all to work for testing without editing settings.json
+        if os.getenv("AGENT_SKILLS"):
+            skills_str = os.getenv("AGENT_SKILLS", "").strip()
+            if skills_str in ("", "none"):
+                config.enabled_skills = []
+            elif skills_str == "all":
+                config.enabled_skills = ["all"]
+            elif skills_str == "all-untrusted":
+                config.enabled_skills = ["all-untrusted"]
+            else:
+                config.enabled_skills = [s.strip() for s in skills_str.split(",")]
+        elif hasattr(settings.agent, "enabled_skills"):
+            config.enabled_skills = settings.agent.enabled_skills
+
+        if hasattr(settings.agent, "core_skills_dir"):
+            config.core_skills_dir = settings.agent.core_skills_dir
+        if hasattr(settings.agent, "agent_skills_dir"):
+            config.agent_skills_dir = Path(settings.agent.agent_skills_dir).expanduser()
+        if hasattr(settings.agent, "script_timeout"):
+            config.script_timeout = settings.agent.script_timeout
+        if hasattr(settings.agent, "max_script_output"):
+            config.max_script_output = settings.agent.max_script_output
+
         # Observability configuration
         config.enable_otel = settings.telemetry.enabled
         config.enable_otel_explicit = settings.telemetry.enabled
@@ -498,10 +523,15 @@ class AgentConfig:
         fallbacks/defaults, while explicit file configuration takes precedence. This
         avoids confusion from global env vars meant for other tools.
 
+        Exception: AGENT_SKILLS environment variable takes precedence over file settings
+        to allow easy skill toggling without editing settings.json.
+
         Precedence (highest to lowest):
         1. Settings file (~/.agent/settings.json)
         2. Environment variables (fallback)
         3. Default values
+
+        Special: AGENT_SKILLS env var overrides file settings.agent.enabled_skills
 
         Args:
             config_path: Optional path to settings.json file
@@ -621,6 +651,31 @@ class AgentConfig:
             config.filesystem_max_read_bytes = settings.agent.filesystem_max_read_bytes
         if hasattr(settings.agent, "filesystem_max_write_bytes"):
             config.filesystem_max_write_bytes = settings.agent.filesystem_max_write_bytes
+
+        # Skills configuration
+        # ENV takes precedence for enabled_skills (like LLM_PROVIDER)
+        # This allows AGENT_SKILLS=all to work for testing without editing settings.json
+        if os.getenv("AGENT_SKILLS"):
+            skills_str = os.getenv("AGENT_SKILLS", "").strip()
+            if skills_str in ("", "none"):
+                config.enabled_skills = []
+            elif skills_str == "all":
+                config.enabled_skills = ["all"]
+            elif skills_str == "all-untrusted":
+                config.enabled_skills = ["all-untrusted"]
+            else:
+                config.enabled_skills = [s.strip() for s in skills_str.split(",")]
+        elif hasattr(settings.agent, "enabled_skills"):
+            config.enabled_skills = settings.agent.enabled_skills
+
+        if hasattr(settings.agent, "core_skills_dir"):
+            config.core_skills_dir = settings.agent.core_skills_dir
+        if hasattr(settings.agent, "agent_skills_dir"):
+            config.agent_skills_dir = Path(settings.agent.agent_skills_dir).expanduser()
+        if hasattr(settings.agent, "script_timeout"):
+            config.script_timeout = settings.agent.script_timeout
+        if hasattr(settings.agent, "max_script_output"):
+            config.max_script_output = settings.agent.max_script_output
 
         # Observability configuration
         config.enable_otel = settings.telemetry.enabled

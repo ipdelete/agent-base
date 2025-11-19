@@ -10,7 +10,7 @@ Example:
     >>> from agent.config import AgentConfig
     >>> config = AgentConfig.from_env()
     >>> loader = SkillLoader(config)
-    >>> skill_toolsets, script_tools = loader.load_enabled_skills()
+    >>> skill_toolsets, script_tools, skill_instructions = loader.load_enabled_skills()
 """
 
 from agent.skills.errors import (

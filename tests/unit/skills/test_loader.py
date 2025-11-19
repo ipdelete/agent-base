@@ -206,20 +206,22 @@ description: A test skill
         mock_config.enabled_skills = []
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         assert toolsets == []
         assert script_wrapper is None
+        assert skill_instructions == []
 
     def test_load_enabled_skills_none_marker(self, mock_config):
         """Should return empty lists for 'none' marker."""
         mock_config.enabled_skills = ["none"]
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         assert toolsets == []
         assert script_wrapper is None
+        assert skill_instructions == []
 
 
 class TestScriptNameNormalization:
@@ -498,7 +500,7 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = None
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         # Should load the skill
         assert script_wrapper is None  # No scripts
@@ -517,7 +519,7 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = str(user_dir)
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         assert script_wrapper is None
 
@@ -539,7 +541,7 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = None
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         # Should load both skills
         assert script_wrapper is None
@@ -564,7 +566,7 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = None
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         # Should create script wrapper
         assert script_wrapper is not None
@@ -594,7 +596,7 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = None
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         # Should load good-skill despite bad-skill failing
         assert script_wrapper is None
@@ -614,7 +616,7 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = None
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         assert script_wrapper is None
 
@@ -633,6 +635,6 @@ class TestLoadEnabledSkills:
         mock_config.agent_skills_dir = None
 
         loader = SkillLoader(mock_config)
-        toolsets, script_wrapper = loader.load_enabled_skills()
+        toolsets, script_wrapper, skill_instructions = loader.load_enabled_skills()
 
         assert script_wrapper is None

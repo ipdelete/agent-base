@@ -103,7 +103,12 @@ class Agent:
                         self.config.core_skills_dir = repo_root / "skills" / "core"
 
                     skill_loader = SkillLoader(self.config)
-                    skill_toolsets, script_tools = skill_loader.load_enabled_skills()
+                    skill_toolsets, script_tools, skill_instructions = (
+                        skill_loader.load_enabled_skills()
+                    )
+
+                    # Store skill instructions for system prompt injection
+                    self.skill_instructions = skill_instructions
 
                     if skill_toolsets:
                         toolsets.extend(skill_toolsets)
@@ -115,9 +120,19 @@ class Agent:
                             f"Loaded script wrapper with {script_tools.script_count} scripts"
                         )
 
+                    if skill_instructions:
+                        logger.info(
+                            f"Collected {len(skill_instructions)} skill instruction blocks for system prompt"
+                        )
+
                 except Exception as e:
                     logger.error(f"Failed to load skills: {e}", exc_info=True)
                     # Continue without skills - graceful degradation
+                    self.skill_instructions = []
+            else:
+                self.skill_instructions = []
+        else:
+            self.skill_instructions = []
 
         self.toolsets = toolsets
 
@@ -355,6 +370,16 @@ Be helpful, concise, and clear in your responses."""
             Configured agent instance ready to handle requests
         """
         instructions = self._load_system_prompt()
+
+        # Inject skill instructions into system prompt
+        if hasattr(self, "skill_instructions") and self.skill_instructions:
+            skills_section = "\n\n## Available Skills\n\n" + "\n\n".join(
+                self.skill_instructions
+            )
+            instructions += skills_section
+            logger.info(
+                f"Injected {len(self.skill_instructions)} skill instruction blocks into system prompt"
+            )
 
         # Create context providers for memory
         context_providers = []

@@ -1,190 +1,215 @@
-## Skill Development Guide
+# Skills Development Guide
 
-This guide explains how to create custom skills for agent-base.
+Complete guide for creating, optimizing, and using skills in agent-base.
 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Quick Start](#quick-start)
 - [Skill Structure](#skill-structure)
 - [SKILL.md Manifest](#skillmd-manifest)
-- [Toolsets vs Scripts](#toolsets-vs-scripts)
-- [Creating a Python Toolset](#creating-a-python-toolset)
-- [Creating a PEP 723 Script](#creating-a-pep-723-script)
-- [Testing Your Skill](#testing-your-skill)
+- [Self-Contained Skills](#self-contained-skills)
+- [Creating Scripts](#creating-scripts)
+- [Optimization for Speed](#optimization-for-speed)
+- [Testing](#testing)
 - [Best Practices](#best-practices)
+- [Examples](#examples)
+
+---
 
 ## Overview
 
 Skills extend agent-base with domain-specific capabilities while maintaining minimal context overhead through **progressive disclosure**.
 
-**Key Principle**: Don't load code into context unless it's actually being used.
+### Key Principle
+**Don't load code into context unless it's actually being used.**
+
+Skills are self-contained, git-based packages that:
+- Load on-demand via `AGENT_SKILLS` environment variable
+- Use PEP 723 for dependency management (no core project bloat)
+- Support natural language invocation
+- Maintain <5K token overhead per skill
+
+---
+
+## Quick Start
+
+### Create a New Skill
+
+```bash
+# 1. Create directory structure
+mkdir -p skills/core/my-skill/scripts
+
+# 2. Create SKILL.md manifest
+cat > skills/core/my-skill/SKILL.md << 'EOF'
+---
+name: my-skill
+description: Brief description with trigger keywords
+---
+
+# my-skill
+
+## 🎯 Triggers
+**When user wants to:**
+- Do thing 1
+- Do thing 2
+
+## Scripts
+
+### my-script
+**What:** Does something useful
+**Pattern:** User wants X → `script_run my-skill my-script --arg "VALUE" --json`
+**Example:** "Do X" → `script_run my-skill my-script --arg "X" --json`
+EOF
+
+# 3. Create PEP 723 script
+cat > skills/core/my-skill/scripts/my-script.py << 'EOF'
+#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#     "click",
+# ]
+# ///
+
+import click
+import json
+
+@click.command()
+@click.option("--arg", required=True)
+@click.option("--json", "output_json", is_flag=True)
+def main(arg: str, output_json: bool):
+    result = {"success": True, "result": f"Processed: {arg}"}
+
+    if output_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"Result: {result['result']}")
+
+if __name__ == "__main__":
+    main()
+EOF
+
+chmod +x skills/core/my-skill/scripts/my-script.py
+
+# 4. Test it
+export AGENT_SKILLS="my-skill"
+agent -p "Do something with test"
+```
+
+---
 
 ## Skill Structure
 
-Minimal skill structure:
+### Recommended: Script-Only (Self-Contained)
 
 ```
 my-skill/
-├── SKILL.md              # Required: Manifest with YAML front matter
-├── toolsets/             # Optional: Python toolset classes
-│   ├── __init__.py
-│   └── mytools.py
-└── scripts/              # Optional: PEP 723 standalone scripts
-    ├── status.py
-    └── process.py
+├── SKILL.md              # Required: Manifest
+└── scripts/              # Required: PEP 723 scripts
+    ├── main.py          # Each manages own dependencies
+    └── helper.py
 ```
 
-You can have:
-- **Toolsets only** (like a traditional Python package)
-- **Scripts only** (like kalshi-markets: 10 scripts, no toolsets)
-- **Hybrid** (like hello-extended: both patterns)
+**Benefits:**
+- ✅ No core project dependencies
+- ✅ Fully portable
+- ✅ Easy to extract to separate repo
+- ✅ Zero context until execution
+
+### Legacy: Hybrid (Being Deprecated)
+
+```
+my-skill/
+├── SKILL.md
+├── toolsets/            # ⚠️ Requires core dependencies
+│   └── tools.py
+└── scripts/
+    └── advanced.py
+```
+
+**Use toolsets only if:**
+- Extremely frequent operations (>10x per session)
+- Shared state absolutely required
+- Willing to add dependencies to core project
+
+**Recommendation:** Use scripts for everything. They're fast enough with `uv run`.
+
+---
 
 ## SKILL.md Manifest
 
-Every skill must have a `SKILL.md` file with YAML front matter:
+### Optimized Template
 
-```yaml
+```markdown
 ---
-name: my-skill
-description: Brief description of what this skill does (max 500 chars)
-version: 1.0.0
-author: Your Name
-repository: https://github.com/yourusername/my-skill
-toolsets:
-  - toolsets.mytools:MyToolset
-scripts_ignore:
-  - "*_test.py"
-  - "_*.py"
+name: skill-name
+description: One-line description with ALL trigger keywords users might say
 ---
 
-# My Skill
+# skill-name
 
-Usage instructions in markdown format...
+## 🎯 Triggers
+**When user wants to:**
+- Natural language intent 1
+- Natural language intent 2
+- Natural language intent 3
 
-## When to Use
+**Skip when:**
+- Built-in capability exists
+- Out of scope scenario
 
-- Use case 1
-- Use case 2
+## Scripts
 
-## Available Tools
+### script-name
+**What:** Brief one-line description
+**Pattern:** User phrase → `script_run skill-name script-name --arg "USER_VALUE" --json`
+**Example:** "Real user request" → `script_run skill-name script-name --arg "value" --json`
 
-### Toolset Methods
-- `my_tool()` - Does something useful
+### another-script
+**What:** Another capability
+**Pattern:** User phrase → `script_run skill-name another-script --flag --json`
+**Example:** "Different request" → `script_run skill-name another-script --flag --json`
 
-### Scripts
-- `scripts/status.py` - Check status
+## Quick Reference
+```
+User: "Pattern 1"  → script_run skill-name script1 --arg "X" --json
+User: "Pattern 2"  → script_run skill-name script2 --json
+```
+
+## Requires
+- Environment variables (if any)
+- External services (if any)
 ```
 
 ### Required Fields
 
-- **name**: Alphanumeric + hyphens/underscores, 1-64 chars
-- **description**: What the skill does (1-500 chars)
+| Field | Description | Example |
+|-------|-------------|---------|
+| `name` | Lowercase with hyphens, 1-64 chars | `web-access` |
+| `description` | One-line with trigger keywords | `Search web and fetch pages` |
 
 ### Optional Fields
 
-- **version**: Semantic version (e.g., "1.0.0")
-- **author**: Author name
-- **repository**: Git repository URL
-- **license**: License identifier (e.g., "MIT")
-- **toolsets**: List of Python classes in "module:Class" format
-- **scripts**: Explicit script list (auto-discovered if omitted)
-- **scripts_ignore**: Glob patterns to exclude (e.g., "*_test.py")
+| Field | Description |
+|-------|-------------|
+| `version` | Semantic version | `1.0.0` |
+| `author` | Creator name | `Your Name` |
+| `repository` | Git URL | `https://github.com/user/skill` |
+| `toolsets` | ⚠️ Deprecated - use scripts | `toolsets.module:Class` |
 
 ### Name Normalization
 
-Skill names are **case-insensitive** with **hyphen/underscore equivalence**:
+Skill names are case-insensitive with hyphen/underscore equivalence:
+- `My-Skill` == `my-skill` == `my_skill`
+- All normalize to: `my-skill` (lowercase, hyphens)
 
-- `Kalshi-Markets` == `kalshi-markets` == `kalshi_markets`
-- All normalize to canonical form: `kalshi-markets` (lowercase, hyphens)
-
-## Toolsets vs Scripts
-
-### Use Python Toolsets When:
-
-- ✅ Frequently used operations
-- ✅ Need testing and type safety
-- ✅ Tools share state or configuration
-- ✅ IDE autocomplete is valuable
-- ✅ Context overhead is acceptable (<1K tokens)
-
-Example: hello-extended toolset with `greet_in_language()`
-
-### Use Standalone Scripts When:
-
-- ✅ Infrequent or context-heavy operations
-- ✅ Complex logic that would bloat context
-- ✅ Self-contained operations (no shared state)
-- ✅ Progressive disclosure is critical
-- ✅ Want zero context until execution
-
-Example: kalshi-markets scripts (10 scripts, <500 token overhead)
-
-### Hybrid Approach (Best of Both Worlds)
-
-Combine both patterns in one skill:
-- Toolsets for common operations → Fast, type-safe
-- Scripts for rare operations → Zero context overhead
-
-Example: hello-extended skill
-
-## Creating a Python Toolset
-
-1. **Create toolset file**: `toolsets/mytools.py`
-
-```python
-from typing import Annotated
-from pydantic import Field
-from agent.tools.toolset import AgentToolset
-
-class MyToolset(AgentToolset):
-    """My custom toolset."""
-
-    def get_tools(self) -> list:
-        """Return list of tool functions."""
-        return [self.my_tool]
-
-    async def my_tool(
-        self,
-        input: Annotated[str, Field(description="Input parameter")],
-    ) -> dict:
-        """Tool description for the LLM.
-
-        Args:
-            input: Parameter description
-
-        Returns:
-            Structured response dict
-        """
-        # Implementation
-        result = f"Processed: {input}"
-
-        return self._create_success_response(
-            result=result,
-            message="Tool executed successfully"
-        )
-```
-
-2. **Register in SKILL.md**:
-
-```yaml
 ---
-name: my-skill
-description: My custom skill
-toolsets:
-  - toolsets.mytools:MyToolset
----
-```
 
-3. **Test it**:
+## Self-Contained Skills
 
-```bash
-export AGENT_SKILLS="my-skill"
-agent -p "Use my_tool to process 'hello'"
-```
+### PEP 723 Dependencies
 
-## Creating a PEP 723 Script
-
-1. **Create script file**: `scripts/status.py`
+Each script manages its own dependencies:
 
 ```python
 #!/usr/bin/env python3
@@ -192,232 +217,511 @@ agent -p "Use my_tool to process 'hello'"
 # requires-python = ">=3.12"
 # dependencies = [
 #     "httpx>=0.27.0",
+#     "beautifulsoup4>=4.12.0",
 #     "click>=8.1.0",
 # ]
 # ///
-"""Status check script.
+```
 
-This script is self-contained with embedded dependencies (PEP 723).
-Not loaded into context - executed only when needed.
+**Benefits:**
+- ✅ No pyproject.toml changes
+- ✅ `uv run` installs automatically
+- ✅ Skill is truly portable
+- ✅ Dependencies documented in script
+
+**Example: web-access skill**
+```
+web-access/
+├── SKILL.md
+└── scripts/
+    ├── fetch.py   # deps: httpx, beautifulsoup4, markdownify, click
+    └── search.py  # deps: httpx, click, pandas
+```
+
+No core project dependencies required!
+
+---
+
+## Creating Scripts
+
+### Script Template
+
+```python
+#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#     "click>=8.1.0",
+#     "httpx>=0.27.0",  # add what you need
+# ]
+# ///
+
+"""
+Script Description
+
+Brief explanation of what this script does.
+
+Usage:
+    uv run script.py --arg "value"
+    uv run script.py --arg "value" --json
 """
 
 import json
 import click
-import httpx
 
 
 @click.command()
-@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-def main(json_output: bool):
-    """Check system status.
+@click.option("--arg", required=True, help="Argument description")
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+def main(arg: str, output_json: bool):
+    """
+    Script functionality description.
 
     Examples:
-        $ status.py
-        $ status.py --json
+        uv run script.py --arg "test"
+        uv run script.py --arg "test" --json
     """
-    status = check_status()
+    try:
+        # Your logic here
+        result = process(arg)
 
-    if json_output:
-        # CRITICAL: When --json is set, emit ONLY valid JSON to stdout
-        # No print statements, no banners, no extra text
-        click.echo(json.dumps(status, indent=2))
-    else:
-        # Human-readable format
-        click.echo(f"Status: {status['status']}")
-        click.echo(f"Timestamp: {status['timestamp']}")
+        if output_json:
+            # CRITICAL: Only JSON output, no other text
+            click.echo(json.dumps({
+                "success": True,
+                "result": result,
+                "message": "Processed successfully"
+            }, indent=2))
+        else:
+            # Human-readable output
+            click.echo(f"Result: {result}")
+
+    except Exception as e:
+        if output_json:
+            click.echo(json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2))
+        else:
+            click.echo(f"Error: {e}", err=True)
+        raise SystemExit(1)
 
 
-def check_status() -> dict:
-    """Check status and return data."""
-    return {
-        "status": "operational",
-        "timestamp": "2025-01-01T00:00:00Z"
-    }
+def process(arg: str) -> str:
+    """Business logic."""
+    return f"Processed: {arg}"
 
 
 if __name__ == "__main__":
     main()
 ```
 
-2. **Key Script Conventions**:
+### Script Conventions
 
-- ✅ Must support `--help` flag
-- ✅ Should support `--json` flag for structured output
-- ✅ When `--json`: Emit ONLY valid JSON to stdout (no banners)
-- ✅ Use stderr for logs/warnings
+Must have:
+- ✅ `--help` flag (click provides automatically)
+- ✅ `--json` flag for structured output
+- ✅ Valid JSON only when `--json` is set
 - ✅ Exit code 0 for success, non-zero for errors
-- ✅ UTF-8 encoding for stdout/stderr
-- ✅ PEP 723 for dependencies
+- ✅ PEP 723 dependency block
 
-3. **Test it**:
+Should have:
+- ✅ Docstring with usage examples
+- ✅ Error handling with structured responses
+- ✅ Human-readable output when not `--json`
 
-```bash
-# Direct execution
-uv run skills/core/my-skill/scripts/status.py --help
-uv run skills/core/my-skill/scripts/status.py --json
+---
 
-# Via agent
-export AGENT_SKILLS="my-skill"
-agent -p "Use script_help to learn about my-skill status script"
-agent -p "Use script_run to check status"
+## Optimization for Speed
+
+### The Pattern
+
+**System Prompt** teaches HOW skills work (general framework)
+**SKILL.md** teaches WHAT this skill does (specific patterns)
+**Result:** Agent maps natural language → invocation in one step
+
+### What/Pattern/Example Format
+
+For each script, provide:
+
+```markdown
+### script-name
+**What:** One-line description
+**Pattern:** Natural language → exact command with USER_PLACEHOLDER
+**Example:** "Real user phrase" → `script_run skill script --arg "value" --json`
 ```
 
-## Testing Your Skill
+**Why this works:**
+- Agent sees user intent → matches pattern → substitutes value
+- No mental translation needed
+- Copy-paste ready with placeholders
 
-### Manual Installation (Phase 1)
+### Quick Reference Section
+
+Add common patterns for instant lookup:
+
+```markdown
+## Quick Reference
+```
+User: "Search for X"     → script_run web-access search --query "X" --json
+User: "Fetch URL"        → script_run web-access fetch --url "URL" --json
+User: "Get status"       → script_run my-skill status --json
+```
+```
+
+### Natural Language Triggers
+
+Use how users actually talk:
+
+✅ **Good:**
+```markdown
+**When user wants to:**
+- Search the internet
+- Get current information
+- Fetch a web page
+```
+
+❌ **Bad:**
+```markdown
+**When user wants to:**
+- Execute HTTP GET requests
+- Perform RESTful API calls
+- Initiate web retrieval operations
+```
+
+### Token Budget
+
+Target: **<250 tokens per skill**
+
+Distribution:
+- YAML description: 50 tokens (pack with keywords)
+- Triggers: 40 tokens (natural language)
+- Scripts: 120 tokens (What/Pattern/Example)
+- Quick Reference: 40 tokens
+
+---
+
+## Testing
+
+### Manual Testing
 
 ```bash
-# Copy to bundled skills directory
-cp -r my-skill/ skills/core/
-
-# Enable and test
+# 1. Enable skill
 export AGENT_SKILLS="my-skill"
-agent --check  # Verify skill loads
 
-# Test toolset
-agent -p "Use my_tool with input 'test'"
+# 2. Verify loading
+agent --check
 
-# Test script
+# 3. Test script discovery
 agent -p "Use script_list to see my-skill scripts"
-agent -p "Use script_help for my-skill status script"
-agent -p "Use script_run to execute status"
+
+# 4. Test script help
+agent -p "Use script_help for my-skill my-script"
+
+# 5. Test natural language
+agent -p "Do something with test data"  # Should auto-invoke
+
+# 6. Test direct execution
+uv run skills/core/my-skill/scripts/my-script.py --help
+uv run skills/core/my-skill/scripts/my-script.py --arg "test" --json
 ```
 
-### Unit Testing
+### Validation Checklist
 
-Create tests for your toolsets:
+- [ ] Script has PEP 723 dependencies block
+- [ ] Script supports `--help` and `--json`
+- [ ] `--json` output is valid JSON (no extra text)
+- [ ] SKILL.md has What/Pattern/Example for each script
+- [ ] Natural language invocation works without "use script_run"
+- [ ] Total SKILL.md is <250 tokens
+- [ ] All environment variables documented
+- [ ] Script returns exit code 0 on success
 
-```python
-# tests/unit/skills/test_my_skill.py
-import pytest
-from my_skill.toolsets.mytools import MyToolset
-from unittest.mock import Mock
-
-@pytest.mark.asyncio
-async def test_my_tool():
-    config = Mock()
-    toolset = MyToolset(config)
-    result = await toolset.my_tool("test input")
-
-    assert result["success"] is True
-    assert "test input" in result["result"]
-```
+---
 
 ## Best Practices
 
 ### Naming
 
-- **Skill names**: `my-skill-name` (lowercase, hyphens)
-- **Script names**: `status.py` (lowercase, .py extension)
-- **Tool names**: Prefix with context to avoid collisions (e.g., `kalshi_search` not `search`)
-
-### Progressive Disclosure
-
-Follow the kalshi-markets pattern:
-1. Don't read scripts unless absolutely needed
-2. Use `script_help` first to understand options
-3. Then execute with `script_run`
-4. Keep SKILL.md instructions concise
-
-### Context Efficiency
-
-Target <5K tokens overhead for the entire skill system:
-- Keep SKILL.md concise (<500 lines)
-- Use scripts for complex operations
-- Only use toolsets for frequent, simple operations
+| Type | Convention | Example |
+|------|-----------|---------|
+| Skill name | lowercase-with-hyphens | `web-access` |
+| Script name | lowercase.py | `search.py` |
+| Flags | lowercase-with-hyphens | `--query`, `--count` |
 
 ### Security
 
-- ✅ No path traversal in skill names
-- ✅ No symbolic links in scripts/ directory
-- ✅ Validate all user inputs in tools
+- ✅ Validate all user inputs
+- ✅ No path traversal in names
+- ✅ No symbolic links
 - ✅ Use subprocess safely (shell=False)
+- ✅ Sanitize URLs and file paths
 
 ### Error Handling
 
 Always return structured responses:
 
-```python
-# Success
-return self._create_success_response(
-    result=data,
-    message="Operation completed"
-)
-
-# Error
-return self._create_error_response(
-    error="not_found",
-    message="Resource not found"
-)
+```json
+{
+  "success": true,
+  "result": "data here",
+  "message": "Optional message"
+}
 ```
 
-## Publishing Your Skill
-
-Phase 2 will support git-based installation:
-
-```bash
-# Install from git
-agent skill add https://github.com/yourusername/my-skill
-
-# Update
-agent skill update my-skill
-
-# Remove
-agent skill remove my-skill
+```json
+{
+  "success": false,
+  "error": "error_code",
+  "message": "Human-readable error"
+}
 ```
 
-For now, share as git repository and users can manually copy to `skills/core/`.
+### Progressive Disclosure
+
+- SKILL.md: Discovery layer (triggers, patterns)
+- `script_help`: Detailed options
+- `script_run`: Execution
+
+Don't document every parameter in SKILL.md - use `script_help` for details.
+
+### Context Efficiency
+
+- Keep SKILL.md concise (<250 tokens)
+- Use scripts for all complex logic
+- Always use `--json` for structured output
+- Front-load trigger keywords in description
+
+---
 
 ## Examples
 
-Study the bundled skills:
+### Example 1: web-access (Script-Only)
 
-1. **kalshi-markets** - Pure script-based skill
-   - 10 standalone scripts
-   - Zero toolsets
-   - Perfect progressive disclosure
+**Structure:**
+```
+web-access/
+├── SKILL.md
+└── scripts/
+    ├── fetch.py   # PEP 723: httpx, beautifulsoup4, markdownify, click
+    └── search.py  # PEP 723: httpx, click, pandas
+```
 
-2. **hello-extended** - Hybrid skill
-   - Python toolset for common operations
-   - Script for complex operations
-   - Shows both patterns
+**SKILL.md:**
+```markdown
+---
+name: web-access
+description: Search the web and fetch page content
+---
+
+# web-access
+
+## 🎯 Triggers
+**When user wants to:**
+- Search the internet
+- Get current/recent information
+- Fetch content from a URL
+
+## Scripts
+
+### search
+**What:** Search web via Brave API (cached 6hrs)
+**Pattern:** User wants to search → `script_run web-access search --query "USER_QUERY" --json`
+**Example:** "Search for python" → `script_run web-access search --query "python" --json`
+
+### fetch
+**What:** Fetch and convert web page to markdown
+**Pattern:** User provides URL → `script_run web-access fetch --url "USER_URL" --json`
+**Example:** "Get https://example.com" → `script_run web-access fetch --url "https://example.com" --json`
+
+## Quick Reference
+```
+User: "Search for X"      → script_run web-access search --query "X" --json
+User: "Fetch https://..." → script_run web-access fetch --url "https://..." --json
+```
+
+## Requires
+- `BRAVE_API_KEY` for search
+```
+
+**Why it works:**
+- ✅ No core dependencies (100% PEP 723)
+- ✅ Natural language works: "Search for X"
+- ✅ Clear patterns with examples
+- ✅ Self-contained and portable
+
+### Example 2: kalshi-markets (10 Scripts)
+
+**Structure:**
+```
+kalshi-markets/
+├── SKILL.md
+└── scripts/
+    ├── status.py
+    ├── markets.py
+    ├── search.py
+    ├── get.py
+    ├── events.py
+    ├── series.py
+    ├── orderbook.py
+    ├── trades.py
+    ├── portfolio.py
+    └── history.py
+```
+
+**Categorized listing in SKILL.md:**
+```markdown
+## Scripts
+
+**Status & Discovery:**
+- `status.py` - Is Kalshi operational?
+- `markets.py` - Browse all markets
+- `search.py --query "term"` - Find markets
+
+**Details:**
+- `get.py --ticker XXX` - Market details
+- `events.py` - List events
+- `series.py` - List series
+
+**Trading:**
+- `orderbook.py --ticker XXX` - Order book
+- `trades.py --ticker XXX` - Trade history
+```
+
+**Why it works:**
+- ✅ Categorization aids selection
+- ✅ Inline argument patterns
+- ✅ Progressive disclosure (10 scripts, <300 tokens)
+
+---
+
+## Anti-Patterns
+
+### ❌ Don't: Add Dependencies to Core
+
+```toml
+# pyproject.toml
+dependencies = [
+    "beautifulsoup4",  # ❌ Only needed by one skill!
+]
+```
+
+Use PEP 723 instead!
+
+### ❌ Don't: Verbose SKILL.md
+
+```markdown
+# ❌ BAD (too verbose)
+This skill provides comprehensive web access capabilities utilizing
+the Brave Search API with built-in caching mechanisms that persist
+for 6 hours to optimize performance and reduce API calls...
+```
+
+```markdown
+# ✅ GOOD (concise)
+## 🎯 Triggers
+**When user wants to:** search internet, fetch pages, get current info
+```
+
+### ❌ Don't: Missing Patterns
+
+```markdown
+# ❌ BAD (no pattern)
+### search
+Searches the web. Flags: --query, --count, --json
+```
+
+```markdown
+# ✅ GOOD (with pattern)
+### search
+**Pattern:** User wants to search → `script_run web-access search --query "USER_QUERY" --json`
+**Example:** "Search for python" → `script_run web-access search --query "python" --json`
+```
+
+### ❌ Don't: Technical Triggers
+
+```markdown
+# ❌ BAD
+**When user wants to:**
+- Execute HTTP GET requests
+- Perform RESTful API operations
+```
+
+```markdown
+# ✅ GOOD
+**When user wants to:**
+- Fetch a web page
+- Search the internet
+```
+
+---
+
+## Publishing Skills
+
+### Current: Manual Installation
+
+```bash
+# Share as git repository
+git clone https://github.com/user/my-skill
+cp -r my-skill/ agent-base/skills/core/
+```
+
+### Future: Git-Based Installation
+
+```bash
+# Phase 2 feature (coming soon)
+agent skill add https://github.com/user/my-skill
+agent skill update my-skill
+agent skill remove my-skill
+```
+
+---
 
 ## Troubleshooting
 
 ### Skill not loading
 
 ```bash
-# Check AGENT_SKILLS is set
+# Check environment
 echo $AGENT_SKILLS
 
-# Verify SKILL.md has valid YAML
-cat skills/core/my-skill/SKILL.md
+# Verify YAML is valid
+head -10 skills/core/my-skill/SKILL.md
 
-# Check agent logs
+# Check logs
 agent --check
 ```
 
-### Script execution fails
+### Script fails to execute
 
 ```bash
-# Test script directly
-uv run skills/core/my-skill/scripts/status.py --help
+# Test directly
+uv run skills/core/my-skill/scripts/my-script.py --help
 
-# Check script has PEP 723 dependencies block
-head -10 skills/core/my-skill/scripts/status.py
+# Check PEP 723 block
+head -10 skills/core/my-skill/scripts/my-script.py
+
+# Verify dependencies
+uv run skills/core/my-skill/scripts/my-script.py  # uv installs deps
 ```
 
-### Toolset import fails
+### Natural language doesn't work
 
-```bash
-# Verify module:Class format in SKILL.md
-# Ensure file path matches: toolsets.hello → toolsets/hello.py
-# Check class inherits from AgentToolset
-```
+- Check SKILL.md has Pattern/Example for each script
+- Verify triggers match how users actually talk
+- Add Quick Reference section for common cases
+- Test with exact phrases from examples
 
-## Next Steps
+---
 
-1. Create your skill following this guide
-2. Test manually in `skills/core/`
-3. Share on GitHub
-4. (Phase 2) Enable git installation
+## Summary
+
+**Best Practices:**
+1. ✅ Use PEP 723 scripts (no core dependencies)
+2. ✅ Provide What/Pattern/Example for each script
+3. ✅ Include Quick Reference for common cases
+4. ✅ Use natural language triggers
+5. ✅ Keep SKILL.md <250 tokens
+6. ✅ Always support `--json` flag
+7. ✅ Test with natural language
+
+**Result:** Skills that are fast, portable, and work naturally with user language!
