@@ -226,7 +226,7 @@ class AgentValidator:
         Returns:
             Dictionary with test results and statistics
         """
-        results = {
+        results: dict[str, Any] = {
             "total": 0,
             "passed": 0,
             "failed": 0,
@@ -310,14 +310,14 @@ class TestAgentValidation:
     """Pytest integration for agent validation."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> AgentValidator:
         """Create validator instance."""
         return AgentValidator()
 
     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unicode console issues on Windows CI"
     )
-    def test_help_command(self, validator):
+    def test_help_command(self, validator: AgentValidator) -> None:
         """Test help command execution."""
         result = validator.run_command("uv run agent --help", timeout=10)
         assert result["exit_code"] == 0
@@ -326,7 +326,7 @@ class TestAgentValidation:
         assert "agent" in clean_output.lower()
         assert "--prompt" in clean_output
 
-    def test_version_command(self, validator):
+    def test_version_command(self, validator: AgentValidator) -> None:
         """Test version command."""
         result = validator.run_command("uv run agent --version", timeout=5)
         assert result["exit_code"] == 0
@@ -335,7 +335,7 @@ class TestAgentValidation:
     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unicode console issues on Windows CI"
     )
-    def test_check_command(self, validator):
+    def test_check_command(self, validator: AgentValidator) -> None:
         """Test health check command shows system, agent, docker, and providers."""
         # Longer timeout needed when running in parallel (connectivity tests to multiple providers)
         result = validator.run_command("uv run agent --check", timeout=60)
@@ -354,7 +354,7 @@ class TestAgentValidation:
     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unicode console issues on Windows CI"
     )
-    def test_config_command(self, validator):
+    def test_config_command(self, validator: AgentValidator) -> None:
         """Test config command."""
         # Longer timeout needed when running in parallel (connectivity tests to multiple providers)
         result = validator.run_command("uv run agent config show", timeout=60)
@@ -372,12 +372,12 @@ class TestAgentValidation:
         )
         assert has_config_info or has_config_error, "Should show config or config error"
 
-    def test_validation_config_exists(self):
+    def test_validation_config_exists(self) -> None:
         """Test that validation configuration file exists."""
         config_path = Path("tests/validation/agent_validation.yaml")
         assert config_path.exists(), "Validation config file should exist"
 
-    def test_validation_config_valid(self, validator):
+    def test_validation_config_valid(self, validator: AgentValidator) -> None:
         """Test that validation configuration is valid YAML."""
         assert validator.config is not None
         assert "version" in validator.config
@@ -387,7 +387,7 @@ class TestAgentValidation:
     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unicode console issues on Windows CI"
     )
-    def test_run_all_validation_tests(self, validator):
+    def test_run_all_validation_tests(self, validator: AgentValidator) -> None:
         """Run all validation tests from configuration."""
         results = validator.run_all_tests()
 
@@ -402,7 +402,7 @@ class TestAgentValidation:
         assert results["passed"] + results["failed"] == results["total"]
 
 
-def main():
+def main() -> None:
     """Run validation tests from command line."""
     validator = AgentValidator()
     results = validator.run_all_tests()
