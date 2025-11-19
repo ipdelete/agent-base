@@ -395,7 +395,7 @@ class AgentConfig:
         ENV takes precedence for enabled_skills (like LLM_PROVIDER).
         This allows AGENT_SKILLS=all to work for testing without editing settings.json.
         """
-        if os.getenv("AGENT_SKILLS"):
+        if os.getenv("AGENT_SKILLS") is not None:
             skills_str = os.getenv("AGENT_SKILLS", "").strip()
             if skills_str in ("", "none"):
                 config.enabled_skills = []

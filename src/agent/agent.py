@@ -70,6 +70,9 @@ class Agent:
         """
         self.config = config or AgentConfig.from_env()
 
+        # Initialize skill instructions list (may be populated later)
+        self.skill_instructions: list[str] = []
+
         # Dependency injection for testing
         if chat_client is not None:
             self.chat_client = chat_client
@@ -128,11 +131,6 @@ class Agent:
                 except Exception as e:
                     logger.error(f"Failed to load skills: {e}", exc_info=True)
                     # Continue without skills - graceful degradation
-                    self.skill_instructions = []
-            else:
-                self.skill_instructions = []
-        else:
-            self.skill_instructions = []
 
         self.toolsets = toolsets
 

@@ -238,7 +238,7 @@ class SkillLoader:
         This is the main entry point called by Agent.__init__().
 
         Returns:
-            Tuple of (skill_toolsets, script_wrapper_toolset)
+            Tuple of (skill_toolsets, script_wrapper_toolset, skill_instructions)
 
         Raises:
             SkillError: If critical skill loading fails
