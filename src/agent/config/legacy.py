@@ -117,6 +117,13 @@ class AgentConfig:
     filesystem_max_read_bytes: int = 10_485_760  # 10MB default
     filesystem_max_write_bytes: int = 1_048_576  # 1MB default
 
+    # Skill system configuration
+    agent_skills_dir: Path | None = None  # Default: ~/.agent/skills
+    core_skills_dir: Path | None = None  # Default: <repo>/skills/core
+    enabled_skills: list[str] | None = None  # From AGENT_SKILLS env var
+    script_timeout: int = 60  # Seconds
+    max_script_output: int = 1_048_576  # 1MB
+
     # Observability configuration
     enable_otel: bool = False
     enable_otel_explicit: bool = False  # Track if ENABLE_OTEL was explicitly set
@@ -220,6 +227,26 @@ class AgentConfig:
         )
         config.filesystem_max_read_bytes = int(os.getenv("FILESYSTEM_MAX_READ_BYTES", "10485760"))
         config.filesystem_max_write_bytes = int(os.getenv("FILESYSTEM_MAX_WRITE_BYTES", "1048576"))
+
+        # Skill system configuration
+        skills_dir_env = os.getenv("AGENT_SKILLS_DIR")
+        if skills_dir_env:
+            config.agent_skills_dir = Path(skills_dir_env).expanduser()
+        else:
+            config.agent_skills_dir = Path.home() / ".agent" / "skills"
+
+        # core_skills_dir will be set by Agent class (defaults to <repo>/skills/core)
+
+        # Parse AGENT_SKILLS environment variable
+        skills_str = os.getenv("AGENT_SKILLS", "").strip()
+        if skills_str in ("", "none"):
+            config.enabled_skills = []
+        elif skills_str == "all":
+            config.enabled_skills = ["all"]
+        elif skills_str == "all-untrusted":
+            config.enabled_skills = ["all-untrusted"]
+        else:
+            config.enabled_skills = [s.strip() for s in skills_str.split(",")]
 
         # Observability configuration
         # Track whether ENABLE_OTEL was explicitly set in environment

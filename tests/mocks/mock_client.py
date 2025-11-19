@@ -19,7 +19,7 @@ class MockAgent:
         """
         self.response = response
 
-    async def run_stream(self, prompt: str, **kwargs) -> AsyncIterator[str]:
+    async def run_stream(self, prompt: str, **kwargs: Any) -> AsyncIterator[str]:
         """Stream mock response word by word.
 
         Args:
@@ -32,7 +32,7 @@ class MockAgent:
         for word in self.response.split():
             yield word + " "
 
-    async def run(self, prompt: str, **kwargs) -> str:
+    async def run(self, prompt: str, **kwargs: Any) -> str:
         """Return full mock response.
 
         Args:
@@ -59,15 +59,15 @@ class MockChatClient:
             response: Default response for created agents
         """
         self.response = response
-        self.created_agents = []
+        self.created_agents: list[dict[str, Any]] = []
 
     def create_agent(
         self,
         name: str,
         instructions: str,
-        tools: list = None,
-        middleware: dict = None,
-        context_providers: list = None,
+        tools: list[Any] | None = None,
+        middleware: dict[Any, Any] | None = None,
+        context_providers: list[Any] | None = None,
         **kwargs: Any,
     ) -> MockAgent:
         """Create a mock agent.
