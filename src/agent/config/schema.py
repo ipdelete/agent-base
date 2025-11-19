@@ -135,6 +135,28 @@ class AgentConfig(BaseModel):
         default=1_048_576, description="Maximum content size in bytes for write operations"  # 1MB
     )
 
+    # Skill system configuration
+    agent_skills_dir: str = Field(
+        default="~/.agent/skills",
+        description="Directory for user-installed skills",
+    )
+    core_skills_dir: str | None = Field(
+        default=None,
+        description="Directory for bundled core skills. Defaults to <repo>/skills/core if not set.",
+    )
+    enabled_skills: list[str] = Field(
+        default_factory=list,
+        description="List of enabled skill names, or special markers: 'all', 'none'",
+    )
+    script_timeout: int = Field(
+        default=60,
+        description="Timeout in seconds for script execution",
+    )
+    max_script_output: int = Field(
+        default=1_048_576,  # 1MB
+        description="Maximum output size in bytes for script execution",
+    )
+
     @field_validator("data_dir")
     @classmethod
     def expand_data_dir(cls, v: str) -> str:
@@ -150,6 +172,22 @@ class AgentConfig(BaseModel):
         # Convert to Path if string, expand user, and resolve to absolute
         path = Path(v).expanduser().resolve()
         return path
+
+    @field_validator("agent_skills_dir")
+    @classmethod
+    def expand_agent_skills_dir(cls, v: str) -> str:
+        """Expand user home directory in agent_skills_dir."""
+        return str(Path(v).expanduser().resolve())
+
+    @field_validator("core_skills_dir")
+    @classmethod
+    def expand_core_skills_dir(cls, v: str | None) -> str | None:
+        """Expand user home directory in core_skills_dir and resolve to absolute path."""
+        if v is None:
+            # Default to <repo>/skills/core relative to this file
+            # Will be set properly when Agent loads
+            return None
+        return str(Path(v).expanduser().resolve())
 
 
 class TelemetryConfig(BaseModel):

@@ -1,0 +1,339 @@
+"""Skill loader for discovering and loading skills.
+
+This module handles skill discovery, manifest parsing, script metadata collection,
+and dynamic toolset importing.
+"""
+
+import importlib.util
+import logging
+from pathlib import Path
+from typing import Any
+
+from agent.skills.errors import SkillManifestError
+from agent.skills.manifest import SkillManifest, parse_skill_manifest
+from agent.skills.registry import SkillRegistry
+from agent.skills.security import normalize_script_name
+from agent.tools.toolset import AgentToolset
+
+logger = logging.getLogger(__name__)
+
+
+class SkillLoader:
+    """Load and manage skills for the agent.
+
+    Handles skill discovery, manifest parsing, toolset instantiation,
+    and script metadata collection.
+
+    Example:
+        >>> from agent.config import AgentConfig
+        >>> config = AgentConfig.from_env()
+        >>> loader = SkillLoader(config)
+        >>> toolsets, script_tools = loader.load_enabled_skills()
+    """
+
+    def __init__(self, config: Any):
+        """Initialize skill loader.
+
+        Args:
+            config: AgentConfig with skill paths and enabled skills list
+        """
+        self.config = config
+        self.registry = SkillRegistry()
+        self._loaded_scripts: dict[str, list[dict[str, Any]]] = {}
+
+    def scan_skill_directory(self, directory: Path) -> list[Path]:
+        """Scan directory for skills (SKILL.md files).
+
+        Args:
+            directory: Directory to scan for skills
+
+        Returns:
+            List of skill directory paths containing SKILL.md
+        """
+        if not directory.exists():
+            return []
+
+        skill_dirs = []
+        for item in directory.iterdir():
+            if not item.is_dir():
+                continue
+
+            skill_md = item / "SKILL.md"
+            if skill_md.exists() and skill_md.is_file():
+                skill_dirs.append(item)
+
+        return skill_dirs
+
+    def discover_scripts(self, skill_path: Path, manifest: SkillManifest) -> list[dict[str, Any]]:
+        """Discover scripts in skill's scripts/ directory.
+
+        Args:
+            skill_path: Path to skill directory
+            manifest: Parsed SKILL.md manifest
+
+        Returns:
+            List of script metadata dicts with 'name' and 'path' keys
+        """
+        scripts_dir = skill_path / "scripts"
+        if not scripts_dir.exists() or not scripts_dir.is_dir():
+            return []
+
+        scripts = []
+
+        # If manifest specifies scripts explicitly, use those
+        if manifest.scripts is not None:
+            for script_name in manifest.scripts:
+                # SECURITY: Reject script names with path separators (prevent traversal)
+                if "/" in script_name or "\\" in script_name or ".." in script_name:
+                    logger.error(
+                        f"Security: Rejected script '{script_name}' with path separators "
+                        f"in skill '{manifest.name}'"
+                    )
+                    continue
+
+                # Normalize script name (add .py if missing)
+                normalized = normalize_script_name(script_name)
+                script_path = scripts_dir / normalized
+
+                # SECURITY: Verify script is actually within scripts_dir
+                try:
+                    script_path.resolve().relative_to(scripts_dir.resolve())
+                except ValueError:
+                    logger.error(
+                        f"Security: Rejected script '{script_name}' - "
+                        f"path escapes scripts directory in skill '{manifest.name}'"
+                    )
+                    continue
+
+                if script_path.exists() and script_path.is_file():
+                    scripts.append({"name": normalized.removesuffix(".py"), "path": script_path})
+                else:
+                    logger.warning(
+                        f"Script '{script_name}' listed in manifest but not found: {script_path}"
+                    )
+        else:
+            # Auto-discover: scan for *.py files, excluding patterns
+            for script_file in scripts_dir.glob("*.py"):
+                # Skip if matches ignore patterns
+                if self._should_ignore_script(script_file, manifest.scripts_ignore):
+                    continue
+
+                # Skip non-files (shouldn't happen with glob but be safe)
+                if not script_file.is_file():
+                    continue
+
+                # Skip symbolic links for security
+                if script_file.is_symlink():
+                    logger.warning(f"Skipping symbolic link script: {script_file}")
+                    continue
+
+                script_name = script_file.stem  # Remove .py extension
+                scripts.append({"name": script_name, "path": script_file})
+
+        return scripts
+
+    def _should_ignore_script(self, script_path: Path, ignore_patterns: list[str]) -> bool:
+        """Check if script matches any ignore pattern.
+
+        Args:
+            script_path: Path to script file
+            ignore_patterns: List of glob patterns to exclude
+
+        Returns:
+            True if script should be ignored
+        """
+        for pattern in ignore_patterns:
+            if script_path.match(pattern):
+                return True
+        return False
+
+    def _import_toolset(
+        self, skill_path: Path, skill_name: str, toolset_def: str
+    ) -> AgentToolset | None:
+        """Dynamically import and instantiate a toolset class.
+
+        Args:
+            skill_path: Path to skill directory
+            skill_name: Skill name (for logging)
+            toolset_def: Toolset definition in "module:Class" format
+
+        Returns:
+            Instantiated toolset or None if import failed
+        """
+        try:
+            # Parse "module:Class" format
+            if ":" not in toolset_def:
+                logger.error(f"Invalid toolset format '{toolset_def}' in skill '{skill_name}'")
+                return None
+
+            module_path, class_name = toolset_def.split(":", 1)
+
+            # Convert module path to file path (e.g., "toolsets.hello" -> "toolsets/hello.py")
+            file_path = skill_path / f"{module_path.replace('.', '/')}.py"
+
+            if not file_path.exists():
+                logger.error(f"Toolset file not found: {file_path}")
+                return None
+
+            # Dynamic import
+            spec = importlib.util.spec_from_file_location(
+                f"skill.{skill_name}.{module_path}", file_path
+            )
+            if spec is None or spec.loader is None:
+                logger.error(f"Failed to create module spec for {file_path}")
+                return None
+
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # Get class and validate it's an AgentToolset
+            if not hasattr(module, class_name):
+                logger.error(f"Class '{class_name}' not found in {file_path}")
+                return None
+
+            toolset_class = getattr(module, class_name)
+
+            if not issubclass(toolset_class, AgentToolset):
+                logger.error(f"Class '{class_name}' must inherit from AgentToolset")
+                return None
+
+            # Instantiate with config
+            instance: AgentToolset = toolset_class(self.config)
+            return instance
+
+        except Exception as e:
+            logger.error(f"Failed to import toolset '{toolset_def}' from skill '{skill_name}': {e}")
+            return None
+
+    def load_skill(self, skill_path: Path) -> tuple[SkillManifest, list[AgentToolset], list[dict]]:
+        """Load a single skill from a directory.
+
+        Args:
+            skill_path: Path to skill directory containing SKILL.md
+
+        Returns:
+            Tuple of (manifest, toolset_instances, script_metadata)
+
+        Raises:
+            SkillManifestError: If manifest is invalid
+        """
+        # Parse manifest
+        manifest = parse_skill_manifest(skill_path)
+
+        # Load toolsets (if any)
+        toolsets = []
+        for toolset_def in manifest.toolsets:
+            toolset = self._import_toolset(skill_path, manifest.name, toolset_def)
+            if toolset is not None:
+                toolsets.append(toolset)
+
+        # Discover scripts (metadata only, don't load code)
+        scripts = self.discover_scripts(skill_path, manifest)
+
+        return manifest, toolsets, scripts
+
+    def load_enabled_skills(self) -> tuple[list[AgentToolset], Any]:
+        """Load all enabled skills based on configuration.
+
+        This is the main entry point called by Agent.__init__().
+
+        Returns:
+            Tuple of (skill_toolsets, script_wrapper_toolset)
+
+        Raises:
+            SkillError: If critical skill loading fails
+        """
+        # Get enabled skills from config
+        enabled_skills = getattr(self.config, "enabled_skills", [])
+
+        if not enabled_skills or enabled_skills == ["none"]:
+            # No skills enabled
+            return [], None
+
+        # Collect all skill directories to scan
+        skill_dirs_to_scan = []
+
+        # Add core skills directory
+        core_skills_dir = getattr(self.config, "core_skills_dir", None)
+        if core_skills_dir:
+            core_path = (
+                Path(core_skills_dir) if isinstance(core_skills_dir, str) else core_skills_dir
+            )
+            if core_path.exists():
+                skill_dirs_to_scan.extend(self.scan_skill_directory(core_path))
+
+        # Add user skills directory
+        user_skills_dir = getattr(self.config, "agent_skills_dir", None)
+        if user_skills_dir:
+            user_path = (
+                Path(user_skills_dir) if isinstance(user_skills_dir, str) else user_skills_dir
+            )
+            if user_path.exists():
+                skill_dirs_to_scan.extend(self.scan_skill_directory(user_path))
+
+        # Load each skill
+        all_toolsets = []
+        all_scripts = {}
+
+        for skill_dir in skill_dirs_to_scan:
+            try:
+                manifest, toolsets, scripts = self.load_skill(skill_dir)
+
+                # Check if this skill is enabled
+                skill_enabled = False
+                # Get canonical name for matching
+                from agent.skills.security import normalize_skill_name
+
+                canonical_name = normalize_skill_name(manifest.name)
+
+                if "all" in enabled_skills:
+                    # Load all trusted skills
+                    # For Phase 1, bundled skills (in core_skills_dir) are auto-trusted
+                    skill_enabled = True
+                elif canonical_name in [s.lower().replace("_", "-") for s in enabled_skills]:
+                    skill_enabled = True
+
+                if skill_enabled:
+                    all_toolsets.extend(toolsets)
+                    if scripts:
+                        all_scripts[canonical_name] = scripts
+                        self._loaded_scripts[canonical_name] = scripts
+
+                    logger.info(
+                        f"Loaded skill '{manifest.name}': "
+                        f"{len(toolsets)} toolsets, {len(scripts)} scripts"
+                    )
+
+            except SkillManifestError as e:
+                logger.error(f"Failed to load skill from {skill_dir}: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error loading skill from {skill_dir}: {e}", exc_info=True)
+                continue
+
+        # Create script wrapper toolset if we have scripts
+        script_wrapper = None
+        if all_scripts:
+            # Import here to avoid circular dependency
+            from agent.skills.script_tools import ScriptToolset
+
+            script_wrapper = ScriptToolset(self.config, all_scripts)
+
+        return all_toolsets, script_wrapper
+
+    def validate_dependencies(self, manifest: SkillManifest) -> None:
+        """Validate skill dependencies (for future use).
+
+        Currently a no-op. Phase 2 will add dependency checking for:
+        - min/max agent-base version compatibility
+        - Python package dependencies for toolsets
+
+        Args:
+            manifest: Skill manifest to validate
+
+        Raises:
+            SkillDependencyError: If dependencies are not met
+        """
+        # Phase 2: Check min/max_agent_base_version
+        # Phase 2: Check Python package availability for toolsets
+        pass

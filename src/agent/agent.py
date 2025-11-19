@@ -90,6 +90,35 @@ class Agent:
         # Initialize toolsets (avoid global state)
         if toolsets is None:
             toolsets = [HelloTools(self.config), FileSystemTools(self.config)]
+
+            # Load skills if enabled
+            if hasattr(self.config, "enabled_skills") and self.config.enabled_skills:
+                try:
+                    from agent.skills.loader import SkillLoader
+
+                    # Set default core_skills_dir if not configured
+                    if self.config.core_skills_dir is None:
+                        # Default to <repo>/skills/core
+                        repo_root = Path(__file__).parent.parent.parent
+                        self.config.core_skills_dir = repo_root / "skills" / "core"
+
+                    skill_loader = SkillLoader(self.config)
+                    skill_toolsets, script_tools = skill_loader.load_enabled_skills()
+
+                    if skill_toolsets:
+                        toolsets.extend(skill_toolsets)
+                        logger.info(f"Loaded {len(skill_toolsets)} skill toolsets")
+
+                    if script_tools:
+                        toolsets.append(script_tools)
+                        logger.info(
+                            f"Loaded script wrapper with {script_tools.script_count} scripts"
+                        )
+
+                except Exception as e:
+                    logger.error(f"Failed to load skills: {e}", exc_info=True)
+                    # Continue without skills - graceful degradation
+
         self.toolsets = toolsets
 
         # Collect all tools from toolsets

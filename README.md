@@ -143,6 +143,96 @@ agent --telemetry start
 
 See [USAGE.md](USAGE.md) for complete examples.
 
+## Skills
+
+agent-base supports a plugin system for domain-specific capabilities through **skills** - self-contained packages that extend the agent with specialized tools without bloating the core codebase.
+
+### What are Skills?
+
+Skills are git-based packages combining:
+- **Python Toolsets**: Testable, type-safe tool classes for frequent operations
+- **Standalone Scripts**: PEP 723 scripts for context-heavy operations (progressive disclosure)
+- **SKILL.md Manifest**: YAML front matter + markdown instructions
+
+### Using Skills
+
+```bash
+# Enable skills via environment variable
+export AGENT_SKILLS="kalshi-markets,hello-extended"
+
+# Or load all bundled skills
+export AGENT_SKILLS="all"
+
+# Run agent with skills enabled
+agent
+```
+
+### Available Tools
+
+When skills are loaded, you get:
+- **Skill toolset methods** - Direct tool calls (e.g., `greet_in_language`)
+- **Script wrapper tools** - Progressive disclosure pattern:
+  - `script_list` - List available scripts
+  - `script_help` - Get help for a script
+  - `script_run` - Execute a script with arguments
+
+### Example: Using Kalshi Markets
+
+```bash
+# Enable kalshi-markets skill
+export AGENT_SKILLS="kalshi-markets"
+
+# Start agent and use script tools
+agent -p "Use script_list to see available kalshi scripts"
+agent -p "Use script_help to learn about the status script"
+agent -p "Use script_run to check Kalshi exchange status"
+```
+
+### Bundled Skills
+
+**kalshi-markets** - Access Kalshi prediction market data (10 scripts)
+- Market prices, orderbooks, trades
+- Event and series information
+- Progressive disclosure: Scripts not loaded until executed
+
+**hello-extended** - Extended greeting capabilities (hybrid example)
+- Python toolset: `greet_in_language`, `greet_multiple`
+- Script: Advanced greeting with time-awareness
+
+### Creating Custom Skills
+
+See [docs/SKILLS.md](docs/SKILLS.md) for the complete skill development guide.
+
+Minimal skill structure:
+```
+my-skill/
+├── SKILL.md              # Manifest with YAML front matter
+├── toolsets/             # Optional: Python toolset classes
+│   └── mytools.py
+└── scripts/              # Optional: PEP 723 standalone scripts
+    └── myscript.py
+```
+
+Example SKILL.md:
+```yaml
+---
+name: my-skill
+description: Brief description of what this skill does
+toolsets:
+  - toolsets.mytools:MyToolset
+---
+
+# Usage instructions in markdown...
+```
+
+### Context Efficiency
+
+Skills use progressive disclosure to maintain <5K token overhead:
+- Only SKILL.md manifest loaded into context
+- Scripts discovered but NOT loaded (just metadata)
+- Execute scripts on-demand via `script_run`
+- 10+ tools available with minimal context usage
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code quality guidelines, and contribution workflow.

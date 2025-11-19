@@ -1,0 +1,286 @@
+"""Skill manager for lifecycle operations.
+
+This module handles skill installation, updates, and removal with git operations.
+"""
+
+import logging
+import shutil
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from git import Repo
+
+from agent.skills.errors import SkillError
+from agent.skills.manifest import SkillRegistryEntry, parse_skill_manifest
+from agent.skills.registry import SkillRegistry
+from agent.skills.security import normalize_skill_name, pin_commit_sha, validate_manifest
+
+logger = logging.getLogger(__name__)
+
+
+class SkillManager:
+    """Manage skill lifecycle: install, update, remove.
+
+    Handles git operations for skill installation from repositories.
+
+    Example:
+        >>> manager = SkillManager()
+        >>> manager.install("https://github.com/example/skill", trusted=True)
+    """
+
+    def __init__(self, skills_dir: Path | None = None):
+        """Initialize skill manager.
+
+        Args:
+            skills_dir: Directory for installed skills (default: ~/.agent/skills)
+        """
+        if skills_dir is None:
+            skills_dir = Path.home() / ".agent" / "skills"
+
+        self.skills_dir = skills_dir
+
+        # Use registry in skills_dir to keep tests isolated
+        registry_path = self.skills_dir / "registry.json"
+        self.registry = SkillRegistry(registry_path=registry_path)
+
+        # Ensure skills directory exists
+        self.skills_dir.mkdir(parents=True, exist_ok=True)
+
+    def install(
+        self,
+        git_url: str,
+        skill_name: str | None = None,
+        branch: str | None = None,
+        tag: str | None = None,
+        trusted: bool = False,
+    ) -> SkillRegistryEntry:
+        """Install a skill from a git repository.
+
+        Args:
+            git_url: Git repository URL
+            skill_name: Custom skill name (auto-detected from manifest if None)
+            branch: Git branch to clone (default: main/master)
+            tag: Git tag to checkout (takes precedence over branch)
+            trusted: Mark skill as trusted (skip confirmation prompt)
+
+        Returns:
+            SkillRegistryEntry for the installed skill
+
+        Raises:
+            SkillError: If installation fails
+            SkillManifestError: If SKILL.md is invalid
+        """
+        # Early check for duplicate if skill_name is provided
+        if skill_name:
+            canonical_check = normalize_skill_name(skill_name)
+            if self.registry.exists(canonical_check):
+                raise SkillError(f"Skill '{canonical_check}' is already installed")
+
+        temp_dir = None
+        try:
+            # Clone to temporary directory first
+            temp_dir = self.skills_dir / f".temp-{datetime.now().timestamp()}"
+            logger.info(f"Cloning skill from {git_url}...")
+
+            # Clone repository
+            clone_kwargs: dict[str, Any] = {"depth": 1}  # Shallow clone for speed
+            if branch:
+                clone_kwargs["branch"] = branch
+
+            repo = Repo.clone_from(git_url, temp_dir, **clone_kwargs)
+
+            # Checkout tag if specified
+            if tag:
+                repo.git.checkout(tag)
+
+            # Get commit SHA
+            commit_sha = pin_commit_sha(temp_dir)
+
+            # Validate SKILL.md exists and is valid
+            manifest_path = temp_dir / "SKILL.md"
+            validate_manifest(manifest_path)
+
+            # Parse manifest to get skill name
+            manifest = parse_skill_manifest(temp_dir)
+
+            # Use manifest name or custom name
+            final_name = skill_name or manifest.name
+            canonical_name = normalize_skill_name(final_name)
+
+            # Check if already installed
+            if self.registry.exists(canonical_name):
+                raise SkillError(f"Skill '{canonical_name}' is already installed")
+
+            # Move to final location
+            final_path = self.skills_dir / canonical_name
+            if final_path.exists():
+                shutil.rmtree(final_path)
+
+            shutil.move(str(temp_dir), str(final_path))
+            temp_dir = None  # Prevent cleanup
+
+            # Register skill
+            entry = SkillRegistryEntry(
+                name=final_name,
+                name_canonical=canonical_name,
+                git_url=git_url,
+                commit_sha=commit_sha,
+                branch=branch,
+                tag=tag,
+                installed_path=final_path,
+                trusted=trusted,
+                installed_at=datetime.now(),
+            )
+
+            self.registry.register(entry)
+
+            logger.info(f"Successfully installed skill '{final_name}' at {final_path}")
+            return entry
+
+        except Exception as e:
+            logger.error(f"Failed to install skill: {e}")
+            raise SkillError(f"Installation failed: {e}")
+
+        finally:
+            # Cleanup temp directory if it still exists
+            if temp_dir and temp_dir.exists():
+                shutil.rmtree(temp_dir)
+
+    def update(self, skill_name: str, confirm: bool = True) -> SkillRegistryEntry:
+        """Update a skill to the latest version.
+
+        Uses clean update strategy (git reset --hard) - local changes are discarded.
+
+        Args:
+            skill_name: Skill name to update
+            confirm: Require confirmation for update (Phase 2)
+
+        Returns:
+            Updated SkillRegistryEntry
+
+        Raises:
+            SkillNotFoundError: If skill not found
+            SkillError: If update fails
+        """
+        canonical_name = normalize_skill_name(skill_name)
+        entry = self.registry.get(canonical_name)
+
+        if entry.git_url is None:
+            raise SkillError(f"Skill '{skill_name}' is a bundled skill and cannot be updated")
+
+        try:
+            skill_path = entry.installed_path
+
+            # Open repository
+            repo = Repo(skill_path)
+
+            # Get current SHA
+            old_sha = pin_commit_sha(skill_path)
+
+            # Pull latest changes (clean update)
+            origin = repo.remotes.origin
+            origin.fetch()
+
+            # Reset to remote branch (discard local changes)
+            if entry.branch:
+                repo.git.reset("--hard", f"origin/{entry.branch}")
+            else:
+                repo.git.reset("--hard", "origin/HEAD")
+
+            # Get new SHA
+            new_sha = pin_commit_sha(skill_path)
+
+            # Update registry
+            self.registry.update_sha(canonical_name, new_sha)
+
+            # Get updated entry
+            updated_entry = self.registry.get(canonical_name)
+
+            logger.info(
+                f"Successfully updated skill '{skill_name}' from {old_sha[:8]} to {new_sha[:8]}"
+            )
+            return updated_entry
+
+        except Exception as e:
+            logger.error(f"Failed to update skill: {e}")
+            raise SkillError(f"Update failed: {e}")
+
+    def remove(self, skill_name: str) -> None:
+        """Remove an installed skill.
+
+        Args:
+            skill_name: Skill name to remove
+
+        Raises:
+            SkillNotFoundError: If skill not found
+            SkillError: If removal fails
+        """
+        canonical_name = normalize_skill_name(skill_name)
+        entry = self.registry.get(canonical_name)
+
+        try:
+            # Remove directory
+            if entry.installed_path.exists():
+                shutil.rmtree(entry.installed_path)
+                logger.info(f"Removed skill directory: {entry.installed_path}")
+
+            # Unregister
+            self.registry.unregister(canonical_name)
+
+            logger.info(f"Successfully removed skill '{skill_name}'")
+
+        except Exception as e:
+            logger.error(f"Failed to remove skill: {e}")
+            raise SkillError(f"Removal failed: {e}")
+
+    def list_installed(self) -> list[SkillRegistryEntry]:
+        """List all installed skills.
+
+        Returns:
+            List of SkillRegistryEntry, sorted by canonical name
+        """
+        return self.registry.list()
+
+    def info(self, skill_name: str) -> dict:
+        """Get detailed information about a skill.
+
+        Args:
+            skill_name: Skill name
+
+        Returns:
+            Dict with skill metadata, manifest, scripts, and toolsets
+
+        Raises:
+            SkillNotFoundError: If skill not found
+        """
+        canonical_name = normalize_skill_name(skill_name)
+        entry = self.registry.get(canonical_name)
+
+        # Parse manifest
+        manifest = parse_skill_manifest(entry.installed_path)
+
+        # Count scripts
+        scripts_dir = entry.installed_path / "scripts"
+        script_count = 0
+        if scripts_dir.exists():
+            script_count = len(list(scripts_dir.glob("*.py")))
+
+        return {
+            "name": entry.name,
+            "canonical_name": entry.name_canonical,
+            "description": manifest.description,
+            "version": manifest.version,
+            "author": manifest.author,
+            "repository": manifest.repository,
+            "git_url": entry.git_url,
+            "commit_sha": entry.commit_sha,
+            "branch": entry.branch,
+            "tag": entry.tag,
+            "installed_path": str(entry.installed_path),
+            "trusted": entry.trusted,
+            "installed_at": entry.installed_at.isoformat(),
+            "toolsets_count": len(manifest.toolsets),
+            "scripts_count": script_count,
+            "toolsets": manifest.toolsets,
+        }

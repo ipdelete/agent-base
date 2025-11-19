@@ -218,6 +218,19 @@ def merge_with_env(settings: AgentSettings) -> dict[str, Any]:
     if os.getenv("AGENT_DATA_DIR"):
         env_overrides.setdefault("agent", {})["data_dir"] = os.getenv("AGENT_DATA_DIR")
 
+    # Skill system overrides
+    if os.getenv("AGENT_SKILLS"):
+        skills_str = os.getenv("AGENT_SKILLS", "").strip()
+        if skills_str in ("", "none"):
+            enabled_skills = []
+        elif skills_str == "all":
+            enabled_skills = ["all"]
+        elif skills_str == "all-untrusted":
+            enabled_skills = ["all-untrusted"]
+        else:
+            enabled_skills = [s.strip() for s in skills_str.split(",")]
+        env_overrides.setdefault("agent", {})["enabled_skills"] = enabled_skills
+
     # Telemetry overrides
     if os.getenv("ENABLE_OTEL"):
         env_overrides.setdefault("telemetry", {})["enabled"] = (
