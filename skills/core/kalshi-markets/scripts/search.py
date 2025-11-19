@@ -26,10 +26,9 @@ Usage:
 
 import json
 import sys
-import os
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any
 
 import click
 import httpx
@@ -52,7 +51,9 @@ USER_AGENT = "Kalshi-CLI/1.0"
 #   .parent.parent.parent.parent.parent.parent = apps/
 #   .parent.parent.parent.parent.parent.parent.parent = beyond-mcp/ (project root)
 SCRIPT_FILE = Path(__file__).resolve()  # Resolve to absolute path first!
-PROJECT_ROOT = SCRIPT_FILE.parent.parent.parent.parent.parent.parent.parent  # Navigate to project root
+PROJECT_ROOT = (
+    SCRIPT_FILE.parent.parent.parent.parent.parent.parent.parent
+)  # Navigate to project root
 CACHE_DIR = PROJECT_ROOT / ".kalshi_cache"
 CACHE_TTL_HOURS = 6
 
@@ -66,7 +67,7 @@ class KalshiSearchCache:
         self.cache_ttl = timedelta(hours=CACHE_TTL_HOURS)
         self.df_cache = None
 
-    def get_cache_file(self) -> Optional[Path]:
+    def get_cache_file(self) -> Path | None:
         """Get the most recent cache file"""
         if not self.cache_dir.exists():
             return None
@@ -89,7 +90,7 @@ class KalshiSearchCache:
         cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
         return cache_age < self.cache_ttl
 
-    def load_cache(self, quiet: bool = False) -> Optional[pd.DataFrame]:
+    def load_cache(self, quiet: bool = False) -> pd.DataFrame | None:
         """Load cache from disk if valid"""
         if not self.is_cache_valid():
             return None
@@ -174,7 +175,7 @@ class KalshiSearchCache:
                     market["series_category"] = series_category
                     all_markets.append(market)
 
-            except Exception as e:
+            except Exception:
                 errors += 1
                 if errors > 50:
                     if not quiet:
@@ -183,7 +184,7 @@ class KalshiSearchCache:
                 continue
 
         if not quiet:
-            print(f"[CACHE BUILD] Collection complete!")
+            print("[CACHE BUILD] Collection complete!")
             print(f"[CACHE BUILD]   Total markets: {len(all_markets)}")
             print(f"[CACHE BUILD]   Series with markets: {series_with_markets}")
 
@@ -195,9 +196,7 @@ class KalshiSearchCache:
 
         return df
 
-    def search(
-        self, keyword: str, limit: int = 10, quiet: bool = False
-    ) -> List[Dict[str, Any]]:
+    def search(self, keyword: str, limit: int = 10, quiet: bool = False) -> list[dict[str, Any]]:
         """Search markets using cache"""
         # Load or build cache
         if self.df_cache is None:
@@ -216,9 +215,7 @@ class KalshiSearchCache:
         # Create mask for matching rows (include series fields for better search)
         mask = (
             self.df_cache["title"].str.lower().str.contains(keyword_lower, na=False)
-            | self.df_cache["subtitle"]
-            .str.lower()
-            .str.contains(keyword_lower, na=False)
+            | self.df_cache["subtitle"].str.lower().str.contains(keyword_lower, na=False)
             | self.df_cache["ticker"].str.lower().str.contains(keyword_lower, na=False)
         )
 
@@ -264,7 +261,7 @@ class KalshiClient:
         """Context manager exit - cleanup"""
         self.client.close()
 
-    def get_series_list(self) -> Dict[str, Any]:
+    def get_series_list(self) -> dict[str, Any]:
         """
         Get list of all series.
 
@@ -288,10 +285,10 @@ class KalshiClient:
     def get_markets(
         self,
         limit: int = 100,
-        status: Optional[str] = "open",
+        status: str | None = "open",
         cursor: str = None,
-        series_ticker: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        series_ticker: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get markets for searching.
 
@@ -327,7 +324,7 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_search_result(market: Dict[str, Any], index: int) -> str:
+def format_search_result(market: dict[str, Any], index: int) -> str:
     """Format a single search result"""
     ticker = market.get("ticker", "N/A")
     title = market.get("title", "N/A")
@@ -352,7 +349,7 @@ def format_search_result(market: Dict[str, Any], index: int) -> str:
     return "\n".join(lines)
 
 
-def format_search_results(keyword: str, results: List[Dict[str, Any]]) -> str:
+def format_search_results(keyword: str, results: list[dict[str, Any]]) -> str:
     """
     Format search results for human-readable output.
 
@@ -388,9 +385,7 @@ def format_search_results(keyword: str, results: List[Dict[str, Any]]) -> str:
 
 @click.command()
 @click.argument("keyword", required=False)
-@click.option(
-    "--limit", default=10, type=int, help="Maximum number of results to return"
-)
+@click.option("--limit", default=10, type=int, help="Maximum number of results to return")
 @click.option(
     "--json",
     "output_json",

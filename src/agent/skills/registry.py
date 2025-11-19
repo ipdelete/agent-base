@@ -107,6 +107,7 @@ class SkillRegistry:
             try:
                 os.unlink(temp_path)
             except FileNotFoundError:
+                # Safe to ignore if temp file doesn't exist (already deleted or never created)
                 pass
             raise
 

@@ -20,8 +20,8 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any
 from datetime import datetime
+from typing import Any
 
 import click
 import httpx
@@ -38,9 +38,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -51,7 +49,7 @@ class KalshiClient:
         """Context manager exit - cleanup"""
         self.client.close()
 
-    def get_market(self, ticker: str) -> Dict[str, Any]:
+    def get_market(self, ticker: str) -> dict[str, Any]:
         """
         Get detailed information for a specific market.
 
@@ -83,13 +81,13 @@ def format_timestamp(timestamp_str: str) -> str:
     if not timestamp_str:
         return "N/A"
     try:
-        dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        return dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-    except:
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    except Exception:
         return timestamp_str
 
 
-def format_market_detail(market: Dict[str, Any]) -> str:
+def format_market_detail(market: dict[str, Any]) -> str:
     """
     Format market details for human-readable output.
 
@@ -105,26 +103,26 @@ def format_market_detail(market: Dict[str, Any]) -> str:
     lines.append("=" * 80)
 
     # Title and subtitle
-    title = market.get('title', 'N/A')
-    subtitle = market.get('subtitle', '')
+    title = market.get("title", "N/A")
+    subtitle = market.get("subtitle", "")
     lines.append(f"\n📌 {title}")
     if subtitle:
         lines.append(f"   {subtitle}")
 
     # Status and category
-    status = market.get('status', 'unknown')
-    category = market.get('category', 'N/A')
+    status = market.get("status", "unknown")
+    category = market.get("category", "N/A")
     status_icon = "🟢" if status == "active" else "🔴" if status == "closed" else "⚫"
     lines.append(f"\n{status_icon} Status: {status.upper()}")
     lines.append(f"📂 Category: {category}")
 
     # Current prices
     lines.append("\n💰 Current Prices:")
-    yes_bid = market.get('yes_bid', 0)
-    yes_ask = market.get('yes_ask', 0)
-    no_bid = market.get('no_bid', 0)
-    no_ask = market.get('no_ask', 0)
-    last_price = market.get('last_price', 0)
+    yes_bid = market.get("yes_bid", 0)
+    yes_ask = market.get("yes_ask", 0)
+    no_bid = market.get("no_bid", 0)
+    no_ask = market.get("no_ask", 0)
+    last_price = market.get("last_price", 0)
 
     lines.append(f"   YES: Bid {yes_bid}¢ | Ask {yes_ask}¢")
     lines.append(f"   NO:  Bid {no_bid}¢ | Ask {no_ask}¢")
@@ -132,10 +130,10 @@ def format_market_detail(market: Dict[str, Any]) -> str:
 
     # Trading activity
     lines.append("\n📊 Trading Activity:")
-    volume = market.get('volume', 0)
-    volume_24h = market.get('volume_24h', 0)
-    open_interest = market.get('open_interest', 0)
-    liquidity = market.get('liquidity', 0)
+    volume = market.get("volume", 0)
+    volume_24h = market.get("volume_24h", 0)
+    open_interest = market.get("open_interest", 0)
+    liquidity = market.get("liquidity", 0)
 
     lines.append(f"   Total Volume: ${volume/100:,.2f}")
     lines.append(f"   24h Volume: ${volume_24h/100:,.2f}")
@@ -144,25 +142,26 @@ def format_market_detail(market: Dict[str, Any]) -> str:
 
     # Schedule
     lines.append("\n📅 Schedule:")
-    open_time = format_timestamp(market.get('open_time'))
-    close_time = format_timestamp(market.get('close_time'))
-    expiration_time = format_timestamp(market.get('expiration_time'))
+    open_time = format_timestamp(market.get("open_time"))
+    close_time = format_timestamp(market.get("close_time"))
+    expiration_time = format_timestamp(market.get("expiration_time"))
 
     lines.append(f"   Opens: {open_time}")
     lines.append(f"   Closes: {close_time}")
     lines.append(f"   Expires: {expiration_time}")
 
     # Result if settled
-    result = market.get('result')
+    result = market.get("result")
     if result:
         lines.append(f"\n✅ Result: {result}")
 
     # Rules if present
-    rules_primary = market.get('rules_primary', '').strip()
+    rules_primary = market.get("rules_primary", "").strip()
     if rules_primary:
-        lines.append(f"\n📋 Rules:")
+        lines.append("\n📋 Rules:")
         # Wrap long rules text
         import textwrap
+
         wrapped = textwrap.wrap(rules_primary, width=70)
         for line in wrapped[:5]:  # Limit to 5 lines
             lines.append(f"   {line}")
@@ -174,9 +173,10 @@ def format_market_detail(market: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.argument('ticker')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.argument("ticker")
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(ticker: str, output_json: bool):
     """
     Get detailed information for a specific market.
@@ -192,7 +192,7 @@ def main(ticker: str, output_json: bool):
             data = client.get_market(ticker)
 
         # Handle nested market object if present
-        market = data.get('market', data)
+        market = data.get("market", data)
 
         # Output results
         if output_json:

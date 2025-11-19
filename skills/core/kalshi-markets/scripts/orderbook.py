@@ -20,7 +20,7 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any, List
+from typing import Any
 
 import click
 import httpx
@@ -37,9 +37,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -50,7 +48,7 @@ class KalshiClient:
         """Context manager exit - cleanup"""
         self.client.close()
 
-    def get_market_orderbook(self, ticker: str, depth: int = 10) -> Dict[str, Any]:
+    def get_market_orderbook(self, ticker: str, depth: int = 10) -> dict[str, Any]:
         """
         Get the orderbook for a specific market.
 
@@ -87,7 +85,7 @@ def format_orderbook_level(price: int, quantity: int) -> str:
     return f"  {price:>5}¢  │  {quantity:>10,} contracts"
 
 
-def format_orderbook(ticker: str, data: Dict[str, Any], depth: int) -> str:
+def format_orderbook(ticker: str, data: dict[str, Any], depth: int) -> str:
     """
     Format orderbook for human-readable output.
 
@@ -99,9 +97,9 @@ def format_orderbook(ticker: str, data: Dict[str, Any], depth: int) -> str:
     Returns:
         Formatted string for display
     """
-    orderbook = data.get('orderbook', {})
-    yes_orders = orderbook.get('yes', [])
-    no_orders = orderbook.get('no', [])
+    orderbook = data.get("orderbook", {})
+    yes_orders = orderbook.get("yes", [])
+    no_orders = orderbook.get("no", [])
 
     lines = []
     lines.append("\n" + "=" * 60)
@@ -146,7 +144,6 @@ def format_orderbook(ticker: str, data: Dict[str, Any], depth: int) -> str:
     # Calculate spread if we have orders
     if yes_orders and no_orders:
         yes_best = yes_orders[0][0] if yes_orders[0] else 0
-        no_best = no_orders[0][0] if no_orders[0] else 0
         implied_prob = yes_best  # YES bid price is the implied probability
         lines.append(f"📈 Implied Probability: {implied_prob}%")
 
@@ -157,11 +154,13 @@ def format_orderbook(ticker: str, data: Dict[str, Any], depth: int) -> str:
 
 
 @click.command()
-@click.argument('ticker')
-@click.option('--depth', default=10, type=int,
-              help='Orderbook depth (0=all levels, 1-100 for specific depth)')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.argument("ticker")
+@click.option(
+    "--depth", default=10, type=int, help="Orderbook depth (0=all levels, 1-100 for specific depth)"
+)
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(ticker: str, depth: int, output_json: bool):
     """
     Get orderbook for a specific market.

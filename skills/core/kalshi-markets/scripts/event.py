@@ -21,7 +21,7 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any
+from typing import Any
 
 import click
 import httpx
@@ -38,9 +38,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -51,7 +49,7 @@ class KalshiClient:
         """Context manager exit - cleanup"""
         self.client.close()
 
-    def get_event(self, event_ticker: str, with_nested_markets: bool = False) -> Dict[str, Any]:
+    def get_event(self, event_ticker: str, with_nested_markets: bool = False) -> dict[str, Any]:
         """
         Get detailed information for a specific event.
 
@@ -83,20 +81,20 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_market_in_event(market: Dict[str, Any]) -> str:
+def format_market_in_event(market: dict[str, Any]) -> str:
     """Format a market within an event"""
-    ticker = market.get('ticker', 'N/A')
-    title = market.get('title', 'N/A')[:60]
-    yes_bid = market.get('yes_bid', 0)
-    yes_ask = market.get('yes_ask', 0)
-    status = market.get('status', 'unknown')
+    ticker = market.get("ticker", "N/A")
+    title = market.get("title", "N/A")[:60]
+    yes_bid = market.get("yes_bid", 0)
+    yes_ask = market.get("yes_ask", 0)
+    status = market.get("status", "unknown")
 
     status_icon = "🟢" if status == "active" else "🔴"
 
     return f"     {status_icon} {ticker}\n        {title}... (Bid: {yes_bid}¢ Ask: {yes_ask}¢)"
 
 
-def format_event_detail(data: Dict[str, Any]) -> str:
+def format_event_detail(data: dict[str, Any]) -> str:
     """
     Format event details for human-readable output.
 
@@ -107,8 +105,8 @@ def format_event_detail(data: Dict[str, Any]) -> str:
         Formatted string for display
     """
     # Handle nested event object if present
-    event = data.get('event', data)
-    markets = data.get('markets', [])
+    event = data.get("event", data)
+    markets = data.get("markets", [])
 
     lines = []
     lines.append("\n" + "=" * 80)
@@ -116,17 +114,17 @@ def format_event_detail(data: Dict[str, Any]) -> str:
     lines.append("=" * 80)
 
     # Title and subtitle
-    title = event.get('title', 'N/A')
-    subtitle = event.get('subtitle', '')
+    title = event.get("title", "N/A")
+    subtitle = event.get("subtitle", "")
     lines.append(f"\n📌 {title}")
     if subtitle:
         lines.append(f"   {subtitle}")
 
     # Basic info
-    series = event.get('series_ticker', 'N/A')
-    category = event.get('category', 'N/A')
-    status = event.get('status', 'unknown')
-    mutually_exclusive = event.get('mutually_exclusive', False)
+    series = event.get("series_ticker", "N/A")
+    category = event.get("category", "N/A")
+    status = event.get("status", "unknown")
+    mutually_exclusive = event.get("mutually_exclusive", False)
 
     status_icon = "🟢" if status == "open" else "🔴" if status == "closed" else "⚫"
     lines.append(f"\n{status_icon} Status: {status.upper()}")
@@ -139,9 +137,9 @@ def format_event_detail(data: Dict[str, Any]) -> str:
         lines.append("🔓 Mutually Exclusive: No")
 
     # Strike details if present
-    strike_details = event.get('strike_details')
+    strike_details = event.get("strike_details")
     if strike_details:
-        lines.append(f"\n⚡ Strike Details:")
+        lines.append("\n⚡ Strike Details:")
         for key, value in strike_details.items():
             if value:
                 lines.append(f"   {key}: {value}")
@@ -161,11 +159,11 @@ def format_event_detail(data: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.argument('event_ticker')
-@click.option('--with-markets', is_flag=True,
-              help='Include nested markets in response')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.argument("event_ticker")
+@click.option("--with-markets", is_flag=True, help="Include nested markets in response")
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(event_ticker: str, with_markets: bool, output_json: bool):
     """
     Get detailed information for a specific event.

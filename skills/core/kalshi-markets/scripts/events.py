@@ -22,7 +22,7 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any, Optional
+from typing import Any
 
 import click
 import httpx
@@ -39,9 +39,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -55,11 +53,11 @@ class KalshiClient:
     def get_events(
         self,
         limit: int = 10,
-        status: Optional[str] = None,
-        series_ticker: Optional[str] = None,
+        status: str | None = None,
+        series_ticker: str | None = None,
         with_nested_markets: bool = False,
-        cursor: Optional[str] = None
-    ) -> Dict[str, Any]:
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get list of events.
 
@@ -98,13 +96,13 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_event_summary(event: Dict[str, Any], index: int) -> str:
+def format_event_summary(event: dict[str, Any], index: int) -> str:
     """Format a single event for display"""
-    event_ticker = event.get('event_ticker', 'N/A')
-    title = event.get('title', 'N/A')
-    category = event.get('category', 'N/A')
-    series_ticker = event.get('series_ticker', 'N/A')
-    status = event.get('status', 'unknown')
+    event_ticker = event.get("event_ticker", "N/A")
+    title = event.get("title", "N/A")
+    category = event.get("category", "N/A")
+    series_ticker = event.get("series_ticker", "N/A")
+    status = event.get("status", "unknown")
 
     # Status icon
     status_icon = "🟢" if status == "open" else "🔴" if status == "closed" else "⚫"
@@ -115,19 +113,19 @@ def format_event_summary(event: Dict[str, Any], index: int) -> str:
     lines.append(f"   📂 Category: {category} | Series: {series_ticker}")
 
     # Show market count if available
-    markets = event.get('markets', [])
+    markets = event.get("markets", [])
     if markets:
         lines.append(f"   📊 {len(markets)} markets")
 
     # Mutually exclusive indicator
-    mutually_exclusive = event.get('mutually_exclusive', False)
+    mutually_exclusive = event.get("mutually_exclusive", False)
     if mutually_exclusive:
-        lines.append(f"   🔒 Mutually Exclusive")
+        lines.append("   🔒 Mutually Exclusive")
 
     return "\n".join(lines)
 
 
-def format_events_list(data: Dict[str, Any]) -> str:
+def format_events_list(data: dict[str, Any]) -> str:
     """
     Format events list for human-readable output.
 
@@ -137,8 +135,8 @@ def format_events_list(data: Dict[str, Any]) -> str:
     Returns:
         Formatted string for display
     """
-    events = data.get('events', [])
-    cursor = data.get('cursor', '')
+    events = data.get("events", [])
+    cursor = data.get("cursor", "")
 
     lines = []
     lines.append("\n" + "=" * 60)
@@ -159,25 +157,23 @@ def format_events_list(data: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.option('--limit', default=10, type=int,
-              help='Number of events to return (1-200)')
-@click.option('--status', type=click.Choice(['open', 'closed', 'settled']),
-              help='Event status filter')
-@click.option('--series-ticker',
-              help='Filter by series ticker')
-@click.option('--with-markets', is_flag=True,
-              help='Include nested markets in response')
-@click.option('--cursor',
-              help='Pagination cursor for next page')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.option("--limit", default=10, type=int, help="Number of events to return (1-200)")
+@click.option(
+    "--status", type=click.Choice(["open", "closed", "settled"]), help="Event status filter"
+)
+@click.option("--series-ticker", help="Filter by series ticker")
+@click.option("--with-markets", is_flag=True, help="Include nested markets in response")
+@click.option("--cursor", help="Pagination cursor for next page")
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(
     limit: int,
-    status: Optional[str],
-    series_ticker: Optional[str],
+    status: str | None,
+    series_ticker: str | None,
     with_markets: bool,
-    cursor: Optional[str],
-    output_json: bool
+    cursor: str | None,
+    output_json: bool,
 ):
     """
     List events (collections of related markets).
@@ -198,7 +194,7 @@ def main(
                 status=status,
                 series_ticker=series_ticker,
                 with_nested_markets=with_markets,
-                cursor=cursor
+                cursor=cursor,
             )
 
         # Output results

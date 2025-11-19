@@ -21,8 +21,8 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
 import click
 import httpx
@@ -39,9 +39,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -55,11 +53,11 @@ class KalshiClient:
     def get_trades(
         self,
         limit: int = 10,
-        ticker: Optional[str] = None,
-        min_ts: Optional[int] = None,
-        max_ts: Optional[int] = None,
-        cursor: Optional[str] = None
-    ) -> Dict[str, Any]:
+        ticker: str | None = None,
+        min_ts: int | None = None,
+        max_ts: int | None = None,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get recent trades.
 
@@ -103,19 +101,19 @@ def format_timestamp(timestamp_str: str) -> str:
     if not timestamp_str:
         return "N/A"
     try:
-        dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        return dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-    except:
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (ValueError, TypeError):
         return timestamp_str
 
 
-def format_trade(trade: Dict[str, Any], index: int) -> str:
+def format_trade(trade: dict[str, Any], index: int) -> str:
     """Format a single trade for display"""
-    ticker = trade.get('ticker', 'N/A')
-    yes_price = trade.get('yes_price', 0)
-    no_price = trade.get('no_price', 0)
-    count = trade.get('count', 0)
-    created = format_timestamp(trade.get('created_time', ''))
+    ticker = trade.get("ticker", "N/A")
+    yes_price = trade.get("yes_price", 0)
+    no_price = trade.get("no_price", 0)
+    count = trade.get("count", 0)
+    created = format_timestamp(trade.get("created_time", ""))
 
     # Determine trade side
     if yes_price > 0:
@@ -135,7 +133,7 @@ def format_trade(trade: Dict[str, Any], index: int) -> str:
     return "\n".join(lines)
 
 
-def format_trades_list(data: Dict[str, Any]) -> str:
+def format_trades_list(data: dict[str, Any]) -> str:
     """
     Format trades list for human-readable output.
 
@@ -145,8 +143,8 @@ def format_trades_list(data: Dict[str, Any]) -> str:
     Returns:
         Formatted string for display
     """
-    trades = data.get('trades', [])
-    cursor = data.get('cursor', '')
+    trades = data.get("trades", [])
+    cursor = data.get("cursor", "")
 
     lines = []
     lines.append("\n" + "=" * 60)
@@ -167,25 +165,21 @@ def format_trades_list(data: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.option('--limit', default=10, type=int,
-              help='Number of trades to return (1-1000)')
-@click.option('--ticker',
-              help='Filter trades for specific market ticker')
-@click.option('--min-ts', type=int,
-              help='Filter trades after this Unix timestamp')
-@click.option('--max-ts', type=int,
-              help='Filter trades before this Unix timestamp')
-@click.option('--cursor',
-              help='Pagination cursor for next page')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.option("--limit", default=10, type=int, help="Number of trades to return (1-1000)")
+@click.option("--ticker", help="Filter trades for specific market ticker")
+@click.option("--min-ts", type=int, help="Filter trades after this Unix timestamp")
+@click.option("--max-ts", type=int, help="Filter trades before this Unix timestamp")
+@click.option("--cursor", help="Pagination cursor for next page")
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(
     limit: int,
-    ticker: Optional[str],
-    min_ts: Optional[int],
-    max_ts: Optional[int],
-    cursor: Optional[str],
-    output_json: bool
+    ticker: str | None,
+    min_ts: int | None,
+    max_ts: int | None,
+    cursor: str | None,
+    output_json: bool,
 ):
     """
     Get recent trades across all markets or for a specific market.
@@ -201,11 +195,7 @@ def main(
         # Get trades from API
         with KalshiClient() as client:
             data = client.get_trades(
-                limit=limit,
-                ticker=ticker,
-                min_ts=min_ts,
-                max_ts=max_ts,
-                cursor=cursor
+                limit=limit, ticker=ticker, min_ts=min_ts, max_ts=max_ts, cursor=cursor
             )
 
         # Output results

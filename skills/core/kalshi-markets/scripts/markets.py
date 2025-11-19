@@ -21,8 +21,7 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any, Optional, List
-from urllib.parse import urlencode
+from typing import Any
 
 import click
 import httpx
@@ -39,9 +38,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -55,13 +52,13 @@ class KalshiClient:
     def get_markets(
         self,
         limit: int = 10,
-        status: Optional[str] = None,
-        cursor: Optional[str] = None,
-        event_ticker: Optional[str] = None,
-        series_ticker: Optional[str] = None,
-        tickers: Optional[str] = None,
-        mve_filter: Optional[str] = None
-    ) -> Dict[str, Any]:
+        status: str | None = None,
+        cursor: str | None = None,
+        event_ticker: str | None = None,
+        series_ticker: str | None = None,
+        tickers: str | None = None,
+        mve_filter: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get list of markets with filters.
 
@@ -107,7 +104,7 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_market_summary(market: Dict[str, Any]) -> str:
+def format_market_summary(market: dict[str, Any]) -> str:
     """
     Format a single market for display.
 
@@ -117,18 +114,18 @@ def format_market_summary(market: Dict[str, Any]) -> str:
     Returns:
         Formatted string summary of the market
     """
-    ticker = market.get('ticker', 'N/A')
-    title = market.get('title', 'N/A')
-    status = market.get('status', 'unknown')
+    ticker = market.get("ticker", "N/A")
+    title = market.get("title", "N/A")
+    status = market.get("status", "unknown")
 
     # Get current prices
-    yes_bid = market.get('yes_bid', 0)
-    yes_ask = market.get('yes_ask', 0)
-    last_price = market.get('last_price', 0)
+    yes_bid = market.get("yes_bid", 0)
+    yes_ask = market.get("yes_ask", 0)
+    last_price = market.get("last_price", 0)
 
     # Get volume
-    volume = market.get('volume', 0)
-    volume_24h = market.get('volume_24h', 0)
+    volume = market.get("volume", 0)
+    volume_24h = market.get("volume_24h", 0)
 
     # Format status emoji
     status_icon = "🟢" if status == "active" else "🔴" if status == "closed" else "⚫"
@@ -149,7 +146,7 @@ def format_market_summary(market: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def format_markets_list(data: Dict[str, Any]) -> str:
+def format_markets_list(data: dict[str, Any]) -> str:
     """
     Format markets list for human-readable output.
 
@@ -159,8 +156,8 @@ def format_markets_list(data: Dict[str, Any]) -> str:
     Returns:
         Formatted string for display
     """
-    markets = data.get('markets', [])
-    cursor = data.get('cursor', '')
+    markets = data.get("markets", [])
+    cursor = data.get("cursor", "")
 
     lines = []
     lines.append("\nKalshi Markets")
@@ -180,31 +177,29 @@ def format_markets_list(data: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.option('--limit', default=10, type=int,
-              help='Number of markets to return (1-1000)')
-@click.option('--status', default='open',
-              help='Market status (open, closed, settled, or comma-separated)')
-@click.option('--event-ticker',
-              help='Filter by event ticker')
-@click.option('--series-ticker',
-              help='Filter by series ticker')
-@click.option('--tickers',
-              help='Filter by market tickers (comma-separated)')
-@click.option('--mve-filter', type=click.Choice(['only', 'exclude']),
-              help='Multivariate events filter')
-@click.option('--cursor',
-              help='Pagination cursor for next page')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.option("--limit", default=10, type=int, help="Number of markets to return (1-1000)")
+@click.option(
+    "--status", default="open", help="Market status (open, closed, settled, or comma-separated)"
+)
+@click.option("--event-ticker", help="Filter by event ticker")
+@click.option("--series-ticker", help="Filter by series ticker")
+@click.option("--tickers", help="Filter by market tickers (comma-separated)")
+@click.option(
+    "--mve-filter", type=click.Choice(["only", "exclude"]), help="Multivariate events filter"
+)
+@click.option("--cursor", help="Pagination cursor for next page")
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(
     limit: int,
     status: str,
-    event_ticker: Optional[str],
-    series_ticker: Optional[str],
-    tickers: Optional[str],
-    mve_filter: Optional[str],
-    cursor: Optional[str],
-    output_json: bool
+    event_ticker: str | None,
+    series_ticker: str | None,
+    tickers: str | None,
+    mve_filter: str | None,
+    cursor: str | None,
+    output_json: bool,
 ):
     """
     List Kalshi prediction markets with filters.
@@ -226,7 +221,7 @@ def main(
                 event_ticker=event_ticker,
                 series_ticker=series_ticker,
                 tickers=tickers,
-                mve_filter=mve_filter
+                mve_filter=mve_filter,
             )
 
         # Output results

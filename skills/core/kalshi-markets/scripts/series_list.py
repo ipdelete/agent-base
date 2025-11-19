@@ -20,7 +20,7 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any, Optional
+from typing import Any
 
 import click
 import httpx
@@ -37,9 +37,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -51,10 +49,8 @@ class KalshiClient:
         self.client.close()
 
     def get_series_list(
-        self,
-        category: Optional[str] = None,
-        tags: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, category: str | None = None, tags: str | None = None
+    ) -> dict[str, Any]:
         """
         Get list of all series.
 
@@ -86,13 +82,13 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_series_summary(series: Dict[str, Any]) -> str:
+def format_series_summary(series: dict[str, Any]) -> str:
     """Format a single series for display"""
-    ticker = series.get('ticker', 'N/A')
-    title = series.get('title', 'N/A')
-    category = series.get('category', 'N/A')
-    frequency = series.get('frequency', 'N/A')
-    tags = series.get('tags', [])
+    ticker = series.get("ticker", "N/A")
+    title = series.get("title", "N/A")
+    category = series.get("category", "N/A")
+    frequency = series.get("frequency", "N/A")
+    tags = series.get("tags", [])
 
     lines = []
     lines.append(f"📈 {ticker}")
@@ -100,7 +96,7 @@ def format_series_summary(series: Dict[str, Any]) -> str:
     lines.append(f"   Category: {category} | Frequency: {frequency}")
 
     if tags:
-        tags_str = ', '.join(tags[:3])
+        tags_str = ", ".join(tags[:3])
         if len(tags) > 3:
             tags_str += f" (+{len(tags)-3} more)"
         lines.append(f"   Tags: {tags_str}")
@@ -108,7 +104,7 @@ def format_series_summary(series: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def format_series_list(data: Dict[str, Any], limit: int = 50) -> str:
+def format_series_list(data: dict[str, Any], limit: int = 50) -> str:
     """
     Format series list for human-readable output.
 
@@ -119,7 +115,7 @@ def format_series_list(data: Dict[str, Any], limit: int = 50) -> str:
     Returns:
         Formatted string for display
     """
-    series_list = data.get('series', [])
+    series_list = data.get("series", [])
     total_count = len(series_list)
 
     lines = []
@@ -131,7 +127,7 @@ def format_series_list(data: Dict[str, Any], limit: int = 50) -> str:
     # Group by category
     categories = {}
     for series in series_list:
-        cat = series.get('category', 'Uncategorized')
+        cat = series.get("category", "Uncategorized")
         if cat not in categories:
             categories[cat] = []
         categories[cat].append(series)
@@ -162,20 +158,15 @@ def format_series_list(data: Dict[str, Any], limit: int = 50) -> str:
 
 
 @click.command()
-@click.option('--category',
-              help='Filter by category (e.g., Politics, Economics)')
-@click.option('--tags',
-              help='Filter by tags (comma-separated)')
-@click.option('--limit', default=50, type=int,
-              help='Number of series to display in human-readable mode')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
-def main(
-    category: Optional[str],
-    tags: Optional[str],
-    limit: int,
-    output_json: bool
-):
+@click.option("--category", help="Filter by category (e.g., Politics, Economics)")
+@click.option("--tags", help="Filter by tags (comma-separated)")
+@click.option(
+    "--limit", default=50, type=int, help="Number of series to display in human-readable mode"
+)
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
+def main(category: str | None, tags: str | None, limit: int, output_json: bool):
     """
     List all available series (market templates).
 

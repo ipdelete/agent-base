@@ -19,7 +19,7 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any
+from typing import Any
 
 import click
 import httpx
@@ -36,9 +36,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -49,7 +47,7 @@ class KalshiClient:
         """Context manager exit - cleanup"""
         self.client.close()
 
-    def get_exchange_status(self) -> Dict[str, Any]:
+    def get_exchange_status(self) -> dict[str, Any]:
         """
         Get the current exchange status.
 
@@ -71,7 +69,7 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_status(status_data: Dict[str, Any]) -> str:
+def format_status(status_data: dict[str, Any]) -> str:
     """
     Format status data for human-readable output.
 
@@ -85,9 +83,9 @@ def format_status(status_data: Dict[str, Any]) -> str:
     lines.append("\nKalshi Exchange Status")
     lines.append("=" * 40)
 
-    exchange_active = status_data.get('exchange_active', None)
-    trading_active = status_data.get('trading_active', None)
-    resume_time = status_data.get('exchange_estimated_resume_time')
+    exchange_active = status_data.get("exchange_active", None)
+    trading_active = status_data.get("trading_active", None)
+    resume_time = status_data.get("exchange_estimated_resume_time")
 
     # Exchange status
     if exchange_active is True:
@@ -114,8 +112,9 @@ def format_status(status_data: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(output_json: bool):
     """
     Check Kalshi exchange status.
@@ -138,7 +137,7 @@ def main(output_json: bool):
             click.echo(formatted)
 
         # Exit code based on status
-        if status_data.get('trading_active'):
+        if status_data.get("trading_active"):
             sys.exit(0)
         else:
             sys.exit(1)  # Non-zero if trading inactive

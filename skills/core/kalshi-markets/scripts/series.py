@@ -20,8 +20,8 @@ Usage:
 
 import json
 import sys
-from typing import Dict, Any
 import textwrap
+from typing import Any
 
 import click
 import httpx
@@ -38,9 +38,7 @@ class KalshiClient:
     def __init__(self):
         """Initialize HTTP client"""
         self.client = httpx.Client(
-            base_url=API_BASE_URL,
-            timeout=API_TIMEOUT,
-            headers={"User-Agent": USER_AGENT}
+            base_url=API_BASE_URL, timeout=API_TIMEOUT, headers={"User-Agent": USER_AGENT}
         )
 
     def __enter__(self):
@@ -51,7 +49,7 @@ class KalshiClient:
         """Context manager exit - cleanup"""
         self.client.close()
 
-    def get_series(self, series_ticker: str) -> Dict[str, Any]:
+    def get_series(self, series_ticker: str) -> dict[str, Any]:
         """
         Get detailed information about a specific series.
 
@@ -78,7 +76,7 @@ class KalshiClient:
             raise Exception(f"Unexpected error: {str(e)}")
 
 
-def format_series_detail(data: Dict[str, Any]) -> str:
+def format_series_detail(data: dict[str, Any]) -> str:
     """
     Format series details for human-readable output.
 
@@ -89,7 +87,7 @@ def format_series_detail(data: Dict[str, Any]) -> str:
         Formatted string for display
     """
     # Handle nested series object if present
-    series = data.get('series', data)
+    series = data.get("series", data)
 
     lines = []
     lines.append("\n" + "=" * 60)
@@ -97,30 +95,30 @@ def format_series_detail(data: Dict[str, Any]) -> str:
     lines.append("=" * 60)
 
     # Title
-    title = series.get('title', 'N/A')
+    title = series.get("title", "N/A")
     lines.append(f"\n📌 {title}")
 
     # Basic info
-    category = series.get('category', 'N/A')
-    frequency = series.get('frequency', 'N/A')
+    category = series.get("category", "N/A")
+    frequency = series.get("frequency", "N/A")
     lines.append(f"\n📂 Category: {category}")
     lines.append(f"🔄 Frequency: {frequency}")
 
     # Tags
-    tags = series.get('tags', [])
+    tags = series.get("tags", [])
     if tags:
         lines.append(f"🏷️  Tags: {', '.join(tags)}")
 
     # Contract specifications
-    contract_url = series.get('contract_url')
+    contract_url = series.get("contract_url")
     if contract_url:
-        lines.append(f"\n📄 Contract URL:")
+        lines.append("\n📄 Contract URL:")
         lines.append(f"   {contract_url}")
 
     # Description
-    description = series.get('description', '').strip()
+    description = series.get("description", "").strip()
     if description:
-        lines.append(f"\n📝 Description:")
+        lines.append("\n📝 Description:")
         # Wrap long description text
         wrapped = textwrap.wrap(description, width=70)
         for line in wrapped[:10]:  # Limit to 10 lines
@@ -129,20 +127,20 @@ def format_series_detail(data: Dict[str, Any]) -> str:
             lines.append("   ...")
 
     # Settlement sources
-    sources = series.get('settlement_sources', [])
+    sources = series.get("settlement_sources", [])
     if sources:
-        lines.append(f"\n⚖️  Settlement Sources:")
+        lines.append("\n⚖️  Settlement Sources:")
         for source in sources:
-            name = source.get('name', 'N/A')
-            url = source.get('url', 'N/A')
+            name = source.get("name", "N/A")
+            url = source.get("url", "N/A")
             lines.append(f"   • {name}")
-            if url != 'N/A':
+            if url != "N/A":
                 lines.append(f"     {url}")
 
     # Rules
-    rules_primary = series.get('rules_primary', '').strip()
+    rules_primary = series.get("rules_primary", "").strip()
     if rules_primary:
-        lines.append(f"\n📋 Rules:")
+        lines.append("\n📋 Rules:")
         wrapped = textwrap.wrap(rules_primary, width=70)
         for line in wrapped[:8]:  # Limit to 8 lines
             lines.append(f"   {line}")
@@ -154,9 +152,10 @@ def format_series_detail(data: Dict[str, Any]) -> str:
 
 
 @click.command()
-@click.argument('series_ticker')
-@click.option('--json', 'output_json', is_flag=True,
-              help='Output as JSON instead of human-readable format')
+@click.argument("series_ticker")
+@click.option(
+    "--json", "output_json", is_flag=True, help="Output as JSON instead of human-readable format"
+)
 def main(series_ticker: str, output_json: bool):
     """
     Get information about a specific series.
