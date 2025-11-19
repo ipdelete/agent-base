@@ -202,7 +202,11 @@ def main(query: str, count: int, output_json: bool) -> None:
 
     except Exception as e:
         if output_json:
-            error_data = {"error": str(e)}
+            error_data = {
+                "success": False,
+                "error": "runtime_error",
+                "message": str(e),
+            }
             click.echo(json.dumps(error_data, indent=2))
         else:
             click.echo(f"❌ Error: {e}", err=True)

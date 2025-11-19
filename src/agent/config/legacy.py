@@ -384,6 +384,26 @@ class AgentConfig:
             return f"Local/{self.local_model}"
         return "Unknown"
 
+    @staticmethod
+    def _parse_agent_skills_env(config: "AgentConfig", settings) -> None:
+        """Parse AGENT_SKILLS environment variable and apply to config.
+
+        ENV takes precedence for enabled_skills (like LLM_PROVIDER).
+        This allows AGENT_SKILLS=all to work for testing without editing settings.json.
+        """
+        if os.getenv("AGENT_SKILLS"):
+            skills_str = os.getenv("AGENT_SKILLS", "").strip()
+            if skills_str in ("", "none"):
+                config.enabled_skills = []
+            elif skills_str == "all":
+                config.enabled_skills = ["all"]
+            elif skills_str == "all-untrusted":
+                config.enabled_skills = ["all-untrusted"]
+            else:
+                config.enabled_skills = [s.strip() for s in skills_str.split(",")]
+        elif hasattr(settings.agent, "enabled_skills"):
+            config.enabled_skills = settings.agent.enabled_skills
+
     @classmethod
     def from_file(cls, config_path: Path | None = None) -> "AgentConfig":
         """Load configuration from JSON settings file.
@@ -476,20 +496,7 @@ class AgentConfig:
             config.filesystem_max_write_bytes = settings.agent.filesystem_max_write_bytes
 
         # Skills configuration
-        # ENV takes precedence for enabled_skills (like LLM_PROVIDER)
-        # This allows AGENT_SKILLS=all to work for testing without editing settings.json
-        if os.getenv("AGENT_SKILLS"):
-            skills_str = os.getenv("AGENT_SKILLS", "").strip()
-            if skills_str in ("", "none"):
-                config.enabled_skills = []
-            elif skills_str == "all":
-                config.enabled_skills = ["all"]
-            elif skills_str == "all-untrusted":
-                config.enabled_skills = ["all-untrusted"]
-            else:
-                config.enabled_skills = [s.strip() for s in skills_str.split(",")]
-        elif hasattr(settings.agent, "enabled_skills"):
-            config.enabled_skills = settings.agent.enabled_skills
+        cls._parse_agent_skills_env(config, settings)
 
         if hasattr(settings.agent, "core_skills_dir"):
             config.core_skills_dir = settings.agent.core_skills_dir
@@ -653,20 +660,7 @@ class AgentConfig:
             config.filesystem_max_write_bytes = settings.agent.filesystem_max_write_bytes
 
         # Skills configuration
-        # ENV takes precedence for enabled_skills (like LLM_PROVIDER)
-        # This allows AGENT_SKILLS=all to work for testing without editing settings.json
-        if os.getenv("AGENT_SKILLS"):
-            skills_str = os.getenv("AGENT_SKILLS", "").strip()
-            if skills_str in ("", "none"):
-                config.enabled_skills = []
-            elif skills_str == "all":
-                config.enabled_skills = ["all"]
-            elif skills_str == "all-untrusted":
-                config.enabled_skills = ["all-untrusted"]
-            else:
-                config.enabled_skills = [s.strip() for s in skills_str.split(",")]
-        elif hasattr(settings.agent, "enabled_skills"):
-            config.enabled_skills = settings.agent.enabled_skills
+        cls._parse_agent_skills_env(config, settings)
 
         if hasattr(settings.agent, "core_skills_dir"):
             config.core_skills_dir = settings.agent.core_skills_dir
