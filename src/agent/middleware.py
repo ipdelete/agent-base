@@ -148,24 +148,11 @@ async def agent_run_logging_middleware(
                     else:
                         messages.append({"content": str(msg)})
 
-            # Get model and provider from config
-            config = AgentConfig.from_env()
+            # Get model and provider from config (already loaded at middleware start)
+            if not config:
+                config = AgentConfig.from_env()
             provider = config.llm_provider
-            model = None
-            if provider == "openai":
-                model = config.openai_model
-            elif provider == "anthropic":
-                model = config.anthropic_model
-            elif provider == "azure":
-                model = config.azure_openai_deployment
-            elif provider == "gemini":
-                model = config.gemini_model
-            elif provider == "github":
-                model = config.github_model
-            elif provider == "local":
-                model = config.local_model
-            elif provider == "foundry":
-                model = config.azure_model_deployment
+            model = _extract_model_from_config(config)
 
             # Extract FULL payload info if include_messages is enabled
             system_instructions: str | None = None
