@@ -459,8 +459,12 @@ class SkillManager:
 
             new_sha = updated_entry.commit_sha
 
+            # Format SHAs for logging (should always exist for git skills, but handle None for type safety)
+            old_sha_short = old_sha[:8] if old_sha else "unknown"
+            new_sha_short = new_sha[:8] if new_sha else "unknown"
+
             logger.info(
-                f"Successfully updated skill '{skill_name}' from {old_sha[:8]} to {new_sha[:8]}"
+                f"Successfully updated skill '{skill_name}' from {old_sha_short} to {new_sha_short}"
             )
             return updated_entry
 

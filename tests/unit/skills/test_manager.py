@@ -100,7 +100,9 @@ class TestSkillManager:
     @patch("agent.skills.manager.Repo")
     @patch("agent.skills.manager.parse_skill_manifest")
     @patch("agent.skills.manager.pin_commit_sha")
-    def test_update_success(self, mock_pin_sha, mock_parse_manifest, mock_repo_class, temp_skills_dir):
+    def test_update_success(
+        self, mock_pin_sha, mock_parse_manifest, mock_repo_class, temp_skills_dir
+    ):
         """Should update skill using uninstall + reinstall strategy."""
         # Setup existing installation
         skill_path = temp_skills_dir / "test-skill"
@@ -311,9 +313,7 @@ class TestMarketplaceStructure:
         plugin1_dir = plugins_dir / "agent-tools"
         plugin1_skills = plugin1_dir / "skills" / "web"
         plugin1_skills.mkdir(parents=True)
-        (plugin1_skills / "SKILL.md").write_text(
-            "---\nname: web\ndescription: Web tools\n---\n"
-        )
+        (plugin1_skills / "SKILL.md").write_text("---\nname: web\ndescription: Web tools\n---\n")
         (plugin1_skills / "scripts").mkdir()
         (plugin1_dir / "plugin.json").write_text('{"name": "agent-tools"}')
 
