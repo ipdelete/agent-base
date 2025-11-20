@@ -178,7 +178,7 @@ This handles different response formats across providers (OpenAI, Anthropic, Gem
 
 ### Security and Privacy
 
-- **Sensitive Data Toggle**: `TRACE_INCLUDE_MESSAGES` requires `ENABLE_SENSITIVE_DATA=true`
+- **Sensitive Data Toggle**: Trace message inclusion is controlled solely by `ENABLE_SENSITIVE_DATA=true`
 - **Content Capture**: By default, only metadata (tokens, timing) is logged
 - **Opt-In Model**: Full message content is opt-in, matching OTEL patterns (ADR-0014)
 - **Local Storage**: Trace logs stay on developer's machine (no cloud upload)

@@ -29,13 +29,19 @@ from agent_framework import (
 
 from agent.config import AgentConfig
 
+# TYPE_CHECKING import for forward reference
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agent.trace_logger import TraceLogger
+
 logger = logging.getLogger(__name__)
 
 # Global trace logger instance (set by session setup)
-_trace_logger: Any = None
+_trace_logger: "TraceLogger | None" = None
 
 
-def set_trace_logger(trace_logger: Any) -> None:
+def set_trace_logger(trace_logger: "TraceLogger | None") -> None:
     """Set the global trace logger instance.
 
     Args:
@@ -45,7 +51,7 @@ def set_trace_logger(trace_logger: Any) -> None:
     _trace_logger = trace_logger
 
 
-def get_trace_logger() -> Any:
+def get_trace_logger() -> "TraceLogger | None":
     """Get the current trace logger instance.
 
     Returns:
@@ -119,8 +125,9 @@ async def agent_run_logging_middleware(
     # Generate request ID for trace logging
     request_id = str(uuid.uuid4())
 
-    # Load config once for trace logging (reused for request and response)
-    config = AgentConfig.from_env() if get_trace_logger() else None
+    # Load config for trace logging if enabled (reused for request and response)
+    trace_logger = get_trace_logger()
+    config = AgentConfig.from_env() if trace_logger else None
 
     # Emit LLM request event
     llm_event_id = None
@@ -132,7 +139,6 @@ async def agent_run_logging_middleware(
         logger.debug(f"Emitted LLM request event with {message_count} messages")
 
     # Trace logging: Log request data with full context
-    trace_logger = get_trace_logger()
     if trace_logger:
         try:
             # Extract conversation messages
@@ -149,8 +155,7 @@ async def agent_run_logging_middleware(
                         messages.append({"content": str(msg)})
 
             # Get model and provider from config (already loaded at middleware start)
-            if not config:
-                config = AgentConfig.from_env()
+            assert config is not None, "Config should be loaded when trace logger is enabled"
             provider = config.llm_provider
             model = _extract_model_from_config(config)
 
