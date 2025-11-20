@@ -1,5 +1,81 @@
 # Changelog
 
+## [0.2.7](https://github.com/danielscholl/agent-base/compare/agent-template-v0.2.6...agent-template-v0.2.7) (2025-11-20)
+
+
+### Features
+
+* add skill management commands for listing, installing, updating, removing, enabling, and disabling skills ([941ff21](https://github.com/danielscholl/agent-base/commit/941ff21680eee8cef3f9a497a60facb2cae99c15))
+* **agent:** adopt package-based bundled skills detection ([7fbaa5f](https://github.com/danielscholl/agent-base/commit/7fbaa5f8b2be459f9a1f88e62e4bce133fdc90cc))
+* **agent:** expose skill instruction token counts in agent ([1067d48](https://github.com/danielscholl/agent-base/commit/1067d482e941247688a58819a6e4d4c2a1b0e041))
+* **agent:** extend skill loader return to include skill_instructions ([f732f71](https://github.com/danielscholl/agent-base/commit/f732f71ce5f99c997e6c1a6c0a4c148c37aefe8a))
+* **agent:** implement AGENT_SKILLS env var for skill config ([871e317](https://github.com/danielscholl/agent-base/commit/871e317386cc71eb4f9bfd5f85ae2d08d9a55e68))
+* **agent:** include bundled skills in package distribution ([bd9458b](https://github.com/danielscholl/agent-base/commit/bd9458b24fe46226948bf54f843a681e7a4bb293))
+* **agent:** initialize skill_instructions in Agent ([f732f71](https://github.com/danielscholl/agent-base/commit/f732f71ce5f99c997e6c1a6c0a4c148c37aefe8a))
+* **agent:** treat empty AGENT_SKILLS as disabled in legacy config ([f732f71](https://github.com/danielscholl/agent-base/commit/f732f71ce5f99c997e6c1a6c0a4c148c37aefe8a))
+* **cli:** overhaul skill management with interactive UI ([1067d48](https://github.com/danielscholl/agent-base/commit/1067d482e941247688a58819a6e4d4c2a1b0e041))
+* enhance tool configuration display to include core toolsets and skills ([941ff21](https://github.com/danielscholl/agent-base/commit/941ff21680eee8cef3f9a497a60facb2cae99c15))
+* **filesystem:** add sandboxed filesystem toolset for Agent ([df72ddb](https://github.com/danielscholl/agent-base/commit/df72ddb54cf25e7c6e32d96515e2c052303385ac))
+* **filesystem:** add sandboxed filesystem toolset with workspace configuration ([2f7877f](https://github.com/danielscholl/agent-base/commit/2f7877f47082026e166cb824ddf369dd67ee40f5))
+* **filesystem:** harden path resolution and symlink checks ([6ae9089](https://github.com/danielscholl/agent-base/commit/6ae9089bcff858b3241fc81fd1b6d5d3fde82ae7))
+* Progressive Disclosure Skill Architecture ([dc6254a](https://github.com/danielscholl/agent-base/commit/dc6254a0f673c7d1640c96580eba59e720ca8212))
+* skills configuration optimization with plugin system ([907d4d4](https://github.com/danielscholl/agent-base/commit/907d4d47c99d7bbfdde439cd60260272e668654b))
+* **skills:** add full skill system with loader and registry ([97c644e](https://github.com/danielscholl/agent-base/commit/97c644e94255d44f36a3bb9b0053125c12fcbec8))
+* **skills:** Add marketplace structure support and fix update feature ([57d5d92](https://github.com/danielscholl/agent-base/commit/57d5d92d20e0dd70bd1f480583d6a817aa26362f))
+* **skills:** support marketplace structure for skill installation ([b444b6a](https://github.com/danielscholl/agent-base/commit/b444b6adf018cb7a59dc9e4ccb507e72de62e416))
+* **tokens:** add TOKENS_PER_WORD_ESTIMATE constant ([79f99af](https://github.com/danielscholl/agent-base/commit/79f99af92548ffd4a5a4ef8dc94f62456a7b800c))
+* **utils:** add token counting utilities and integrate token tracking ([1067d48](https://github.com/danielscholl/agent-base/commit/1067d482e941247688a58819a6e4d4c2a1b0e041))
+* **web-access:** add web-access skill with fetch and search scripts ([9cb1e1b](https://github.com/danielscholl/agent-base/commit/9cb1e1b13ded08b1a89f8b9fbd699f38897ed3c8))
+* **web-access:** add web-access skill with fetch and search scripts ([944744e](https://github.com/danielscholl/agent-base/commit/944744e52a7138edf38148e31cbeb2194d034d09))
+
+
+### Bug Fixes
+
+* **filesystem:** fix glob pattern matching in search_text ([5cd9e47](https://github.com/danielscholl/agent-base/commit/5cd9e47d517c624e25f37c6d8a6b5208042b8079))
+* **filesystem:** resolve mypy type errors and update agent tests ([a9cd86b](https://github.com/danielscholl/agent-base/commit/a9cd86b229be5430d55e627eab201e2af3007d9e))
+* **skills:** gracefully handle None SHAs in update logging ([9a907d8](https://github.com/danielscholl/agent-base/commit/9a907d8784e43f5beb11d69a33fc4e000730796b))
+* **skills:** require skills path to be a directory during marketplace scan ([25cebcb](https://github.com/danielscholl/agent-base/commit/25cebcb3f8c9859cee4b99fc0474ea5e5c99247c))
+* **skills:** use entry.name for reinstall to preserve original casing ([25cebcb](https://github.com/danielscholl/agent-base/commit/25cebcb3f8c9859cee4b99fc0474ea5e5c99247c))
+
+
+### Documentation
+
+* **hello-ext:** update language example to use language code es ([dea75f8](https://github.com/danielscholl/agent-base/commit/dea75f8ead1f368161025f7918975bd30588c2e3))
+* **README:** clarify skills description and their functionality ([8a1c990](https://github.com/danielscholl/agent-base/commit/8a1c990fea1fe376da1355f679975591bcf88e88))
+* **readme:** simplify skills usage section ([2af7d3b](https://github.com/danielscholl/agent-base/commit/2af7d3ba2fedf015c3fcb142d13a68281c107341))
+* **skills:** update skill management docs and examples ([003bab3](https://github.com/danielscholl/agent-base/commit/003bab32ad8d32c9257defb6128de62c42b42de4))
+
+
+### Code Refactoring
+
+* **agent/config:** replace TYPE_CHECKING import with pass ([0bef7d0](https://github.com/danielscholl/agent-base/commit/0bef7d04d1ee2ff45c0d54c135d5a52a9a8ddafd))
+* **cli:** enhance skill display format and improve path retrieval logic ([78170fe](https://github.com/danielscholl/agent-base/commit/78170fef676355a7b253b28d8cc8f35ddf107951))
+* **cli:** remove interactive skill_main_menu ([30e0a9f](https://github.com/danielscholl/agent-base/commit/30e0a9fed2569f090ed00744150e1f5fc962d1e6))
+* **cli:** rename skill list to show and update documentation ([3c62ce6](https://github.com/danielscholl/agent-base/commit/3c62ce615c530fef83e43dcf7cf1e67fb7dcb705))
+* **cli:** rename skill list to show and update references ([becfda5](https://github.com/danielscholl/agent-base/commit/becfda5d335573c34306256a69497d92c3de18e5))
+* **config:** remove AGENT_SKILLS env var handling ([6e40d06](https://github.com/danielscholl/agent-base/commit/6e40d060a4d50807cf19c862a67efb0ff221f07d))
+* improve exception handling in bundled skills detection ([7d01d06](https://github.com/danielscholl/agent-base/commit/7d01d06c07c4ee3c6b4def2bf65578342415781a))
+* **kalshi-markets:** modernize type hints across scripts and registry ([62a0196](https://github.com/danielscholl/agent-base/commit/62a01962d7992ab32d5338b3acecf38422f82b4b))
+* **legacy:** add typing and path handling for core_skills_dir ([7e465e0](https://github.com/danielscholl/agent-base/commit/7e465e037b7d8179889c8a3c85bce702f8bcfc98))
+* restructure skill loading to support single-skill and monorepo installations ([941ff21](https://github.com/danielscholl/agent-base/commit/941ff21680eee8cef3f9a497a60facb2cae99c15))
+* **skill:** add _MockConfig as empty config for SkillLoader ([2af7d3b](https://github.com/danielscholl/agent-base/commit/2af7d3ba2fedf015c3fcb142d13a68281c107341))
+* **skills:** migrate to settings.skills config ([df7289a](https://github.com/danielscholl/agent-base/commit/df7289a4d5c883e07da9b2561e11724a538ea190))
+* **tests:** add type hints and fix test import path ([e3bb887](https://github.com/danielscholl/agent-base/commit/e3bb88732ca43897173c0a758eff799336894442))
+* update AgentConfig and SkillsConfig to streamline skill management ([941ff21](https://github.com/danielscholl/agent-base/commit/941ff21680eee8cef3f9a497a60facb2cae99c15))
+
+
+### Tests
+
+* **loader:** expand unit tests for SkillLoader behaviors ([4b50c2b](https://github.com/danielscholl/agent-base/commit/4b50c2bfe99300894654848563aa18b459590f72))
+* **skills:** update tests for unordered installs and casing ([25cebcb](https://github.com/danielscholl/agent-base/commit/25cebcb3f8c9859cee4b99fc0474ea5e5c99247c))
+* **skills:** use str(config.core_skills_dir) in assertion ([1640ccd](https://github.com/danielscholl/agent-base/commit/1640ccd58e6ca2fddf62a7fdc3d1a29c1f5eab54))
+
+
+### Build System
+
+* **deps:** add types-pyyaml type stubs for PyYAML ([5f0270c](https://github.com/danielscholl/agent-base/commit/5f0270c9c17518a93c3379a63535d8c13f578e3f))
+* **pyproject:** omit tokens.py and skill_commands.py from packaging ([2af7d3b](https://github.com/danielscholl/agent-base/commit/2af7d3ba2fedf015c3fcb142d13a68281c107341))
+
 ## [0.2.6](https://github.com/danielscholl/agent-base/compare/agent-template-v0.2.5...agent-template-v0.2.6) (2025-11-15)
 
 
