@@ -1,0 +1,456 @@
+"""Unit tests for trace logging in middleware."""
+
+import asyncio
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
+from agent.middleware import (
+    agent_run_logging_middleware,
+    get_trace_logger,
+    set_trace_logger,
+)
+from agent.trace_logger import TraceLogger
+
+
+@pytest.mark.unit
+@pytest.mark.middleware
+class TestTraceLoggerGlobal:
+    """Test global trace logger getter/setter."""
+
+    def test_get_trace_logger_default_none(self):
+        """Test trace logger defaults to None."""
+        # Reset to None first
+        set_trace_logger(None)
+        assert get_trace_logger() is None
+
+    def test_set_and_get_trace_logger(self, tmp_path: Path):
+        """Test setting and getting trace logger."""
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file)
+
+        set_trace_logger(logger)
+        assert get_trace_logger() is logger
+
+        # Cleanup
+        set_trace_logger(None)
+
+    def test_set_trace_logger_to_none(self):
+        """Test setting trace logger to None."""
+        set_trace_logger(None)
+        assert get_trace_logger() is None
+
+
+@pytest.mark.unit
+@pytest.mark.middleware
+class TestMiddlewareTraceLogging:
+    """Test trace logging integration in middleware."""
+
+    @pytest.fixture(autouse=True)
+    def reset_emitter(self):
+        """Reset event emitter and trace logger before each test."""
+        from agent.display.events import get_event_emitter
+
+        emitter = get_event_emitter()
+        emitter.clear()
+        emitter.enable()
+        set_trace_logger(None)
+        yield
+        emitter.clear()
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_without_trace_logger(self):
+        """Test middleware works when trace logger is not set."""
+        # No trace logger set
+        set_trace_logger(None)
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        async def mock_next(ctx):
+            # Simulate adding a response to context
+            ctx.response = Mock(spec=["content"])
+            ctx.response.content = "Test response"
+
+        # Should not raise even without trace logger
+        await agent_run_logging_middleware(context, mock_next)
+
+    @pytest.mark.asyncio
+    async def test_middleware_logs_request(self, tmp_path: Path):
+        """Test middleware logs request data to trace logger."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=False)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.openai_model = "gpt-4o-mini"
+
+        # Create mock context with messages
+        context = Mock(spec=["messages"])
+        context.messages = [
+            Mock(model_dump=lambda: {"role": "user", "content": "Hello"}),
+            Mock(model_dump=lambda: {"role": "assistant", "content": "Hi"}),
+        ]
+
+        async def mock_next(ctx):
+            # Simulate response
+            ctx.result = Mock(spec=["content", "usage"])
+            ctx.result.content = "Test response"
+            ctx.result.usage = None
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        # Read trace log
+        log_entries = trace_file.read_text().strip().split("\n")
+        assert len(log_entries) == 2  # Request and response
+
+        # Verify request entry
+        request_entry = json.loads(log_entries[0])
+        assert request_entry["type"] == "request"
+        assert request_entry["model"] == "gpt-4o-mini"
+        assert request_entry["provider"] == "openai"
+        assert request_entry["message_count"] == 2
+        assert "request_id" in request_entry
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_logs_response_with_tokens(self, tmp_path: Path):
+        """Test middleware logs response data with token usage."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=False)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.openai_model = "gpt-4o-mini"
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        # Mock result with token usage
+        result = Mock(spec=["content", "usage"])
+        result.content = "Test response"
+        usage = Mock(spec=["input_tokens", "output_tokens", "total_tokens"])
+        usage.input_tokens = 150
+        usage.output_tokens = 75
+        usage.total_tokens = 225
+        result.usage = usage
+
+        async def mock_next(ctx):
+            ctx.result = result
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        # Read trace log
+        log_entries = trace_file.read_text().strip().split("\n")
+        assert len(log_entries) == 2  # Request and response
+
+        # Verify response entry
+        response_entry = json.loads(log_entries[1])
+        assert response_entry["type"] == "response"
+        assert response_entry["model"] == "gpt-4o-mini"
+        assert response_entry["response_length"] == len("Test response")
+        assert "tokens" in response_entry
+        assert response_entry["tokens"]["input"] == 150
+        assert response_entry["tokens"]["output"] == 75
+        assert response_entry["tokens"]["total"] == 225
+        assert "latency_ms" in response_entry
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_logs_response_with_include_messages(self, tmp_path: Path):
+        """Test middleware includes full content when include_messages=True."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=True)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.openai_model = "gpt-4o-mini"
+
+        context = Mock(spec=["messages"])
+        context.messages = [
+            Mock(model_dump=lambda: {"role": "user", "content": "Hello"}),
+        ]
+
+        result = Mock(spec=["content", "usage"])
+        result.content = "Full response content"
+        result.usage = None
+
+        async def mock_next(ctx):
+            ctx.result = result
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        # Read trace log
+        log_entries = trace_file.read_text().strip().split("\n")
+
+        # Verify request includes messages
+        request_entry = json.loads(log_entries[0])
+        assert "messages" in request_entry
+        assert request_entry["messages"][0]["content"] == "Hello"
+
+        # Verify response includes content
+        response_entry = json.loads(log_entries[1])
+        assert response_entry["response"] == "Full response content"
+        assert "response_length" not in response_entry
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_logs_error(self, tmp_path: Path):
+        """Test middleware logs error when LLM call fails."""
+        import json
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file)
+        set_trace_logger(logger)
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        async def mock_next_that_fails(ctx):
+            raise ValueError("API rate limit exceeded")
+
+        # Should raise the exception
+        with pytest.raises(ValueError, match="API rate limit exceeded"):
+            await agent_run_logging_middleware(context, mock_next_that_fails)
+
+        # Verify error was logged
+        log_entries = trace_file.read_text().strip().split("\n")
+        assert len(log_entries) == 2  # Request and error response
+
+        response_entry = json.loads(log_entries[1])
+        assert response_entry["type"] == "response"
+        assert response_entry["error"] == "API rate limit exceeded"
+        assert "latency_ms" in response_entry
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_handles_trace_logger_exception(self, tmp_path: Path):
+        """Test middleware handles trace logger exceptions gracefully."""
+        # Create trace logger with read-only file to cause write failure
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file)
+        trace_file.chmod(0o444)  # Make read-only
+        set_trace_logger(logger)
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        response = Mock(spec=["content", "usage"])
+        response.content = "Test"
+        response.usage = None
+
+        async def mock_next(ctx):
+            ctx.response = response
+
+        # Should not raise even if trace logging fails
+        # The key assertion is that this completes without raising an exception
+        await agent_run_logging_middleware(context, mock_next)
+
+        # Success - middleware handled the exception gracefully
+        # Cleanup
+        trace_file.chmod(0o644)
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_handles_context_without_attributes(self, tmp_path: Path):
+        """Test middleware handles context missing expected attributes."""
+        import json
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file)
+        set_trace_logger(logger)
+
+        # Context without messages, model, provider attributes
+        context = Mock(spec=[])  # Empty spec - no attributes
+
+        async def mock_next(ctx):
+            pass
+
+        # Should not raise
+        await agent_run_logging_middleware(context, mock_next)
+
+        # Verify basic logging still works
+        log_entries = trace_file.read_text().strip().split("\n")
+        assert len(log_entries) == 2  # Request and response
+
+        request_entry = json.loads(log_entries[0])
+        assert "request_id" in request_entry
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_converts_messages_to_dict(self, tmp_path: Path):
+        """Test middleware converts message objects to dict format."""
+        import json
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=True)
+        set_trace_logger(logger)
+
+        # Messages with different serialization methods
+        msg1 = Mock()
+        msg1.model_dump = lambda: {"role": "user", "content": "Using model_dump"}
+
+        msg2 = Mock()
+        msg2.dict = lambda: {"role": "assistant", "content": "Using dict"}
+        # Remove model_dump to test fallback
+        del msg2.model_dump
+
+        msg3 = "Plain string message"
+
+        context = Mock(spec=["messages"])
+        context.messages = [msg1, msg2, msg3]
+
+        response = Mock(spec=["content", "usage"])
+        response.content = "Response"
+        response.usage = None
+
+        async def mock_next(ctx):
+            ctx.response = response
+
+        await agent_run_logging_middleware(context, mock_next)
+
+        # Verify messages were converted
+        log_entries = trace_file.read_text().strip().split("\n")
+        request_entry = json.loads(log_entries[0])
+
+        assert len(request_entry["messages"]) == 3
+        assert request_entry["messages"][0]["content"] == "Using model_dump"
+        assert request_entry["messages"][1]["content"] == "Using dict"
+        assert request_entry["messages"][2]["content"] == "Plain string message"
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_extracts_response_content(self, tmp_path: Path):
+        """Test middleware extracts response content from various formats."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=True)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.openai_model = "gpt-4o-mini"
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        # Result with content attribute
+        result = Mock(spec=["content", "usage"])
+        result.content = "Response content"
+        result.usage = None
+
+        async def mock_next(ctx):
+            ctx.result = result
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        log_entries = trace_file.read_text().strip().split("\n")
+        response_entry = json.loads(log_entries[1])
+
+        assert response_entry["response"] == "Response content"
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_uses_same_request_id(self, tmp_path: Path):
+        """Test middleware uses same request_id for request and response."""
+        import json
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file)
+        set_trace_logger(logger)
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        response = Mock(spec=["content", "usage"])
+        response.content = "Test"
+        response.usage = None
+
+        async def mock_next(ctx):
+            ctx.response = response
+
+        await agent_run_logging_middleware(context, mock_next)
+
+        log_entries = trace_file.read_text().strip().split("\n")
+        request_entry = json.loads(log_entries[0])
+        response_entry = json.loads(log_entries[1])
+
+        # Request and response should have same request_id
+        assert request_entry["request_id"] == response_entry["request_id"]
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_measures_latency(self, tmp_path: Path):
+        """Test middleware measures and logs latency."""
+        import json
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file)
+        set_trace_logger(logger)
+
+        context = Mock(spec=["messages"])
+        context.messages = []
+
+        response = Mock(spec=["content", "usage"])
+        response.content = "Test"
+        response.usage = None
+
+        async def mock_next(ctx):
+            await asyncio.sleep(0.05)  # Simulate 50ms delay
+            ctx.response = response
+
+        await agent_run_logging_middleware(context, mock_next)
+
+        log_entries = trace_file.read_text().strip().split("\n")
+        response_entry = json.loads(log_entries[1])
+
+        # Latency should be >= 50ms
+        assert "latency_ms" in response_entry
+        assert response_entry["latency_ms"] >= 45.0  # Allow some tolerance
+
+        # Cleanup
+        set_trace_logger(None)
