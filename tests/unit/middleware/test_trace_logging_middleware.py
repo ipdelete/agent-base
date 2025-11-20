@@ -462,3 +462,176 @@ class TestMiddlewareTraceLogging:
 
         # Cleanup
         set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_logs_system_instructions_and_tools(self, tmp_path: Path):
+        """Test middleware captures system instructions and tools when include_messages=True."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=True)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "anthropic"
+        mock_config.anthropic_model = "claude-haiku-4-5"
+
+        # Mock agent with chat_options
+        chat_options = Mock()
+        chat_options.instructions = "You are a helpful assistant."
+        
+        # Mock tools
+        tool1 = Mock()
+        tool1.to_dict = lambda: {"name": "tool1", "description": "First tool"}
+        tool2 = Mock()
+        tool2.to_dict = lambda: {"name": "tool2", "description": "Second tool"}
+        chat_options.tools = [tool1, tool2]
+        
+        agent = Mock()
+        agent.chat_options = chat_options
+
+        context = Mock(spec=["messages", "agent"])
+        context.messages = []
+        context.agent = agent
+
+        result = Mock(spec=["text", "usage_details"])
+        result.text = "Response"
+        result.usage_details = None
+
+        async def mock_next(ctx):
+            ctx.result = result
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        # Verify system instructions and tools captured
+        log_entries = trace_file.read_text().strip().split("\n")
+        request_entry = json.loads(log_entries[0])
+
+        assert "system_instructions" in request_entry
+        assert request_entry["system_instructions"] == "You are a helpful assistant."
+        assert "system_instructions_length" in request_entry
+        assert "system_instructions_tokens_est" in request_entry
+        
+        assert "tools" in request_entry
+        assert request_entry["tools"]["count"] == 2
+        assert len(request_entry["tools"]["tools"]) == 2
+        assert request_entry["tools"]["tools"][0]["name"] == "tool1"
+        assert request_entry["tools"]["tools"][1]["name"] == "tool2"
+        assert "total_estimated_tokens" in request_entry["tools"]
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_extracts_tokens_from_thread_messages(self, tmp_path: Path):
+        """Test middleware extracts token usage from thread messages when not in result."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=False)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "openai"
+        mock_config.openai_model = "gpt-4o"
+
+        # Mock thread with usage in last message
+        last_message = Mock()
+        usage_details = Mock()
+        usage_details.input_token_count = 500
+        usage_details.output_token_count = 100
+        usage_details.total_token_count = 600
+        last_message.usage = usage_details
+        last_message.contents = []
+        
+        thread = Mock()
+        thread.messages = [last_message]
+
+        context = Mock(spec=["messages", "thread"])
+        context.messages = []
+        context.thread = thread
+
+        # Result without usage_details
+        result = Mock(spec=["text"])
+        result.text = "Response from thread"
+
+        async def mock_next(ctx):
+            ctx.result = result
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        # Verify tokens extracted from thread
+        log_entries = trace_file.read_text().strip().split("\n")
+        response_entry = json.loads(log_entries[1])
+
+        assert "tokens" in response_entry
+        assert response_entry["tokens"]["input"] == 500
+        assert response_entry["tokens"]["output"] == 100
+        assert response_entry["tokens"]["total"] == 600
+
+        # Cleanup
+        set_trace_logger(None)
+
+    @pytest.mark.asyncio
+    async def test_middleware_extracts_tokens_from_content_usage(self, tmp_path: Path):
+        """Test middleware extracts token usage from message contents."""
+        import json
+        from unittest.mock import patch
+
+        trace_file = tmp_path / "trace.log"
+        logger = TraceLogger(trace_file=trace_file, include_messages=False)
+        set_trace_logger(logger)
+
+        # Mock config
+        mock_config = Mock()
+        mock_config.llm_provider = "gemini"
+        mock_config.gemini_model = "gemini-2.0-flash"
+
+        # Mock thread with usage in content
+        usage_content = Mock()
+        usage_details = Mock()
+        usage_details.input_token_count = 300
+        usage_details.output_token_count = 50
+        usage_details.total_token_count = 350
+        usage_content.usage = usage_details
+        
+        last_message = Mock()
+        last_message.usage = None  # No usage on message
+        last_message.contents = [usage_content]
+        
+        thread = Mock()
+        thread.messages = [last_message]
+
+        context = Mock(spec=["messages", "thread"])
+        context.messages = []
+        context.thread = thread
+
+        result = Mock(spec=["text"])
+        result.text = "Response"
+
+        async def mock_next(ctx):
+            ctx.result = result
+
+        with patch("agent.middleware.AgentConfig") as MockConfig:
+            MockConfig.from_env.return_value = mock_config
+            await agent_run_logging_middleware(context, mock_next)
+
+        # Verify tokens extracted from content
+        log_entries = trace_file.read_text().strip().split("\n")
+        response_entry = json.loads(log_entries[1])
+
+        assert "tokens" in response_entry
+        assert response_entry["tokens"]["input"] == 300
+        assert response_entry["tokens"]["output"] == 50
+        assert response_entry["tokens"]["total"] == 350
+
+        # Cleanup
+        set_trace_logger(None)
