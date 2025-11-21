@@ -29,6 +29,7 @@ from agent_framework import (
     FunctionMiddleware,
 )
 
+from agent.config.manager import load_config
 from agent.config.schema import AgentSettings
 
 if TYPE_CHECKING:
@@ -465,7 +466,7 @@ async def logging_function_middleware(
         logger.debug(f"Set tool context: {tool_name} (event_id: {tool_event_id[:8]}...)")
 
     # Check if observability is enabled
-    config = AgentConfig.from_env()
+    config = load_config()
     tracer = get_tracer(__name__) if config.enable_otel else None
     meter = get_meter(__name__) if config.enable_otel else None
 
