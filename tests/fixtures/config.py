@@ -118,6 +118,6 @@ def custom_prompt_settings(custom_prompt_file, mock_openai_settings):
     Returns:
         AgentSettings with system_prompt_file configured
     """
-    # Note: AgentSettings doesn't have system_prompt_file - this will be handled
-    # through environment variable AGENT_SYSTEM_PROMPT in actual implementation
+    # Set the custom prompt file in the agent config
+    mock_openai_settings.agent.system_prompt_file = str(custom_prompt_file)
     return mock_openai_settings

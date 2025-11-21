@@ -202,6 +202,7 @@ class AgentConfig(BaseModel):
 
     data_dir: str = "~/.agent"
     log_level: str = "info"
+    system_prompt_file: str | None = None
 
     # Filesystem tools configuration
     workspace_root: Path | None = Field(
@@ -500,43 +501,52 @@ class AgentSettings(BaseModel):
 
     @property
     def system_prompt_file(self) -> str | None:
-        """Get system prompt file path from environment.
+        """Get system prompt file path.
 
         Returns:
-            Path to custom system prompt file or None
+            Path to custom system prompt file or None.
+            Checks agent.system_prompt_file field first, then falls back to AGENT_SYSTEM_PROMPT env var.
         """
+        # Check if field is explicitly set
+        if self.agent.system_prompt_file is not None:
+            return self.agent.system_prompt_file
+
+        # Fall back to environment variable
         import os
         return os.getenv("AGENT_SYSTEM_PROMPT")
 
     def get_model_display_name(self) -> str:
-        """Get display name for the current model.
+        """Get display name for the current model with provider.
 
         Returns:
-            Model name for the primary provider
+            Model name with provider prefix (e.g., "OpenAI/gpt-5-mini")
 
         Example:
             >>> settings = AgentSettings()
             >>> settings.providers.enabled = ["openai"]
             >>> settings.providers.openai.model = "gpt-5-mini"
             >>> settings.get_model_display_name()
-            'gpt-5-mini'
+            'OpenAI/gpt-5-mini'
         """
         provider = self.llm_provider
 
+        # Format: Provider/model
         if provider == "openai":
-            return self.providers.openai.model
+            return f"OpenAI/{self.providers.openai.model}"
         elif provider == "anthropic":
-            return self.providers.anthropic.model
+            return f"Anthropic/{self.providers.anthropic.model}"
         elif provider == "azure":
-            return self.providers.azure.deployment or "unknown"
+            deployment = self.providers.azure.deployment or "unknown"
+            return f"Azure OpenAI/{deployment}"
         elif provider == "foundry":
-            return self.providers.foundry.model_deployment or "unknown"
+            deployment = self.providers.foundry.model_deployment or "unknown"
+            return f"Azure AI Foundry/{deployment}"
         elif provider == "gemini":
-            return self.providers.gemini.model
+            return f"Gemini/{self.providers.gemini.model}"
         elif provider == "github":
-            return self.providers.github.model
+            return f"GitHub/{self.providers.github.model}"
         elif provider == "local":
-            return self.providers.local.model
+            return f"Local/{self.providers.local.model}"
         else:
             return "unknown"
 
@@ -588,8 +598,13 @@ class AgentSettings(BaseModel):
 
     @property
     def azure_model_deployment(self) -> str | None:
-        """Legacy: Get Azure AI Foundry model deployment."""
-        return self.providers.foundry.model_deployment
+        """Legacy: Get Azure model deployment (OpenAI or Foundry)."""
+        # Check which Azure provider is enabled
+        if "azure" in self.providers.enabled:
+            return self.providers.azure.deployment
+        elif "foundry" in self.providers.enabled:
+            return self.providers.foundry.model_deployment
+        return None
 
     @property
     def gemini_api_key(self) -> str | None:
