@@ -32,7 +32,7 @@ from agent.cli.utils import (
     hide_connection_string_if_otel_disabled,
     set_model_span_attributes,
 )
-from agent.config import AgentConfig
+from agent.config import load_config_with_env
 from agent.display import DisplayMode, set_execution_context
 
 logger = logging.getLogger(__name__)
@@ -89,8 +89,12 @@ async def run_single_prompt(
 
         perf_start = time.perf_counter()
 
-        config = AgentConfig.from_combined()
-        config.validate()
+        config = load_config_with_env()
+        errors = config.validate_enabled_providers()
+        if errors:
+            for error in errors:
+                console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(ExitCodes.CONFIG_ERROR)
         logger.info(f"[PERF] Config loaded: {(time.perf_counter() - perf_start)*1000:.1f}ms")
 
         # Hide Azure connection string if telemetry disabled (prevents 1-3s exit lag)
@@ -128,7 +132,7 @@ async def run_single_prompt(
         logger.info(f"[PERF] Logging setup: {(time.perf_counter() - perf_start)*1000:.1f}ms")
 
         agent_start = time.perf_counter()
-        agent = Agent(config=config)
+        agent = Agent(settings=config)
         logger.info(f"[PERF] Agent created: {(time.perf_counter() - agent_start)*1000:.1f}ms")
 
         # Setup execution context for visualization
@@ -191,7 +195,19 @@ async def run_single_prompt(
         console.print("\n\n[yellow]Interrupted by user[/yellow]")
         raise typer.Exit(ExitCodes.INTERRUPTED)
     except Exception as e:
-        console.print(f"\n[red]Error:[/red] {e}")
+        # Handle provider API errors and other exceptions
+        from agent.cli.error_handler import format_error
+        from agent.exceptions import AgentError
+
+        if isinstance(e, AgentError):
+            # Our custom errors - format nicely
+            error_message = format_error(e)
+            console.print(f"\n{error_message}\n")
+        else:
+            # Unknown errors - show generic message
+            console.print(f"\n[red]Error:[/red] {e}")
+            logger.exception("Unexpected error in single-prompt mode")
+
         raise typer.Exit(ExitCodes.GENERAL_ERROR)
     finally:
         # Restore connection string if we hid it

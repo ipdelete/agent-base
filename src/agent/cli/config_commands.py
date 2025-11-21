@@ -332,7 +332,7 @@ def config_init() -> None:
 
 def config_show() -> None:
     """Display current effective configuration."""
-    from agent.config import AgentConfig
+    from agent.config import load_config
 
     config_path = get_config_path()
 
@@ -351,31 +351,44 @@ def config_show() -> None:
             merged_dict = deep_merge(settings_dict, env_overrides)
             settings = AgentSettings(**merged_dict)
     else:
-        # No config file - check if LLM_PROVIDER is set
+        # No config file - load from environment
         import os
 
         llm_provider_env = os.getenv("LLM_PROVIDER")
 
         if llm_provider_env:
-            # Show config from environment
-            agent_config = AgentConfig.from_env()
-            console.print(
-                f"[yellow]No configuration file at {config_path}[/yellow]\n"
-                f"[dim]Using environment variable: LLM_PROVIDER={llm_provider_env}[/dim]\n"
-            )
+            # Load config with environment overrides
+            from agent.config import load_config_with_env
 
-            console.print("[bold cyan]Active Configuration (from environment)[/bold cyan]\n")
-            console.print(f"[bold]Provider:[/bold] {agent_config.llm_provider}")
-            console.print(f"[bold]Model:[/bold] {agent_config.get_model_display_name()}")
-            console.print(f"[bold]Data Directory:[/bold] {agent_config.agent_data_dir}")
-            console.print(f"[bold]Memory:[/bold] {agent_config.memory_type}")
-            console.print(
-                f"[bold]Telemetry:[/bold] {'Enabled' if agent_config.enable_otel else 'Disabled'}"
-            )
+            settings = load_config_with_env()
 
-            console.print(
-                "\n[dim]💡 Tip: Run 'agent config init' to create a configuration file.[/dim]"
-            )
+            # Check if provider was successfully enabled
+            if settings.providers.enabled:
+                console.print(
+                    f"[yellow]No configuration file at {config_path}[/yellow]\n"
+                    f"[dim]Using environment variable: LLM_PROVIDER={llm_provider_env}[/dim]\n"
+                )
+
+                console.print("[bold cyan]Active Configuration (from environment)[/bold cyan]\n")
+                console.print(f"[bold]Provider:[/bold] {settings.llm_provider}")
+                console.print(f"[bold]Model:[/bold] {settings.get_model_display_name()}")
+                console.print(f"[bold]Data Directory:[/bold] {settings.agent_data_dir}")
+                console.print(f"[bold]Memory:[/bold] {settings.memory.type}")
+                console.print(
+                    f"[bold]Telemetry:[/bold] {'Enabled' if settings.telemetry.enabled else 'Disabled'}"
+                )
+
+                console.print(
+                    "\n[dim]💡 Tip: Run 'agent config init' to create a configuration file.[/dim]"
+                )
+            else:
+                # LLM_PROVIDER set but no API key or other required config
+                console.print(
+                    f"[yellow]No configuration file at {config_path}[/yellow]\n"
+                    f"[red]Environment variable LLM_PROVIDER={llm_provider_env} is set, "
+                    f"but provider configuration is incomplete.[/red]\n"
+                )
+                console.print("[dim]💡 Run 'agent config init' to configure your provider.[/dim]")
         else:
             # No config file, no LLM_PROVIDER - auto-run init
             console.print("[yellow]No configuration found.[/yellow]")
@@ -810,11 +823,10 @@ def config_memory() -> None:
 
         # Check provider compatibility first
         try:
-            from agent.config import AgentConfig
             from agent.memory.mem0_utils import SUPPORTED_PROVIDERS, is_provider_compatible
 
             # Load current provider from settings
-            current_config = AgentConfig.from_combined()
+            current_config = load_config()
             is_compatible, reason = is_provider_compatible(current_config)
 
             if not is_compatible:

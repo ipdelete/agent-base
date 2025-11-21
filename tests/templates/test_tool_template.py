@@ -14,7 +14,7 @@ This template demonstrates the recommended testing pattern for all tools.
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.your_tool import YourToolset  # ← Replace with your import
 from tests.helpers import assert_error_response, assert_success_response
 
@@ -26,7 +26,7 @@ def tool_config():
     This fixture provides a basic configuration suitable for unit testing.
     All tests using this fixture will be isolated from real API calls.
     """
-    return AgentConfig(llm_provider="openai", openai_api_key="test-key")
+    return AgentSettings(llm_provider="openai", openai_api_key="test-key")
 
 
 @pytest.fixture

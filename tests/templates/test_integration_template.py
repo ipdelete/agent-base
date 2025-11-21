@@ -16,7 +16,7 @@ Integration tests should cover:
 import pytest
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.hello import HelloTools  # ← Replace with your tools
 from tests.mocks.mock_client import MockChatClient
 
@@ -27,7 +27,7 @@ def integration_config():
 
     Integration tests use real configuration but mocked LLM client.
     """
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
         openai_model="gpt-5-mini",
@@ -53,7 +53,7 @@ def agent_with_tools(integration_config, mock_llm_client):
     # ← Replace HelloTools with your toolsets
     toolsets = [HelloTools(integration_config)]
 
-    return Agent(config=integration_config, chat_client=mock_llm_client, toolsets=toolsets)
+    return Agent(settings=integration_config, chat_client=mock_llm_client, toolsets=toolsets)
 
 
 @pytest.mark.integration
@@ -153,8 +153,8 @@ class TestConfigurationIntegration:
     @pytest.mark.asyncio
     async def test_openai_configuration(self, mock_llm_client):
         """Test agent with OpenAI configuration."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
-        agent = Agent(config=config, chat_client=mock_llm_client)
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
+        agent = Agent(settings=config, chat_client=mock_llm_client)
 
         response = await agent.run("test")
 
@@ -164,8 +164,8 @@ class TestConfigurationIntegration:
     @pytest.mark.asyncio
     async def test_anthropic_configuration(self, mock_llm_client):
         """Test agent with Anthropic configuration."""
-        config = AgentConfig(llm_provider="anthropic", anthropic_api_key="test-key")
-        agent = Agent(config=config, chat_client=mock_llm_client)
+        config = AgentSettings(llm_provider="anthropic", anthropic_api_key="test-key")
+        agent = Agent(settings=config, chat_client=mock_llm_client)
 
         response = await agent.run("test")
 
@@ -175,12 +175,12 @@ class TestConfigurationIntegration:
     @pytest.mark.asyncio
     async def test_azure_configuration(self, mock_llm_client):
         """Test agent with Azure OpenAI configuration."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="azure",
             azure_openai_endpoint="https://test.openai.azure.com",
             azure_openai_deployment="gpt-5-codex",
         )
-        agent = Agent(config=config, chat_client=mock_llm_client)
+        agent = Agent(settings=config, chat_client=mock_llm_client)
 
         response = await agent.run("test")
 
@@ -212,7 +212,7 @@ class TestErrorPropagation:
         """Test handling of invalid configuration."""
         # Test that agent handles bad configuration gracefully
 
-        config = AgentConfig(llm_provider="openai")  # Missing API key
+        config = AgentSettings(llm_provider="openai")  # Missing API key
 
         with pytest.raises(Exception):  # ← Adjust exception type
             config.validate()
@@ -245,8 +245,8 @@ class TestLongRunningOperations:
         large_response = "x" * 10000
         mock_client = MockChatClient(response=large_response)
 
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
-        agent = Agent(config=config, chat_client=mock_client)
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
+        agent = Agent(settings=config, chat_client=mock_client)
 
         response = await agent.run("test")
 
@@ -270,7 +270,7 @@ def multi_toolset_agent(integration_config, mock_llm_client):
         # YourOtherTools(integration_config),
     ]
 
-    return Agent(config=integration_config, chat_client=mock_llm_client, toolsets=toolsets)
+    return Agent(settings=integration_config, chat_client=mock_llm_client, toolsets=toolsets)
 
 
 # ============================================================================

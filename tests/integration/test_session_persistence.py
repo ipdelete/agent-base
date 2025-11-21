@@ -12,7 +12,7 @@ import pytest
 pytestmark = [pytest.mark.integration, pytest.mark.persistence]
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.persistence import ThreadPersistence
 
 
@@ -31,9 +31,9 @@ def persistence(temp_session_dir: Path) -> ThreadPersistence:
 
 
 @pytest.fixture
-def agent_instance(mock_config: AgentConfig, mock_chat_client: Any) -> Agent:
+def agent_instance(mock_settings: AgentSettings, mock_chat_client: Any) -> Agent:
     """Create agent instance for testing."""
-    return Agent(config=mock_config, chat_client=mock_chat_client)
+    return Agent(settings=mock_settings, chat_client=mock_chat_client)
 
 
 @pytest.mark.asyncio

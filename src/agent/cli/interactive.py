@@ -55,7 +55,8 @@ from agent.cli.utils import (
     hide_connection_string_if_otel_disabled,
     set_model_span_attributes,
 )
-from agent.config import AgentConfig
+from agent.config import load_config_with_env
+from agent.config.schema import AgentSettings
 from agent.display import DisplayMode, set_execution_context
 from agent.persistence import ThreadPersistence
 from agent.utils.keybindings import ClearPromptHandler, KeybindingManager
@@ -105,7 +106,7 @@ async def _execute_interactive_query(
             raise
 
 
-def _render_startup_banner(config: AgentConfig, console: Console) -> None:
+def _render_startup_banner(config: AgentSettings, console: Console) -> None:
     """Render startup banner with branding.
 
     Args:
@@ -280,8 +281,12 @@ async def run_chat_mode(
         perf_start = time.perf_counter()
 
         # Load configuration
-        config = AgentConfig.from_combined()
-        config.validate()
+        config = load_config_with_env()
+        errors = config.validate_enabled_providers()
+        if errors:
+            for error in errors:
+                console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(ExitCodes.CONFIG_ERROR)
         logger.info(
             f"[PERF] Interactive mode - config loaded: {(time.perf_counter() - perf_start)*1000:.1f}ms"
         )
@@ -349,7 +354,7 @@ async def run_chat_mode(
         # If resuming session, we need agent immediately to restore context
         if resume_session:
             agent_start = time.perf_counter()
-            agent = Agent(config=config)
+            agent = Agent(settings=config)
             logger.info(
                 f"[PERF] Agent created for resume: {(time.perf_counter() - agent_start)*1000:.1f}ms"
             )
@@ -461,7 +466,7 @@ async def run_chat_mode(
                     # Create agent if needed (lazy init)
                     if agent is None:
                         init_start = time.perf_counter()
-                        agent = Agent(config=config)
+                        agent = Agent(settings=config)
                         logger.info(
                             f"[PERF] Agent lazy init for /clear: {(time.perf_counter() - init_start)*1000:.1f}ms"
                         )
@@ -471,7 +476,7 @@ async def run_chat_mode(
                     # Create agent if needed (lazy init)
                     if agent is None:
                         init_start = time.perf_counter()
-                        agent = Agent(config=config)
+                        agent = Agent(settings=config)
                         logger.info(
                             f"[PERF] Agent lazy init for /continue: {(time.perf_counter() - init_start)*1000:.1f}ms"
                         )
@@ -500,9 +505,9 @@ async def run_chat_mode(
                     init_start = time.perf_counter()
                     if not quiet:
                         with console.status("[bold blue]Initializing...", spinner="dots"):
-                            agent = Agent(config=config)
+                            agent = Agent(settings=config)
                     else:
-                        agent = Agent(config=config)
+                        agent = Agent(settings=config)
                     logger.info(
                         f"[PERF] Agent lazy init: {(time.perf_counter() - init_start)*1000:.1f}ms"
                     )
@@ -572,6 +577,22 @@ async def run_chat_mode(
                     f"[PERF] Exit cleanup completed: {(time.perf_counter() - exit_start)*1000:.1f}ms"
                 )
                 break
+            except Exception as e:
+                # Handle provider API errors and other exceptions
+                from agent.cli.error_handler import format_error
+                from agent.exceptions import AgentError
+
+                if isinstance(e, AgentError):
+                    # Our custom errors - format nicely
+                    error_message = format_error(e)
+                    console.print(f"\n{error_message}\n")
+                else:
+                    # Unknown errors - show generic message
+                    console.print(f"\n[red]Unexpected error:[/red] {e}\n")
+                    logger.exception("Unexpected error in interactive mode")
+
+                # Continue loop - don't crash
+                continue
 
     except ValueError as e:
         error_msg = str(e)

@@ -25,12 +25,15 @@ from rich.prompt import Confirm
 from agent.agent import Agent
 from agent.cli.constants import ExitCodes
 from agent.cli.utils import get_console
-from agent.config import AgentConfig
+from agent.config import load_config_with_env
+from agent.config.schema import AgentSettings
 
 logger = logging.getLogger(__name__)
 
 
-async def _test_provider_connectivity_async(provider: str, config: AgentConfig) -> tuple[bool, str]:
+async def _test_provider_connectivity_async(
+    provider: str, config: AgentSettings
+) -> tuple[bool, str]:
     """Test connectivity to a specific LLM provider asynchronously.
 
     Args:
@@ -57,35 +60,15 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
 
     try:
         # Create temporary config for this provider
-        test_config = AgentConfig(
-            llm_provider=provider,
-            openai_api_key=config.openai_api_key,
-            openai_model=config.openai_model,
-            anthropic_api_key=config.anthropic_api_key,
-            anthropic_model=config.anthropic_model,
-            azure_openai_endpoint=config.azure_openai_endpoint,
-            azure_openai_deployment=config.azure_openai_deployment,
-            azure_openai_api_version=config.azure_openai_api_version,
-            azure_openai_api_key=config.azure_openai_api_key,
-            azure_project_endpoint=config.azure_project_endpoint,
-            azure_model_deployment=config.azure_model_deployment,
-            gemini_api_key=config.gemini_api_key,
-            gemini_model=config.gemini_model,
-            gemini_project_id=config.gemini_project_id,
-            gemini_location=config.gemini_location,
-            gemini_use_vertexai=config.gemini_use_vertexai,
-            github_token=config.github_token,
-            github_model=config.github_model,
-            github_endpoint=config.github_endpoint,
-            local_base_url=config.local_base_url,
-            local_model=config.local_model,
-            agent_data_dir=config.agent_data_dir,
-            agent_session_dir=config.agent_session_dir,
-        )
+        # Use model_copy() to create a deep copy and modify enabled providers
+        test_config = config.model_copy(deep=True)
+        test_config.providers.enabled = [provider]
 
         # Validate this provider's configuration
         try:
-            test_config.validate()
+            errors = test_config.validate_enabled_providers()
+            if errors:
+                return False, "Not configured"
         except ValueError:
             return False, "Not configured"
 
@@ -139,7 +122,7 @@ async def _test_provider_connectivity_async(provider: str, config: AgentConfig) 
             logger.setLevel(level)
 
 
-async def _test_all_providers(config: AgentConfig) -> list[tuple[str, str, bool, str]]:
+async def _test_all_providers(config: AgentSettings) -> list[tuple[str, str, bool, str]]:
     """Test connectivity to enabled LLM providers in parallel.
 
     Only tests providers that are:
@@ -206,7 +189,9 @@ def show_tool_configuration(console: Console | None = None) -> None:
         console = get_console()
 
     try:
-        config = AgentConfig.from_combined()
+        from agent.config import load_config
+
+        config = load_config()
 
         from pathlib import Path
 
@@ -304,8 +289,12 @@ def run_health_check(console: Console | None = None) -> None:
 
     try:
         # Configuration validation
-        config = AgentConfig.from_combined()
-        config.validate()
+        config = load_config_with_env()
+        errors = config.validate_enabled_providers()
+        if errors:
+            for error in errors:
+                console.print(f" [red]✗[/red] {error}")
+            raise typer.Exit(ExitCodes.CONFIG_ERROR)
 
         # System Information
         # Note: ◉ (U+25C9) renders correctly in PowerShell/cmd/modern terminals

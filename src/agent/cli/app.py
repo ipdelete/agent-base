@@ -18,7 +18,7 @@ from agent.cli.health import run_health_check
 from agent.cli.interactive import run_chat_mode
 from agent.cli.session import get_last_session
 from agent.cli.utils import get_console
-from agent.config import AgentConfig
+from agent.config import load_config
 
 app = typer.Typer(help="Agent - Conversational Assistant")
 
@@ -141,7 +141,7 @@ def show_configuration() -> None:
     console.print()
 
     try:
-        config = AgentConfig.from_combined()
+        config = load_config()
 
         # System Information
         console.print("[bold]System:[/bold]")

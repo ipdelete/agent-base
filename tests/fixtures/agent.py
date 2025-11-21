@@ -13,17 +13,17 @@ def mock_chat_client():
 
 
 @pytest.fixture
-def agent_instance(mock_config, mock_chat_client):
+def agent_instance(mock_settings, mock_chat_client):
     """Create agent with mocks.
 
     Args:
-        mock_config: Configuration fixture (from config.py)
+        mock_settings: Configuration fixture (from config.py)
         mock_chat_client: Mock client fixture
 
     Returns:
         Agent instance configured for testing
     """
     return Agent(
-        config=mock_config,
+        settings=mock_settings,
         chat_client=mock_chat_client,
     )

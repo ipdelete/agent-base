@@ -2,20 +2,20 @@
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.hello import HelloTools
 
 
 @pytest.fixture
-def mock_config():
-    """Create mock AgentConfig for testing."""
-    return AgentConfig(llm_provider="openai", openai_api_key="test-key")
+def mock_settings():
+    """Create mock AgentSettings for testing."""
+    return AgentSettings(llm_provider="openai", openai_api_key="test-key")
 
 
 @pytest.fixture
-def hello_tools(mock_config):
+def hello_tools(mock_settings):
     """Create HelloTools instance for testing."""
-    return HelloTools(mock_config)
+    return HelloTools(mock_settings)
 
 
 @pytest.mark.unit
@@ -23,11 +23,11 @@ def hello_tools(mock_config):
 class TestHelloTools:
     """Tests for HelloTools class."""
 
-    def test_initialization(self, mock_config):
+    def test_initialization(self, mock_settings):
         """Test HelloTools initializes with config."""
-        tools = HelloTools(mock_config)
+        tools = HelloTools(mock_settings)
 
-        assert tools.config == mock_config
+        assert tools.config == mock_settings
 
     def test_get_tools_returns_two_functions(self, hello_tools):
         """Test get_tools returns both tool functions."""

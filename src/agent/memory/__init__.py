@@ -32,7 +32,7 @@ except ImportError:
     pass
 
 if TYPE_CHECKING:
-    from agent.config import AgentConfig
+    from agent.config.schema import AgentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ except ImportError:
     pass
 
 
-def create_memory_manager(config: "AgentConfig") -> MemoryManager:
+def create_memory_manager(config: "AgentSettings") -> MemoryManager:
     """Factory function to create memory manager based on config.
 
     Routes to appropriate memory backend based on config.memory_type:
@@ -63,7 +63,7 @@ def create_memory_manager(config: "AgentConfig") -> MemoryManager:
     Falls back to InMemoryStore if mem0 initialization fails or provider is incompatible.
 
     Args:
-        config: AgentConfig instance with memory settings
+        config: AgentSettings instance with memory settings
 
     Returns:
         MemoryManager instance

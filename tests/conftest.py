@@ -10,12 +10,16 @@ discovered by pytest through this conftest.py file.
 # Import all fixtures from organized modules
 from tests.fixtures.agent import agent_instance, mock_chat_client  # noqa: F401
 from tests.fixtures.config import (  # noqa: F401
-    custom_prompt_config,
     custom_prompt_file,
-    mock_anthropic_config,
-    mock_azure_foundry_config,
-    mock_config,
-    mock_openai_config,
+    custom_prompt_settings,
+    mock_anthropic_settings,
+    mock_azure_settings,
+    mock_foundry_settings,
+    mock_gemini_settings,
+    mock_github_settings,
+    mock_local_settings,
+    mock_openai_settings,
+    mock_settings,
 )
 from tests.fixtures.memory import (  # noqa: F401
     memory_config,

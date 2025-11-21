@@ -1,6 +1,7 @@
 """Configuration package for agent-base."""
 
 # Import legacy AgentConfig for backward compatibility
+from .constants import DEFAULT_GEMINI_MODEL
 from .defaults import get_default_config
 from .editor import (
     EditorError,
@@ -10,11 +11,11 @@ from .editor import (
     validate_after_edit,
     wait_for_editor,
 )
-from .legacy import DEFAULT_GEMINI_MODEL, AgentConfig
 from .manager import (
     ConfigurationError,
     get_config_path,
     load_config,
+    load_config_with_env,
     merge_with_env,
     save_config,
     validate_config,
@@ -22,8 +23,7 @@ from .manager import (
 from .schema import AgentSettings, MemoryConfig, ProviderConfig, TelemetryConfig
 
 __all__ = [
-    # Legacy
-    "AgentConfig",
+    # Constants
     "DEFAULT_GEMINI_MODEL",
     # Schema
     "AgentSettings",
@@ -34,6 +34,7 @@ __all__ = [
     "ConfigurationError",
     "get_config_path",
     "load_config",
+    "load_config_with_env",
     "save_config",
     "merge_with_env",
     "validate_config",

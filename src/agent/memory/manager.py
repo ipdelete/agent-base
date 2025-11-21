@@ -6,7 +6,7 @@ This module defines the interface for memory management operations.
 from abc import ABC, abstractmethod
 from typing import Any
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.utils.responses import create_error_response, create_success_response
 
 
@@ -24,8 +24,8 @@ class MemoryManager(ABC):
         ...         return self._create_success_response(result=[], message="Added")
     """
 
-    def __init__(self, config: AgentConfig):
-        """Initialize memory manager with configuration.
+    def __init__(self, config: AgentSettings):
+        """Initialize memory manager with settings.
 
         Args:
             config: Agent configuration with memory settings

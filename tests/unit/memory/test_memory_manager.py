@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory import InMemoryStore, MemoryManager, create_memory_manager
 
 
@@ -15,7 +15,7 @@ class TestMemoryManager:
 
     def test_memory_manager_is_abstract(self):
         """Test MemoryManager cannot be instantiated directly."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test", memory_enabled=True)
+        config = AgentSettings(llm_provider="openai", openai_api_key="test", memory_enabled=True)
 
         with pytest.raises(TypeError):
             # Should raise TypeError because MemoryManager is abstract
@@ -91,7 +91,7 @@ class TestCreateMemoryManager:
 
     def test_create_memory_manager_with_memory_type(self):
         """Test factory respects memory_type config."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -144,11 +144,10 @@ class TestCreateMemoryManager:
         """Test factory routes to Mem0Store when memory_type is mem0."""
         from agent.memory.mem0_store import Mem0Store
 
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test"
+        config.memory.type = "mem0"
 
         with patch("agent.memory.mem0_store.create_memory_instance") as mock_create:
             mock_create.return_value = Mock()
@@ -159,11 +158,10 @@ class TestCreateMemoryManager:
 
     def test_create_memory_manager_mem0_fallback_on_error(self):
         """Test factory falls back to InMemoryStore when Mem0Store fails."""
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test"
+        config.memory.type = "mem0"
 
         with patch("agent.memory.mem0_store.create_memory_instance") as mock_create:
             mock_create.side_effect = Exception("Connection failed")
@@ -175,7 +173,7 @@ class TestCreateMemoryManager:
 
     def test_create_memory_manager_default_to_in_memory(self):
         """Test factory defaults to InMemoryStore for unknown types."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_type="unknown_type",

@@ -8,7 +8,7 @@ from typing import Any
 
 from rich.console import Console
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def get_console() -> Console:
         return Console()
 
 
-def hide_connection_string_if_otel_disabled(config: AgentConfig) -> str | None:
+def hide_connection_string_if_otel_disabled(config: AgentSettings) -> str | None:
     """Conditionally hide Azure Application Insights connection string.
 
     The agent_framework auto-enables OpenTelemetry when it sees
@@ -82,7 +82,7 @@ def hide_connection_string_if_otel_disabled(config: AgentConfig) -> str | None:
     return None
 
 
-def set_model_span_attributes(span: Any, config: AgentConfig) -> None:
+def set_model_span_attributes(span: Any, config: AgentSettings) -> None:
     """Set OpenTelemetry span attributes based on provider and model configuration.
 
     Args:

@@ -29,7 +29,8 @@ from agent_framework import (
     FunctionMiddleware,
 )
 
-from agent.config import AgentConfig
+from agent.config.manager import load_config
+from agent.config.schema import AgentSettings
 
 if TYPE_CHECKING:
     from agent.trace_logger import TraceLogger
@@ -59,7 +60,7 @@ def get_trace_logger() -> "TraceLogger | None":
     return _trace_logger
 
 
-def _extract_model_from_config(config: AgentConfig) -> str | None:
+def _extract_model_from_config(config: AgentSettings) -> str | None:
     """Extract model name from config based on provider.
 
     Args:
@@ -126,7 +127,7 @@ async def agent_run_logging_middleware(
 
     # Load config for trace logging if enabled (reused for request and response)
     trace_logger = get_trace_logger()
-    config = AgentConfig.from_env() if trace_logger else None
+    config = load_config() if trace_logger else None
 
     # Emit LLM request event
     llm_event_id = None
@@ -342,7 +343,16 @@ async def agent_run_logging_middleware(
             except Exception as log_err:
                 logger.debug(f"Failed to log trace error: {log_err}")
 
-        raise
+        # Classify and wrap provider exceptions for better error messages
+        from agent.cli.error_handler import classify_provider_error
+
+        wrapped = classify_provider_error(e, config)
+        if wrapped:
+            # Raise wrapped exception with original as cause (preserves stack trace)
+            raise wrapped from e
+        else:
+            # Unknown error, re-raise as-is
+            raise
 
 
 async def agent_observability_middleware(
@@ -405,7 +415,6 @@ async def logging_function_middleware(
     from agent_framework.observability import OtelAttr, get_meter, get_tracer
     from opentelemetry import trace as ot_trace
 
-    from agent.config import AgentConfig
     from agent.display import (
         ToolCompleteEvent,
         ToolErrorEvent,
@@ -456,7 +465,7 @@ async def logging_function_middleware(
         logger.debug(f"Set tool context: {tool_name} (event_id: {tool_event_id[:8]}...)")
 
     # Check if observability is enabled
-    config = AgentConfig.from_env()
+    config = load_config()
     tracer = get_tracer(__name__) if config.enable_otel else None
     meter = get_meter(__name__) if config.enable_otel else None
 

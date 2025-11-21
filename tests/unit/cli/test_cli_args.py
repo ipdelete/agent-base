@@ -5,7 +5,33 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.manager import load_config
+
+
+def config_from_env():
+    """Load config with environment variable overrides applied."""
+    base = load_config()
+
+    # Apply provider override if specified
+    if "LLM_PROVIDER" in os.environ:
+        provider = os.environ["LLM_PROVIDER"]
+        if provider not in base.providers.enabled:
+            base.providers.enabled = [provider]
+
+    # Apply model override if specified
+    if "AGENT_MODEL" in os.environ:
+        model = os.environ["AGENT_MODEL"]
+        provider = base.llm_provider
+        if provider == "openai":
+            base.providers.openai.model = model
+        elif provider == "local":
+            base.providers.local.model = model
+        elif provider == "anthropic":
+            base.providers.anthropic.model = model
+        elif provider == "gemini":
+            base.providers.gemini.model = model
+
+    return base
 
 
 @pytest.mark.unit
@@ -23,7 +49,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.llm_provider == "openai"
 
     def test_provider_cli_override_local(self):
@@ -36,7 +62,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.llm_provider == "local"
 
     def test_model_cli_override_for_openai(self):
@@ -49,7 +75,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.openai_model == "gpt-5-mini"
 
     def test_model_cli_override_for_local(self):
@@ -62,7 +88,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.local_model == "ai/qwen3"
 
     def test_model_cli_override_for_anthropic(self):
@@ -78,7 +104,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.anthropic_model == "claude-opus-4-20250514"
 
     def test_model_cli_override_for_gemini(self):
@@ -91,7 +117,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.gemini_model == "gemini-2.5-pro"
 
     def test_provider_and_model_cli_override_together(self):
@@ -104,7 +130,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.llm_provider == "local"
             assert config.local_model == "ai/phi4"
 
@@ -118,7 +144,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            config = config_from_env()
             assert config.llm_provider == "local"
             # Should use default model
             assert config.local_model == "ai/phi4"
@@ -134,7 +160,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config1 = AgentConfig.from_env()
+            config1 = config_from_env()
             assert config1.llm_provider == "local"
 
         # Then switch to openai
@@ -145,7 +171,7 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config2 = AgentConfig.from_env()
+            config2 = config_from_env()
             assert config2.llm_provider == "openai"
 
         # And back to local with different model
@@ -156,6 +182,6 @@ class TestCLIArgumentOverrides:
             env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
         with patch.dict(os.environ, env_vars, clear=True):
-            config3 = AgentConfig.from_env()
+            config3 = config_from_env()
             assert config3.llm_provider == "local"
             assert config3.local_model == "ai/qwen3"

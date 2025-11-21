@@ -13,7 +13,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.middleware]
 from rich.console import Console
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.display import (
     DisplayMode,
     ExecutionContext,
@@ -29,9 +29,9 @@ from agent.display.events import (
 
 
 @pytest.fixture
-def agent_with_middleware(mock_config: AgentConfig, mock_chat_client) -> Agent:
+def agent_with_middleware(mock_settings: AgentSettings, mock_chat_client) -> Agent:
     """Create agent with middleware enabled."""
-    return Agent(config=mock_config, chat_client=mock_chat_client)
+    return Agent(settings=mock_settings, chat_client=mock_chat_client)
 
 
 @pytest.mark.asyncio

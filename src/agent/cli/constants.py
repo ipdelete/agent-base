@@ -17,4 +17,5 @@ class ExitCodes:
 
     SUCCESS = 0
     GENERAL_ERROR = 1
+    CONFIG_ERROR = 2
     INTERRUPTED = 130

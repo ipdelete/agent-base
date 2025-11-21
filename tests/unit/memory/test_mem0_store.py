@@ -4,20 +4,20 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory.mem0_store import Mem0Store
 
 
 @pytest.fixture
 def mem0_config():
     """Create test configuration for mem0."""
-    return AgentConfig(
-        llm_provider="openai",
-        openai_api_key="sk-test",
-        memory_type="mem0",
-        mem0_user_id="test-user",
-        mem0_project_id="test-project",
-    )
+    config = AgentSettings()
+    config.providers.enabled = ["openai"]
+    config.providers.openai.api_key = "sk-test"
+    config.memory.type = "mem0"
+    config.memory.mem0.user_id = "test-user"
+    config.memory.mem0.project_id = "test-project"
+    return config
 
 
 @pytest.fixture
@@ -53,12 +53,11 @@ class TestMem0Store:
 
     def test_initialization_without_project_id(self):
         """Test namespace without project_id."""
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-            mem0_user_id="alice",
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test"
+        config.memory.type = "mem0"
+        config.memory.mem0.user_id = "alice"
 
         with patch("agent.memory.mem0_store.create_memory_instance") as mock_create:
             mock_memory = Mock()
@@ -346,18 +345,17 @@ class TestMem0Store:
     @pytest.mark.asyncio
     async def test_namespace_isolation(self):
         """Test that different users have isolated namespaces."""
-        config1 = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-            mem0_user_id="alice",
-        )
-        config2 = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-            mem0_user_id="bob",
-        )
+        config1 = AgentSettings()
+        config1.providers.enabled = ["openai"]
+        config1.providers.openai.api_key = "test"
+        config1.memory.type = "mem0"
+        config1.memory.mem0.user_id = "alice"
+
+        config2 = AgentSettings()
+        config2.providers.enabled = ["openai"]
+        config2.providers.openai.api_key = "test"
+        config2.memory.type = "mem0"
+        config2.memory.mem0.user_id = "bob"
 
         with patch("agent.memory.mem0_store.create_memory_instance") as mock_create:
             mock_memory = Mock()

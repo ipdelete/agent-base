@@ -38,7 +38,7 @@ import os
 import pytest
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 # ============================================================================
 # Fixtures for Real LLM Testing
@@ -54,13 +54,13 @@ def openai_agent():
     if not os.getenv("OPENAI_API_KEY"):
         pytest.skip("OPENAI_API_KEY not set")
 
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="openai",
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         openai_model="gpt-4o-mini",  # Cheaper model for testing
     )
 
-    return Agent(config=config)
+    return Agent(settings=config)
 
 
 @pytest.fixture
@@ -72,13 +72,13 @@ def anthropic_agent():
     if not os.getenv("ANTHROPIC_API_KEY"):
         pytest.skip("ANTHROPIC_API_KEY not set")
 
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="anthropic",
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
         anthropic_model="claude-haiku-4-5-20251001",  # Cheapest model tier
     )
 
-    return Agent(config=config)
+    return Agent(settings=config)
 
 
 @pytest.fixture
@@ -90,13 +90,13 @@ def azure_agent():
     if not os.getenv("AZURE_OPENAI_ENDPOINT"):
         pytest.skip("Azure credentials not set")
 
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="azure",
         azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
         azure_openai_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
     )
 
-    return Agent(config=config)
+    return Agent(settings=config)
 
 
 # ============================================================================

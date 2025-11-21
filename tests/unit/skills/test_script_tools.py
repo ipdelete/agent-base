@@ -10,7 +10,7 @@ from agent.skills.script_tools import ScriptToolset
 
 
 @pytest.fixture
-def mock_config():
+def mock_settings():
     """Create mock config."""
     config = Mock()
     config.script_timeout = 60
@@ -35,26 +35,26 @@ def sample_scripts():
 class TestScriptToolset:
     """Test ScriptToolset class."""
 
-    def test_init(self, mock_config, sample_scripts):
+    def test_init(self, mock_settings, sample_scripts):
         """Should initialize with config and scripts."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
-        assert toolset.config == mock_config
+        toolset = ScriptToolset(mock_settings, sample_scripts)
+        assert toolset.config == mock_settings
         assert toolset.scripts == sample_scripts
         assert toolset.timeout == 60
         assert toolset.max_output == 1048576
 
-    def test_get_tools(self, mock_config, sample_scripts):
+    def test_get_tools(self, mock_settings, sample_scripts):
         """Should return list of three tools."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         tools = toolset.get_tools()
         assert len(tools) == 3
         assert toolset.script_list in tools
         assert toolset.script_help in tools
         assert toolset.script_run in tools
 
-    def test_script_count(self, mock_config, sample_scripts):
+    def test_script_count(self, mock_settings, sample_scripts):
         """Should count total scripts across all skills."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         assert toolset.script_count == 3  # 2 from kalshi + 1 from hello
 
 
@@ -62,9 +62,9 @@ class TestScriptList:
     """Test script_list tool."""
 
     @pytest.mark.asyncio
-    async def test_list_all_scripts(self, mock_config, sample_scripts):
+    async def test_list_all_scripts(self, mock_settings, sample_scripts):
         """Should list all scripts across all skills."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         result = await toolset.script_list()
 
         assert result["success"] is True
@@ -74,9 +74,9 @@ class TestScriptList:
         assert "3 scripts" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_list_specific_skill(self, mock_config, sample_scripts):
+    async def test_list_specific_skill(self, mock_settings, sample_scripts):
         """Should list scripts for a specific skill."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         result = await toolset.script_list(skill_name="kalshi-markets")
 
         assert result["success"] is True
@@ -85,18 +85,18 @@ class TestScriptList:
         assert "2 scripts" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_list_nonexistent_skill(self, mock_config, sample_scripts):
+    async def test_list_nonexistent_skill(self, mock_settings, sample_scripts):
         """Should return error for nonexistent skill."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         result = await toolset.script_list(skill_name="nonexistent")
 
         assert result["success"] is False
         assert result["error"] == "not_found"
 
     @pytest.mark.asyncio
-    async def test_list_case_insensitive(self, mock_config, sample_scripts):
+    async def test_list_case_insensitive(self, mock_settings, sample_scripts):
         """Should handle case-insensitive skill names."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         result = await toolset.script_list(skill_name="Kalshi-Markets")
 
         assert result["success"] is True
@@ -107,9 +107,9 @@ class TestScriptHelp:
     """Test script_help tool."""
 
     @pytest.mark.asyncio
-    async def test_get_help_success(self, mock_config, sample_scripts):
+    async def test_get_help_success(self, mock_settings, sample_scripts):
         """Should execute script with --help and return output."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         # Mock subprocess
         mock_process = AsyncMock()
@@ -123,18 +123,18 @@ class TestScriptHelp:
         assert "Usage: status.py" in result["result"]["help_text"]
 
     @pytest.mark.asyncio
-    async def test_get_help_script_not_found(self, mock_config, sample_scripts):
+    async def test_get_help_script_not_found(self, mock_settings, sample_scripts):
         """Should return error if script not found."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         result = await toolset.script_help("kalshi-markets", "nonexistent")
 
         assert result["success"] is False
         assert result["error"] == "not_found"
 
     @pytest.mark.asyncio
-    async def test_get_help_timeout(self, mock_config, sample_scripts):
+    async def test_get_help_timeout(self, mock_settings, sample_scripts):
         """Should handle timeout."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
         toolset.timeout = 0.1  # Very short timeout
 
         mock_process = AsyncMock()
@@ -153,9 +153,9 @@ class TestScriptRun:
     """Test script_run tool."""
 
     @pytest.mark.asyncio
-    async def test_run_script_json_success(self, mock_config, sample_scripts):
+    async def test_run_script_json_success(self, mock_settings, sample_scripts):
         """Should execute script and parse JSON output."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         output_data = {"status": "operational", "timestamp": "2025-01-01T00:00:00Z"}
         mock_process = AsyncMock()
@@ -169,9 +169,9 @@ class TestScriptRun:
         assert result["result"] == output_data
 
     @pytest.mark.asyncio
-    async def test_run_script_plain_text(self, mock_config, sample_scripts):
+    async def test_run_script_plain_text(self, mock_settings, sample_scripts):
         """Should return plain text if json=False."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         mock_process = AsyncMock()
         mock_process.communicate = AsyncMock(return_value=(b"Plain text output", b""))
@@ -184,9 +184,9 @@ class TestScriptRun:
         assert result["result"] == "Plain text output"
 
     @pytest.mark.asyncio
-    async def test_run_script_with_args(self, mock_config, sample_scripts):
+    async def test_run_script_with_args(self, mock_settings, sample_scripts):
         """Should pass arguments to script."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         mock_process = AsyncMock()
         mock_process.communicate = AsyncMock(return_value=(b'{"result": "ok"}', b""))
@@ -201,9 +201,9 @@ class TestScriptRun:
         assert "--debug" in call_args
 
     @pytest.mark.asyncio
-    async def test_run_script_args_too_many(self, mock_config, sample_scripts):
+    async def test_run_script_args_too_many(self, mock_settings, sample_scripts):
         """Should reject too many arguments."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         too_many_args = ["arg"] * 101  # Max is 100
         result = await toolset.script_run("kalshi-markets", "status", args=too_many_args)
@@ -212,9 +212,9 @@ class TestScriptRun:
         assert result["error"] == "args_too_large"
 
     @pytest.mark.asyncio
-    async def test_run_script_invalid_json(self, mock_config, sample_scripts):
+    async def test_run_script_invalid_json(self, mock_settings, sample_scripts):
         """Should return parse error for invalid JSON."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         mock_process = AsyncMock()
         mock_process.communicate = AsyncMock(return_value=(b"Not JSON", b""))
@@ -227,9 +227,9 @@ class TestScriptRun:
         assert result["error"] == "parse_error"
 
     @pytest.mark.asyncio
-    async def test_run_script_nonzero_exit(self, mock_config, sample_scripts):
+    async def test_run_script_nonzero_exit(self, mock_settings, sample_scripts):
         """Should handle non-zero exit code."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         mock_process = AsyncMock()
         mock_process.communicate = AsyncMock(return_value=(b"", b"Error message"))
@@ -246,9 +246,9 @@ class TestNameNormalization:
     """Test name normalization in script tools."""
 
     @pytest.mark.asyncio
-    async def test_skill_name_normalization(self, mock_config, sample_scripts):
+    async def test_skill_name_normalization(self, mock_settings, sample_scripts):
         """Should handle various skill name formats."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         # All these should work (case-insensitive, hyphen/underscore equivalent)
         result1 = await toolset.script_list(skill_name="kalshi-markets")
@@ -260,9 +260,9 @@ class TestNameNormalization:
         assert result3["success"] is True
 
     @pytest.mark.asyncio
-    async def test_script_name_normalization(self, mock_config, sample_scripts):
+    async def test_script_name_normalization(self, mock_settings, sample_scripts):
         """Should handle script names with/without .py extension."""
-        toolset = ScriptToolset(mock_config, sample_scripts)
+        toolset = ScriptToolset(mock_settings, sample_scripts)
 
         mock_process = AsyncMock()
         mock_process.communicate = AsyncMock(return_value=(b"Help text", b""))

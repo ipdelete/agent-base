@@ -1,7 +1,7 @@
-"""Tests for skills configuration in AgentConfig.
+"""Tests for skills configuration in AgentSettings.
 
-This test module verifies that skills configuration is properly transferred
-from AgentSettings to AgentConfig in both from_env() and from_combined() methods.
+This test module verifies that skills configuration is properly loaded
+from JSON configuration files and accessible via AgentSettings.
 
 Note: The AGENT_SKILLS environment variable feature was removed in the new
 skills configuration redesign. Skills are now configured via:
@@ -14,24 +14,44 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config import load_config
+from agent.config.schema import AgentSettings
 
 
 @pytest.mark.unit
 @pytest.mark.config
 class TestSkillsConfiguration:
-    """Test skills configuration loading and transfer to AgentConfig."""
+    """Test skills configuration loading from JSON files."""
 
-    def test_from_env_sets_skills_to_none(self):
-        """Test that from_env() sets skills to None (no env var config for skills)."""
-        with patch.dict(os.environ, {"LLM_PROVIDER": "openai"}):
-            config = AgentConfig.from_env()
+    def test_load_config_without_skills_uses_defaults(self, tmp_path):
+        """Test that load_config() uses default skills configuration when not specified."""
+        settings_file = tmp_path / "settings.json"
+        settings_file.write_text(
+            """{
+  "version": "1.0",
+  "providers": {
+    "enabled": ["openai"],
+    "openai": {
+      "model": "gpt-4o-mini"
+    }
+  },
+  "agent": {
+    "data_dir": "~/.agent"
+  }
+}"""
+        )
 
-            # Skills should be None when loaded from env only
-            assert config.skills is None
+        with patch.dict(os.environ, {}, clear=True):
+            settings = load_config(config_path=settings_file)
 
-    def test_from_combined_transfers_skills_config(self, tmp_path):
-        """Test that from_combined() transfers skills configuration from settings."""
+            # Should have default skills config
+            assert settings.skills is not None
+            assert settings.skills.plugins == []
+            assert settings.skills.disabled_bundled == []
+            assert settings.skills.user_dir.endswith("/.agent/skills")
+
+    def test_load_config_transfers_skills_config(self, tmp_path):
+        """Test that load_config() properly loads skills configuration from JSON."""
         settings_file = tmp_path / "settings.json"
         settings_file.write_text(
             """{
@@ -60,44 +80,17 @@ class TestSkillsConfiguration:
         )
 
         with patch.dict(os.environ, {}, clear=True):
-            config = AgentConfig.from_combined(config_path=settings_file)
+            settings = load_config(config_path=settings_file)
 
-            # Verify skills config is transferred
-            assert config.skills is not None
-            assert len(config.skills.plugins) == 1
-            assert config.skills.plugins[0].name == "test-skill"
-            assert config.skills.disabled_bundled == ["old-skill"]
-            assert config.skills.user_dir.endswith("/.agent/skills")
+            # Verify skills config is loaded
+            assert settings.skills is not None
+            assert len(settings.skills.plugins) == 1
+            assert settings.skills.plugins[0].name == "test-skill"
+            assert settings.skills.disabled_bundled == ["old-skill"]
+            assert settings.skills.user_dir.endswith("/.agent/skills")
 
-    def test_from_combined_uses_default_skills_config(self, tmp_path):
-        """Test that from_combined() uses default SkillsConfig when not in settings."""
-        settings_file = tmp_path / "settings.json"
-        settings_file.write_text(
-            """{
-  "version": "1.0",
-  "providers": {
-    "enabled": ["openai"],
-    "openai": {
-      "model": "gpt-4o-mini"
-    }
-  },
-  "agent": {
-    "data_dir": "~/.agent"
-  }
-}"""
-        )
-
-        with patch.dict(os.environ, {}, clear=True):
-            config = AgentConfig.from_combined(config_path=settings_file)
-
-            # Should have default skills config
-            assert config.skills is not None
-            assert config.skills.plugins == []
-            assert config.skills.disabled_bundled == []
-            assert config.skills.user_dir.endswith("/.agent/skills")
-
-    def test_from_file_transfers_skills_config(self, tmp_path):
-        """Test that from_file() transfers skills configuration."""
+    def test_load_config_with_all_skills_options(self, tmp_path):
+        """Test that load_config() loads all skills configuration options."""
         settings_file = tmp_path / "settings.json"
         settings_file.write_text(
             """{
@@ -122,15 +115,25 @@ class TestSkillsConfiguration:
 }"""
         )
 
-        config = AgentConfig.from_file(config_path=settings_file)
+        settings = load_config(config_path=settings_file)
 
-        # Verify all skills config is transferred
-        assert config.skills is not None
-        assert len(config.skills.plugins) == 1
-        assert config.skills.plugins[0].name == "my-skill"
-        assert config.skills.disabled_bundled == ["deprecated-skill"]
-        assert config.skills.script_timeout == 120
-        assert config.skills.max_script_output == 2097152
+        # Verify all skills config is loaded
+        assert settings.skills is not None
+        assert len(settings.skills.plugins) == 1
+        assert settings.skills.plugins[0].name == "my-skill"
+        assert settings.skills.disabled_bundled == ["deprecated-skill"]
+        assert settings.skills.script_timeout == 120
+        assert settings.skills.max_script_output == 2097152
+
+    def test_agent_settings_skills_property(self):
+        """Test that AgentSettings has skills property with defaults."""
+        settings = AgentSettings()
+
+        # Should have default skills configuration
+        assert settings.skills is not None
+        assert settings.skills.plugins == []
+        assert settings.skills.disabled_bundled == []
+        assert isinstance(settings.skills.user_dir, str)
 
 
 @pytest.mark.unit
@@ -138,29 +141,31 @@ class TestSkillsConfiguration:
 class TestSkillsConfigIntegration:
     """Integration tests for skills configuration with Agent initialization."""
 
-    def test_agent_initialization_with_skills_config(self):
-        """Test that Agent initializes with skills configuration.
+    def test_agent_initialization_with_default_skills(self):
+        """Test that Agent initializes with default skills configuration.
 
         This is an integration test to verify the full flow:
-        1. Config transfers skills from settings
-        2. Agent sees config.skills and loads SkillLoader
+        1. AgentSettings has default skills configuration
+        2. Agent initializes successfully with skills
         """
         from agent import Agent
 
-        with patch.dict(os.environ, {"LLM_PROVIDER": "openai"}):
-            config = AgentConfig.from_env()
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test-key"
+        settings.providers.openai.model = "gpt-4o-mini"
 
-            # Mock chat client to avoid real LLM calls
-            from tests.mocks import MockChatClient
+        # Mock chat client to avoid real LLM calls
+        from tests.mocks import MockChatClient
 
-            mock_client = MockChatClient(response="test")
+        mock_client = MockChatClient(response="test")
 
-            # Agent should not crash with skills=None
-            agent = Agent(config=config, chat_client=mock_client)
+        # Agent should not crash with default skills
+        agent = Agent(settings=settings, chat_client=mock_client)
 
-            # Agent should have initialized
-            assert agent is not None
-            assert agent.config.skills is None
+        # Agent should have initialized
+        assert agent is not None
+        assert agent.settings.skills is not None
 
     def test_agent_initialization_with_plugin_skills(self, tmp_path):
         """Test that Agent works with plugin skills configured."""
@@ -173,7 +178,8 @@ class TestSkillsConfigIntegration:
   "providers": {
     "enabled": ["openai"],
     "openai": {
-      "model": "gpt-4o-mini"
+      "model": "gpt-4o-mini",
+      "api_key": "test-key"
     }
   },
   "skills": {
@@ -184,18 +190,18 @@ class TestSkillsConfigIntegration:
         )
 
         with patch.dict(os.environ, {}, clear=True):
-            config = AgentConfig.from_combined(config_path=settings_file)
+            settings = load_config(config_path=settings_file)
 
             from tests.mocks import MockChatClient
 
             mock_client = MockChatClient(response="test")
 
-            agent = Agent(config=config, chat_client=mock_client)
+            agent = Agent(settings=settings, chat_client=mock_client)
 
             # Agent should work normally
             assert agent is not None
-            assert agent.config.skills is not None
-            assert agent.config.skills.plugins == []
+            assert agent.settings.skills is not None
+            assert agent.settings.skills.plugins == []
 
             # Should have default toolsets
             toolset_names = [type(t).__name__ for t in agent.toolsets]

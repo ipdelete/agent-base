@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 SUPPORTED_PROVIDERS = ["openai", "anthropic", "azure", "gemini", "github"]
 
 
-def is_provider_compatible(config: AgentConfig) -> tuple[bool, str]:
+def is_provider_compatible(config: AgentSettings) -> tuple[bool, str]:
     """Check if LLM provider is compatible with mem0.
 
     Args:
@@ -40,7 +40,7 @@ def is_provider_compatible(config: AgentConfig) -> tuple[bool, str]:
         return False, f"unknown provider '{config.llm_provider}'"
 
 
-def extract_llm_config(config: AgentConfig) -> dict[str, Any]:
+def extract_llm_config(config: AgentSettings) -> dict[str, Any]:
     """Extract LLM configuration from AgentConfig for mem0.
 
     Converts agent's LLM configuration to mem0-compatible format,
@@ -173,7 +173,7 @@ def get_embedding_model(llm_config: dict[str, Any]) -> str:
         return "text-embedding-3-small"
 
 
-def get_storage_path(config: AgentConfig) -> Path:
+def get_storage_path(config: AgentSettings) -> Path:
     """Get the storage path for local Chroma database.
 
     Args:
@@ -187,7 +187,9 @@ def get_storage_path(config: AgentConfig) -> Path:
         >>> # /Users/daniel/.agent/mem0_data/chroma_db
     """
     if config.mem0_storage_path:
-        return config.mem0_storage_path
+        from pathlib import Path
+
+        return Path(config.mem0_storage_path)
 
     # Default to memory_dir/chroma_db
     if config.memory_dir:
@@ -201,7 +203,7 @@ def get_storage_path(config: AgentConfig) -> Path:
     return Path.home() / ".agent" / "mem0_data" / "chroma_db"
 
 
-def create_memory_instance(config: AgentConfig) -> Any:
+def create_memory_instance(config: AgentSettings) -> Any:
     """Create mem0 Memory instance with proper configuration.
 
     Uses Memory.from_config for both local (Chroma) and cloud (mem0.ai) modes,

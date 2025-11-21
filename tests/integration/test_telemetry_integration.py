@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.observability import check_telemetry_endpoint
 from tests.mocks.mock_client import MockChatClient
 
@@ -117,18 +117,16 @@ class TestObservabilityIntegration:
     async def test_agent_with_observability_enabled(self):
         """Test agent execution with observability enabled."""
         # Setup config with observability
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            enable_otel=False,  # Disabled to avoid real otel setup in tests
-            enable_otel_explicit=False,
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test-key"
+        config.telemetry.enabled = False  # Disabled to avoid real otel setup in tests
 
         # Create mock client
         mock_client = MockChatClient(response="Test response")
 
         # Create agent
-        agent = Agent(config=config, chat_client=mock_client)
+        agent = Agent(settings=config, chat_client=mock_client)
 
         # Execute
         response = await agent.run("test prompt")
@@ -141,17 +139,16 @@ class TestObservabilityIntegration:
     async def test_agent_without_observability(self):
         """Test agent execution without observability."""
         # Setup config without observability
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            enable_otel=False,
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test-key"
+        config.telemetry.enabled = False
 
         # Create mock client
         mock_client = MockChatClient(response="Test response")
 
         # Create agent
-        agent = Agent(config=config, chat_client=mock_client)
+        agent = Agent(settings=config, chat_client=mock_client)
 
         # Execute
         response = await agent.run("test prompt")
@@ -169,7 +166,7 @@ class TestTelemetryWorkflow:
     @patch("agent.observability.check_telemetry_endpoint")
     @patch("agent_framework.observability.setup_observability")
     @patch("agent.cli.execution.Agent")
-    @patch("agent.cli.execution.AgentConfig.from_combined")
+    @patch("agent.cli.execution.load_config_with_env")
     @patch("agent.cli.execution.setup_session_logging")
     @patch("agent.cli.execution._execute_query")
     @pytest.mark.asyncio
@@ -177,7 +174,7 @@ class TestTelemetryWorkflow:
         self,
         mock_execute,
         mock_logging,
-        mock_config_loader,
+        mock_settings_loader,
         mock_agent,
         mock_setup_otel,
         mock_check_endpoint,
@@ -186,13 +183,11 @@ class TestTelemetryWorkflow:
         from agent.cli.execution import run_single_prompt
 
         # Setup: endpoint available, config doesn't have explicit setting
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            enable_otel=False,
-            enable_otel_explicit=False,
-        )
-        mock_config_loader.return_value = config
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test-key"
+        config.telemetry.enabled = False
+        mock_settings_loader.return_value = config
         mock_check_endpoint.return_value = True
         mock_execute.return_value = "test response"
 
@@ -201,7 +196,7 @@ class TestTelemetryWorkflow:
 
         # Verify workflow
         # 1. Config loaded
-        mock_config_loader.assert_called_once()
+        mock_settings_loader.assert_called_once()
 
         # 2. Endpoint checked
         mock_check_endpoint.assert_called_once()
@@ -215,7 +210,7 @@ class TestTelemetryWorkflow:
     @patch("agent.observability.check_telemetry_endpoint")
     @patch("agent_framework.observability.setup_observability")
     @patch("agent.cli.execution.Agent")
-    @patch("agent.cli.execution.AgentConfig.from_combined")
+    @patch("agent.cli.execution.load_config_with_env")
     @patch("agent.cli.execution.setup_session_logging")
     @patch("agent.cli.execution._execute_query")
     @pytest.mark.asyncio
@@ -223,7 +218,7 @@ class TestTelemetryWorkflow:
         self,
         mock_execute,
         mock_logging,
-        mock_config_loader,
+        mock_settings_loader,
         mock_agent,
         mock_setup_otel,
         mock_check_endpoint,
@@ -232,13 +227,11 @@ class TestTelemetryWorkflow:
         from agent.cli.execution import run_single_prompt
 
         # Setup: explicitly enabled
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            enable_otel=True,
-            enable_otel_explicit=True,
-        )
-        mock_config_loader.return_value = config
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test-key"
+        config.telemetry.enabled = True
+        mock_settings_loader.return_value = config
         mock_execute.return_value = "test response"
 
         # Execute
@@ -255,13 +248,13 @@ class TestTelemetryWorkflow:
     @patch("agent_framework.observability.setup_observability")
     @patch("agent.cli.interactive.ThreadPersistence")
     @patch("agent.cli.interactive.PromptSession")
-    @patch("agent.cli.interactive.AgentConfig.from_combined")
+    @patch("agent.cli.interactive.load_config_with_env")
     @patch("agent.cli.interactive.setup_session_logging")
     @pytest.mark.asyncio
     async def test_interactive_auto_detection_workflow(
         self,
         mock_logging,
-        mock_config_loader,
+        mock_settings_loader,
         mock_session,
         mock_persistence,
         mock_setup_otel,
@@ -273,13 +266,11 @@ class TestTelemetryWorkflow:
         from agent.cli.interactive import run_chat_mode
 
         # Setup
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            enable_otel=False,
-            enable_otel_explicit=False,
-        )
-        mock_config_loader.return_value = config
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test-key"
+        config.telemetry.enabled = False
+        mock_settings_loader.return_value = config
         mock_check_endpoint.return_value = True
 
         # Mock prompt session to exit immediately

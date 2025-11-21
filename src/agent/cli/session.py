@@ -10,14 +10,14 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.persistence import ThreadPersistence
 
 logger = logging.getLogger(__name__)
 
 
 def setup_session_logging(
-    session_name: str | None = None, config: AgentConfig | None = None
+    session_name: str | None = None, config: AgentSettings | None = None
 ) -> str:
     """Setup session-specific logging to file (not console).
 
@@ -37,7 +37,9 @@ def setup_session_logging(
     """
     # Load config if not provided
     if config is None:
-        config = AgentConfig.from_env()
+        from agent.config import load_config
+
+        config = load_config()
 
     # Create logs directory
     log_dir = config.agent_data_dir or Path.home() / ".agent"

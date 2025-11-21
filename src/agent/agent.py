@@ -8,7 +8,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, cast
 
-from agent.config import AgentConfig
+from agent.config import load_config
+from agent.config.schema import AgentSettings
 from agent.tools.filesystem import FileSystemTools
 from agent.tools.hello import HelloTools
 from agent.tools.toolset import AgentToolset
@@ -29,8 +30,9 @@ class Agent:
     - Local (Docker Models): Local models via Docker Desktop
 
     Example:
-        >>> config = AgentConfig.from_env()
-        >>> agent = Agent(config)
+        >>> from agent.config import load_config
+        >>> settings = load_config()
+        >>> agent = Agent(settings)
         >>> response = await agent.run("Say hello")
         >>> print(response)
         Hello! How can I help you today?
@@ -38,7 +40,7 @@ class Agent:
 
     def __init__(
         self,
-        config: AgentConfig | None = None,
+        settings: AgentSettings | None = None,
         chat_client: Any | None = None,
         toolsets: list[AgentToolset] | None = None,
         middleware: list | None = None,
@@ -47,28 +49,33 @@ class Agent:
         """Initialize Agent.
 
         Args:
-            config: Agent configuration (required if chat_client not provided)
+            settings: Agent settings (loads from file + env if not provided)
             chat_client: Chat client for testing (optional, for dependency injection)
-            toolsets: List of toolsets (default: HelloTools)
+            toolsets: List of toolsets (default: HelloTools, FileSystemTools)
             middleware: List of middleware (framework auto-categorizes by type)
             memory_manager: Memory manager for conversation storage (optional)
 
         Example:
             # Production use
-            >>> config = AgentConfig.from_env()
-            >>> agent = Agent(config)
+            >>> from agent.config import load_config
+            >>> settings = load_config()
+            >>> agent = Agent(settings)
 
             # Testing with mocks
             >>> from tests.mocks import MockChatClient
+            >>> from tests.fixtures.config import mock_openai_settings
+            >>> settings = mock_openai_settings()
             >>> mock_client = MockChatClient(response="Test response")
-            >>> agent = Agent(config=config, chat_client=mock_client)
+            >>> agent = Agent(settings=settings, chat_client=mock_client)
 
             # With custom middleware
             >>> from agent.middleware import create_middleware
             >>> mw = create_middleware()
-            >>> agent = Agent(config=config, middleware=mw)
+            >>> agent = Agent(settings=settings, middleware=mw)
         """
-        self.config = config or AgentConfig.from_env()
+        self.settings = settings or load_config()
+        # Legacy alias for compatibility during migration
+        self.config = self.settings
 
         # Dependency injection for testing
         if chat_client is not None:
@@ -79,59 +86,50 @@ class Agent:
         # Initialize memory manager if enabled
         if memory_manager is not None:
             self.memory_manager = memory_manager
-        elif self.config.memory_enabled:
+        elif self.settings.memory_enabled:
             from agent.memory import create_memory_manager
 
-            self.memory_manager = create_memory_manager(self.config)
-            logger.info(f"Memory enabled: {self.config.memory_type}")
+            self.memory_manager = create_memory_manager(self.settings)
+            logger.info(f"Memory enabled: {self.settings.memory_type}")
         else:
             self.memory_manager = None
 
         # Initialize toolsets (avoid global state)
         if toolsets is None:
-            toolsets = [HelloTools(self.config), FileSystemTools(self.config)]
+            toolsets = [HelloTools(self.settings), FileSystemTools(self.settings)]
 
-            # Load skills (if config has skills section)
+            # Load skills from settings
             try:
-                skills_config = getattr(self.config, "skills", None)
-                if skills_config is None:
-                    # No skills configuration - skip skills loading
-                    logger.debug("No skills configuration found - skipping skills loading")
-                else:
-                    from agent.skills.loader import SkillLoader
-
-                    # Auto-detect bundled_dir if not set
-                    if skills_config.bundled_dir is None:
-                        # Use importlib.resources to find bundled skills in package
-                        try:
-                            bundled_skills_path = resources.files("agent").joinpath(
-                                "_bundled_skills"
-                            )
-                            skills_config.bundled_dir = str(bundled_skills_path)
-                            logger.debug(f"Auto-detected bundled_dir: {skills_config.bundled_dir}")
-                        except (ModuleNotFoundError, AttributeError, TypeError) as e:
-                            logger.warning(f"Could not auto-detect bundled_dir: {e}")
-
-                    skill_loader = SkillLoader(self.config)
-                    skill_toolsets, script_tools, skill_docs = skill_loader.load_enabled_skills()
-
-                    # Store skill documentation index for context provider
-                    self.skill_docs = skill_docs
-
-                    if skill_toolsets:
-                        toolsets.extend(skill_toolsets)
-                        logger.info(f"Loaded {len(skill_toolsets)} skill toolsets")
-
-                    if script_tools:
-                        toolsets.append(script_tools)
-                        logger.info(
-                            f"Loaded script wrapper with {script_tools.script_count} scripts"
+                # Auto-detect bundled_dir if not set
+                if self.settings.skills.bundled_dir is None:
+                    # Use importlib.resources to find bundled skills in package
+                    try:
+                        bundled_skills_path = resources.files("agent").joinpath("_bundled_skills")
+                        self.settings.skills.bundled_dir = str(bundled_skills_path)
+                        logger.debug(
+                            f"Auto-detected bundled_dir: {self.settings.skills.bundled_dir}"
                         )
+                    except (ModuleNotFoundError, AttributeError, TypeError) as e:
+                        logger.warning(f"Could not auto-detect bundled_dir: {e}")
 
-                    if skill_docs.has_skills():
-                        logger.info(
-                            f"Loaded {skill_docs.count()} skill(s) for progressive disclosure"
-                        )
+                from agent.skills.loader import SkillLoader
+
+                skill_loader = SkillLoader(self.settings)
+                skill_toolsets, script_tools, skill_docs = skill_loader.load_enabled_skills()
+
+                # Store skill documentation index for context provider
+                self.skill_docs = skill_docs
+
+                if skill_toolsets:
+                    toolsets.extend(skill_toolsets)
+                    logger.info(f"Loaded {len(skill_toolsets)} skill toolsets")
+
+                if script_tools:
+                    toolsets.append(script_tools)
+                    logger.info(f"Loaded script wrapper with {script_tools.script_count} scripts")
+
+                if skill_docs.has_skills():
+                    logger.info(f"Loaded {skill_docs.count()} skill(s) for progressive disclosure")
 
             except Exception as e:
                 logger.error(f"Failed to load skills: {e}", exc_info=True)
@@ -172,39 +170,39 @@ class Agent:
         Raises:
             ValueError: If provider is unknown or not supported
         """
-        if self.config.llm_provider == "openai":
+        if self.settings.llm_provider == "openai":
             from agent_framework.openai import OpenAIChatClient
 
             return OpenAIChatClient(
-                model_id=self.config.openai_model,
-                api_key=self.config.openai_api_key,
+                model_id=self.settings.openai_model,
+                api_key=self.settings.openai_api_key,
             )
-        elif self.config.llm_provider == "anthropic":
+        elif self.settings.llm_provider == "anthropic":
             from agent_framework.anthropic import AnthropicClient
 
             return AnthropicClient(
-                model_id=self.config.anthropic_model,
-                api_key=self.config.anthropic_api_key,
+                model_id=self.settings.anthropic_model,
+                api_key=self.settings.anthropic_api_key,
             )
-        elif self.config.llm_provider == "azure":
+        elif self.settings.llm_provider == "azure":
             from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
             from azure.identity import AzureCliCredential, DefaultAzureCredential
 
             # gpt-5-codex requires the responses endpoint, use AzureOpenAIResponsesClient
             # gpt-5-mini and others use chat completions endpoint, use AzureOpenAIChatClient
-            deployment_name = self.config.azure_openai_deployment or ""
+            deployment_name = self.settings.azure_openai_deployment or ""
             use_responses_client = "codex" in deployment_name.lower()
             client_class = (
                 AzureOpenAIResponsesClient if use_responses_client else AzureOpenAIChatClient
             )
 
             # Use API key if provided, otherwise use Azure CLI credential
-            if self.config.azure_openai_api_key:
+            if self.settings.azure_openai_api_key:
                 return client_class(
-                    endpoint=self.config.azure_openai_endpoint,
-                    deployment_name=self.config.azure_openai_deployment,
-                    api_version=self.config.azure_openai_api_version,
-                    api_key=self.config.azure_openai_api_key,
+                    endpoint=self.settings.azure_openai_endpoint,
+                    deployment_name=self.settings.azure_openai_deployment,
+                    api_version=self.settings.azure_openai_api_version,
+                    api_key=self.settings.azure_openai_api_key,
                 )
             else:
                 # Try AzureCliCredential first, fall back to DefaultAzureCredential
@@ -212,58 +210,58 @@ class Agent:
                 try:
                     credential = AzureCliCredential()
                     return client_class(
-                        endpoint=self.config.azure_openai_endpoint,
-                        deployment_name=self.config.azure_openai_deployment,
-                        api_version=self.config.azure_openai_api_version,
+                        endpoint=self.settings.azure_openai_endpoint,
+                        deployment_name=self.settings.azure_openai_deployment,
+                        api_version=self.settings.azure_openai_api_version,
                         credential=credential,
                     )
                 except Exception:
                     credential = DefaultAzureCredential()
                     return client_class(
-                        endpoint=self.config.azure_openai_endpoint,
-                        deployment_name=self.config.azure_openai_deployment,
-                        api_version=self.config.azure_openai_api_version,
+                        endpoint=self.settings.azure_openai_endpoint,
+                        deployment_name=self.settings.azure_openai_deployment,
+                        api_version=self.settings.azure_openai_api_version,
                         credential=credential,
                     )
-        elif self.config.llm_provider == "foundry":
+        elif self.settings.llm_provider == "foundry":
             from agent_framework.azure import AzureAIAgentClient
             from azure.identity.aio import AzureCliCredential as AsyncAzureCliCredential
 
             return AzureAIAgentClient(
-                project_endpoint=self.config.azure_project_endpoint,
-                model_deployment_name=self.config.azure_model_deployment,
+                project_endpoint=self.settings.azure_project_endpoint,
+                model_deployment_name=self.settings.azure_model_deployment,
                 async_credential=AsyncAzureCliCredential(),
             )
-        elif self.config.llm_provider == "gemini":
+        elif self.settings.llm_provider == "gemini":
             from agent.providers.gemini import GeminiChatClient
 
             return GeminiChatClient(
-                model_id=self.config.gemini_model,
-                api_key=self.config.gemini_api_key,
-                project_id=self.config.gemini_project_id,
-                location=self.config.gemini_location,
-                use_vertexai=self.config.gemini_use_vertexai,
+                model_id=self.settings.gemini_model,
+                api_key=self.settings.gemini_api_key,
+                project_id=self.settings.gemini_project_id,
+                location=self.settings.gemini_location,
+                use_vertexai=self.settings.gemini_use_vertexai,
             )
-        elif self.config.llm_provider == "github":
+        elif self.settings.llm_provider == "github":
             from agent.providers.github import GitHubChatClient
 
             return GitHubChatClient(
-                model_id=self.config.github_model,
-                token=self.config.github_token,
-                endpoint=self.config.github_endpoint,
-                org=self.config.github_org,
+                model_id=self.settings.github_model,
+                token=self.settings.github_token,
+                endpoint=self.settings.github_endpoint,
+                org=self.settings.github_org,
             )
-        elif self.config.llm_provider == "local":
+        elif self.settings.llm_provider == "local":
             from agent_framework.openai import OpenAIChatClient
 
             return OpenAIChatClient(
-                model_id=self.config.local_model,
-                base_url=self.config.local_base_url,
+                model_id=self.settings.local_model,
+                base_url=self.settings.local_base_url,
                 api_key="not-needed",  # Docker doesn't require authentication
             )
         else:
             raise ValueError(
-                f"Unknown provider: {self.config.llm_provider}. "
+                f"Unknown provider: {self.settings.llm_provider}. "
                 f"Supported: openai, anthropic, azure, foundry, gemini, github, local"
             )
 
@@ -282,25 +280,25 @@ class Agent:
         prompt_content = ""
 
         # Tier 1: Try explicit env variable override (AGENT_SYSTEM_PROMPT)
-        if self.config.system_prompt_file:
+        if self.settings.system_prompt_file:
             try:
                 # Expand environment variables and user home directory
-                expanded_path = os.path.expandvars(self.config.system_prompt_file)
+                expanded_path = os.path.expandvars(self.settings.system_prompt_file)
                 custom_path = Path(expanded_path).expanduser()
                 prompt_content = custom_path.read_text(encoding="utf-8")
                 logger.info(
-                    f"Loaded system prompt from AGENT_SYSTEM_PROMPT: {self.config.system_prompt_file}"
+                    f"Loaded system prompt from AGENT_SYSTEM_PROMPT: {self.settings.system_prompt_file}"
                 )
             except Exception as e:
                 logger.warning(
-                    f"Failed to load system prompt from AGENT_SYSTEM_PROMPT={self.config.system_prompt_file}: {e}. "
+                    f"Failed to load system prompt from AGENT_SYSTEM_PROMPT={self.settings.system_prompt_file}: {e}. "
                     "Trying next fallback."
                 )
 
         # Tier 2: Try user's default custom prompt (~/.agent/system.md)
-        if not prompt_content and self.config.agent_data_dir:
+        if not prompt_content and self.settings.agent_data_dir:
             try:
-                user_default_path = self.config.agent_data_dir / "system.md"
+                user_default_path = self.settings.agent_data_dir / "system.md"
                 if user_default_path.exists():
                     prompt_content = user_default_path.read_text(encoding="utf-8")
                     logger.info(f"Loaded system prompt from user default: {user_default_path}")
@@ -341,17 +339,13 @@ Be helpful, concise, and clear in your responses."""
             prompt_content = re.sub(yaml_pattern, "", prompt_content, flags=re.DOTALL)
             logger.info("Stripped YAML front matter from system prompt")
 
-        # Replace placeholders with config values
+        # Replace placeholders with settings values
         replacements = {
-            "{{DATA_DIR}}": (
-                str(self.config.agent_data_dir) if self.config.agent_data_dir else "N/A"
-            ),
-            "{{SESSION_DIR}}": (
-                str(self.config.agent_session_dir) if self.config.agent_session_dir else "N/A"
-            ),
-            "{{MODEL}}": self.config.get_model_display_name(),
-            "{{PROVIDER}}": self.config.llm_provider,
-            "{{MEMORY_ENABLED}}": str(self.config.memory_enabled),
+            "{{DATA_DIR}}": str(self.settings.agent_data_dir),
+            "{{SESSION_DIR}}": str(self.settings.agent_session_dir),
+            "{{MODEL}}": self.settings.get_model_display_name(),
+            "{{PROVIDER}}": self.settings.llm_provider,
+            "{{MEMORY_ENABLED}}": str(self.settings.memory_enabled),
         }
 
         for placeholder, value in replacements.items():
@@ -382,7 +376,7 @@ Be helpful, concise, and clear in your responses."""
             from agent.memory import MemoryContextProvider
 
             memory_provider = MemoryContextProvider(
-                self.memory_manager, history_limit=self.config.memory_history_limit
+                self.memory_manager, history_limit=self.settings.memory_history_limit
             )
             context_providers.append(memory_provider)
             logger.info("Memory context provider enabled")
