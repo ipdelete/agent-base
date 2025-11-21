@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.filesystem import FileSystemTools
 
 # ============================================================================
@@ -36,7 +36,7 @@ def temp_workspace(tmp_path):
 @pytest.fixture
 def config_with_workspace(temp_workspace):
     """Create AgentConfig with workspace_root configured."""
-    config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+    config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
     # Add filesystem configuration attributes (not in dataclass definition yet)
     config.workspace_root = temp_workspace
     config.filesystem_writes_enabled = False  # Default disabled
@@ -48,7 +48,7 @@ def config_with_workspace(temp_workspace):
 @pytest.fixture
 def config_with_writes(temp_workspace):
     """Create AgentConfig with writes enabled."""
-    config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+    config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
     # Add filesystem configuration attributes
     config.workspace_root = temp_workspace
     config.filesystem_writes_enabled = True
@@ -152,7 +152,7 @@ class TestFileSystemToolsInitialization:
         monkeypatch.setenv("AGENT_WORKSPACE_ROOT", str(workspace))
 
         # Create config without workspace_root
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
         tools = FileSystemTools(config)
 
         # Should load from env var
@@ -177,7 +177,7 @@ class TestWorkspaceSandboxing:
         monkeypatch.delenv("AGENT_WORKSPACE_ROOT", raising=False)
 
         # Config without workspace_root
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
         tools = FileSystemTools(config)
 
         # Should default to cwd
@@ -195,7 +195,7 @@ class TestWorkspaceSandboxing:
         cwd_path.mkdir()
 
         # Test 1: Config takes priority over env
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
         config.workspace_root = config_path
         monkeypatch.setenv("AGENT_WORKSPACE_ROOT", str(env_path))
         monkeypatch.chdir(cwd_path)
@@ -221,7 +221,7 @@ class TestWorkspaceSandboxing:
         monkeypatch.setattr(Path, "cwd", lambda: Path.home())
         monkeypatch.delenv("AGENT_WORKSPACE_ROOT", raising=False)
 
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
         tools = FileSystemTools(config)
 
         with caplog.at_level(logging.WARNING):
@@ -1232,7 +1232,7 @@ class TestEdgeCasesAndErrors:
         """Test error when workspace_root doesn't exist."""
         nonexistent = tmp_path / "does_not_exist"
 
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
         config.workspace_root = nonexistent
         config.filesystem_writes_enabled = False
         config.filesystem_max_read_bytes = 10_485_760
@@ -1250,7 +1250,7 @@ class TestEdgeCasesAndErrors:
         file_not_dir = tmp_path / "file.txt"
         file_not_dir.write_text("content")
 
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
         config.workspace_root = file_not_dir
         config.filesystem_writes_enabled = False
         config.filesystem_max_read_bytes = 10_485_760

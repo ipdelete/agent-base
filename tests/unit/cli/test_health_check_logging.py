@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from agent.cli.health import _test_all_providers, _test_provider_connectivity_async
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 
 @pytest.fixture
 def mock_azure_config():
     """Create mock AgentConfig for Azure testing."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="azure",
         azure_openai_endpoint="https://test.openai.azure.com/",
         azure_openai_deployment="test-deployment",
@@ -23,7 +23,7 @@ def mock_azure_config():
 @pytest.fixture
 def mock_azure_cli_config():
     """Create mock AgentConfig for Azure testing with CLI auth (no API key)."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="azure",
         azure_openai_endpoint="https://test.openai.azure.com/",
         azure_openai_deployment="test-deployment",
@@ -145,7 +145,7 @@ class TestHealthCheckLogging:
     @pytest.mark.asyncio
     async def test_non_azure_provider_general_error(self):
         """Test that non-Azure providers get generic error messages."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
 
         with patch("agent.cli.health.Agent") as MockAgent:
             MockAgent.side_effect = Exception("Some random error")
@@ -160,7 +160,7 @@ class TestHealthCheckLogging:
     @pytest.mark.asyncio
     async def test_foundry_provider_auth_error(self):
         """Test that Azure AI Foundry provider also gets Azure-specific error messages."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="foundry",
             azure_project_endpoint="https://test.services.ai.azure.com/api/projects/test",
             azure_model_deployment="test-model",
@@ -183,7 +183,7 @@ class TestProviderConnectivityOptimization:
     @pytest.mark.asyncio
     async def test_only_enabled_providers_tested(self):
         """Test that only enabled providers are tested."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="local",
             local_model="ai/phi4",
             enabled_providers=["local"],  # Only local enabled
@@ -205,7 +205,7 @@ class TestProviderConnectivityOptimization:
     @pytest.mark.asyncio
     async def test_active_provider_always_tested(self):
         """Test that active provider is always tested even if not in enabled list."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",  # Active provider
             enabled_providers=["local"],  # Only local enabled
             openai_api_key="test-key",
@@ -227,7 +227,7 @@ class TestProviderConnectivityOptimization:
     @pytest.mark.asyncio
     async def test_disabled_providers_skipped(self):
         """Test that disabled providers are completely skipped."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="local",
             enabled_providers=["local"],  # Only local enabled
             openai_api_key="test-key",
@@ -253,7 +253,7 @@ class TestProviderConnectivityOptimization:
         """Test that providers are tested in parallel using asyncio.gather."""
         import asyncio
 
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="local",
             enabled_providers=["local", "openai", "anthropic"],
             openai_api_key="test-key",
@@ -288,7 +288,7 @@ class TestProviderConnectivityOptimization:
     @pytest.mark.asyncio
     async def test_multiple_enabled_providers(self):
         """Test with multiple enabled providers."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             enabled_providers=["local", "openai", "anthropic"],
             openai_api_key="test-key",
@@ -310,7 +310,7 @@ class TestProviderConnectivityOptimization:
     @pytest.mark.asyncio
     async def test_empty_enabled_list_tests_active_only(self):
         """Test that empty enabled list still tests the active provider."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             enabled_providers=[],  # Empty list
             openai_api_key="test-key",
@@ -328,7 +328,7 @@ class TestProviderConnectivityOptimization:
     @pytest.mark.asyncio
     async def test_result_format_preserved(self):
         """Test that result format matches expected tuple structure."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="local",
             enabled_providers=["local"],
             local_model="ai/phi4",

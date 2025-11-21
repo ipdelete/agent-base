@@ -8,13 +8,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 
 @pytest.fixture
-def mock_config_otel_disabled():
+def mock_settings_otel_disabled():
     """Config with telemetry disabled."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
         enable_otel=False,
@@ -23,9 +23,9 @@ def mock_config_otel_disabled():
 
 
 @pytest.fixture
-def mock_config_otel_explicit():
+def mock_settings_otel_explicit():
     """Config with telemetry explicitly enabled."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
         enable_otel=True,
@@ -34,9 +34,9 @@ def mock_config_otel_explicit():
 
 
 @pytest.fixture
-def mock_config_otel_auto():
+def mock_settings_otel_auto():
     """Config without explicit telemetry setting (for auto-detection)."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
         enable_otel=False,
@@ -62,14 +62,14 @@ class TestExecutionObservabilitySetup:
         mock_logging,
         mock_agent,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_explicit,
+        mock_settings_loader,
+        mock_settings_otel_explicit,
     ):
         """Test observability is enabled when explicitly configured."""
         from agent.cli.execution import run_single_prompt
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_explicit
+        mock_settings_loader.return_value = mock_settings_otel_explicit
         mock_execute.return_value = "test response"
 
         # Execute
@@ -77,9 +77,9 @@ class TestExecutionObservabilitySetup:
 
         # Verify setup_observability was called
         mock_setup_otel.assert_called_once_with(
-            enable_sensitive_data=mock_config_otel_explicit.enable_sensitive_data,
-            otlp_endpoint=mock_config_otel_explicit.otlp_endpoint,
-            applicationinsights_connection_string=mock_config_otel_explicit.applicationinsights_connection_string,
+            enable_sensitive_data=mock_settings_otel_explicit.enable_sensitive_data,
+            otlp_endpoint=mock_settings_otel_explicit.otlp_endpoint,
+            applicationinsights_connection_string=mock_settings_otel_explicit.applicationinsights_connection_string,
         )
 
     @pytest.mark.asyncio
@@ -96,14 +96,14 @@ class TestExecutionObservabilitySetup:
         mock_agent,
         mock_check_endpoint,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_auto,
+        mock_settings_loader,
+        mock_settings_otel_auto,
     ):
         """Test observability auto-detection when endpoint is available."""
         from agent.cli.execution import run_single_prompt
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_auto
+        mock_settings_loader.return_value = mock_settings_otel_auto
         mock_check_endpoint.return_value = True  # Endpoint is available
         mock_execute.return_value = "test response"
 
@@ -111,7 +111,7 @@ class TestExecutionObservabilitySetup:
         await run_single_prompt("test prompt", verbose=False, quiet=True)
 
         # Verify auto-detection was attempted
-        mock_check_endpoint.assert_called_once_with(mock_config_otel_auto.otlp_endpoint)
+        mock_check_endpoint.assert_called_once_with(mock_settings_otel_auto.otlp_endpoint)
 
         # Verify setup_observability was called (auto-enabled)
         mock_setup_otel.assert_called_once()
@@ -130,14 +130,14 @@ class TestExecutionObservabilitySetup:
         mock_agent,
         mock_check_endpoint,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_auto,
+        mock_settings_loader,
+        mock_settings_otel_auto,
     ):
         """Test observability is not enabled when endpoint is unavailable."""
         from agent.cli.execution import run_single_prompt
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_auto
+        mock_settings_loader.return_value = mock_settings_otel_auto
         mock_check_endpoint.return_value = False  # Endpoint NOT available
         mock_execute.return_value = "test response"
 
@@ -145,7 +145,7 @@ class TestExecutionObservabilitySetup:
         await run_single_prompt("test prompt", verbose=False, quiet=True)
 
         # Verify auto-detection was attempted
-        mock_check_endpoint.assert_called_once_with(mock_config_otel_auto.otlp_endpoint)
+        mock_check_endpoint.assert_called_once_with(mock_settings_otel_auto.otlp_endpoint)
 
         # Verify setup_observability was NOT called
         mock_setup_otel.assert_not_called()
@@ -164,14 +164,14 @@ class TestExecutionObservabilitySetup:
         mock_agent,
         mock_check_endpoint,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_disabled,
+        mock_settings_loader,
+        mock_settings_otel_disabled,
     ):
         """Test observability is not enabled when disabled and endpoint unavailable."""
         from agent.cli.execution import run_single_prompt
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_disabled
+        mock_settings_loader.return_value = mock_settings_otel_disabled
         mock_check_endpoint.return_value = False  # Endpoint not available
         mock_execute.return_value = "test response"
 
@@ -199,14 +199,14 @@ class TestInteractiveObservabilitySetup:
         mock_session,
         mock_persistence,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_explicit,
+        mock_settings_loader,
+        mock_settings_otel_explicit,
     ):
         """Test observability is enabled when explicitly configured."""
         from agent.cli.interactive import run_chat_mode
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_explicit
+        mock_settings_loader.return_value = mock_settings_otel_explicit
 
         # Mock prompt session to exit immediately
         mock_prompt_instance = AsyncMock()
@@ -218,9 +218,9 @@ class TestInteractiveObservabilitySetup:
 
         # Verify setup_observability was called
         mock_setup_otel.assert_called_once_with(
-            enable_sensitive_data=mock_config_otel_explicit.enable_sensitive_data,
-            otlp_endpoint=mock_config_otel_explicit.otlp_endpoint,
-            applicationinsights_connection_string=mock_config_otel_explicit.applicationinsights_connection_string,
+            enable_sensitive_data=mock_settings_otel_explicit.enable_sensitive_data,
+            otlp_endpoint=mock_settings_otel_explicit.otlp_endpoint,
+            applicationinsights_connection_string=mock_settings_otel_explicit.applicationinsights_connection_string,
         )
 
     @pytest.mark.asyncio
@@ -237,14 +237,14 @@ class TestInteractiveObservabilitySetup:
         mock_persistence,
         mock_check_endpoint,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_auto,
+        mock_settings_loader,
+        mock_settings_otel_auto,
     ):
         """Test observability auto-detection when endpoint is available."""
         from agent.cli.interactive import run_chat_mode
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_auto
+        mock_settings_loader.return_value = mock_settings_otel_auto
         mock_check_endpoint.return_value = True  # Endpoint is available
 
         # Mock prompt session to exit immediately
@@ -256,7 +256,7 @@ class TestInteractiveObservabilitySetup:
         await run_chat_mode(quiet=True, verbose=False)
 
         # Verify auto-detection was attempted
-        mock_check_endpoint.assert_called_once_with(mock_config_otel_auto.otlp_endpoint)
+        mock_check_endpoint.assert_called_once_with(mock_settings_otel_auto.otlp_endpoint)
 
         # Verify setup_observability was called (auto-enabled)
         mock_setup_otel.assert_called_once()
@@ -275,14 +275,14 @@ class TestInteractiveObservabilitySetup:
         mock_persistence,
         mock_check_endpoint,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_auto,
+        mock_settings_loader,
+        mock_settings_otel_auto,
     ):
         """Test observability is not enabled when endpoint is unavailable."""
         from agent.cli.interactive import run_chat_mode
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_auto
+        mock_settings_loader.return_value = mock_settings_otel_auto
         mock_check_endpoint.return_value = False  # Endpoint NOT available
 
         # Mock prompt session to exit immediately
@@ -294,7 +294,7 @@ class TestInteractiveObservabilitySetup:
         await run_chat_mode(quiet=True, verbose=False)
 
         # Verify auto-detection was attempted
-        mock_check_endpoint.assert_called_once_with(mock_config_otel_auto.otlp_endpoint)
+        mock_check_endpoint.assert_called_once_with(mock_settings_otel_auto.otlp_endpoint)
 
         # Verify setup_observability was NOT called
         mock_setup_otel.assert_not_called()
@@ -319,14 +319,14 @@ class TestObservabilitySpanCreation:
         mock_agent,
         mock_tracer,
         mock_setup_otel,
-        mock_config_loader,
-        mock_config_otel_explicit,
+        mock_settings_loader,
+        mock_settings_otel_explicit,
     ):
         """Test that spans are created when observability is enabled."""
         from agent.cli.execution import run_single_prompt
 
         # Setup
-        mock_config_loader.return_value = mock_config_otel_explicit
+        mock_settings_loader.return_value = mock_settings_otel_explicit
         mock_execute_viz.return_value = "test response"
 
         # Mock tracer

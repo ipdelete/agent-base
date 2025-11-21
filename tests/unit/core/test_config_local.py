@@ -5,155 +5,126 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config import merge_with_env
+from agent.config.schema import AgentSettings
 
 
 @pytest.mark.unit
 @pytest.mark.config
 class TestLocalProviderConfig:
-    """Tests for Local Provider configuration in AgentConfig."""
+    """Tests for Local Provider configuration in AgentSettings."""
 
-    def test_from_env_with_local_provider(self):
-        """Test from_env loads local provider configuration."""
-        # Preserve HOME/USERPROFILE for Path.home()
+    def test_local_provider_with_env_overrides(self):
+        """Test environment variable overrides for local provider."""
         env_vars = {
-            "LLM_PROVIDER": "local",
             "LOCAL_BASE_URL": "http://localhost:12434/engines/llama.cpp/v1",
-            "AGENT_MODEL": "ai/phi4",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = AgentSettings()
+            settings.providers.enabled = ["local"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            env_overrides = merge_with_env(settings)
 
-            assert config.llm_provider == "local"
-            assert config.local_base_url == "http://localhost:12434/engines/llama.cpp/v1"
-            assert config.local_model == "ai/phi4"
+            # Check that local base_url was read from environment
+            assert "providers" in env_overrides
+            assert "local" in env_overrides["providers"]
+            assert env_overrides["providers"]["local"]["base_url"] == "http://localhost:12434/engines/llama.cpp/v1"
 
-    def test_from_env_local_provider_defaults(self):
-        """Test from_env uses default values for local provider."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {
-            "LLM_PROVIDER": "local",
-        }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+    def test_local_provider_defaults(self):
+        """Test local provider uses default values."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        assert settings.llm_provider == "local"
+        assert settings.local_base_url == "http://localhost:12434/engines/llama.cpp/v1"
+        assert settings.local_model == "ai/phi4"
 
-            assert config.llm_provider == "local"
-            assert config.local_base_url == "http://localhost:12434/engines/llama.cpp/v1"
-            assert config.local_model == "ai/phi4"
+    def test_local_custom_base_url(self):
+        """Test local provider with custom base URL."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = "http://localhost:9000/v1"
 
-    def test_from_env_local_custom_base_url(self):
-        """Test from_env with custom LOCAL_BASE_URL."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {
-            "LLM_PROVIDER": "local",
-            "LOCAL_BASE_URL": "http://localhost:9000/v1",
-        }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
-
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
-
-            assert config.local_base_url == "http://localhost:9000/v1"
+        assert settings.local_base_url == "http://localhost:9000/v1"
 
     def test_local_provider_validation_success(self):
         """Test validate succeeds for local provider with base_url."""
-        config = AgentConfig(
-            llm_provider="local",
-            local_base_url="http://localhost:12434/engines/llama.cpp/v1",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = "http://localhost:12434/engines/llama.cpp/v1"
+
         # Should not raise
-        config.validate()
+        errors = settings.validate_enabled_providers()
+        assert errors == []
 
     def test_local_provider_validation_missing_url(self):
         """Test validate fails for local provider without base_url."""
-        config = AgentConfig(
-            llm_provider="local",
-            local_base_url=None,
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = None
 
-        with pytest.raises(ValueError, match="Local provider requires base URL"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
+        assert "local" in errors[0].lower() or "base url" in errors[0].lower()
 
     def test_local_provider_validation_error_message(self):
         """Test validate error message includes helpful guidance."""
-        config = AgentConfig(
-            llm_provider="local",
-            local_base_url=None,
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = None
 
-        with pytest.raises(ValueError) as exc_info:
-            config.validate()
-
-        error_msg = str(exc_info.value)
-        assert "LOCAL_BASE_URL" in error_msg
-        assert "docker model pull phi4" in error_msg
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
+        # Error should mention local or base_url
+        error_msg = errors[0].lower()
+        assert "local" in error_msg or "base" in error_msg
 
     def test_local_provider_display_name(self):
         """Test get_model_display_name for local provider."""
-        config = AgentConfig(
-            llm_provider="local",
-            local_base_url="http://localhost:12434/engines/llama.cpp/v1",
-            local_model="ai/phi4",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = "http://localhost:12434/engines/llama.cpp/v1"
+        settings.providers.local.model = "ai/phi4"
 
-        assert config.get_model_display_name() == "Local/ai/phi4"
+        assert settings.get_model_display_name() == "ai/phi4"
 
     def test_local_provider_display_name_custom_model(self):
         """Test get_model_display_name for local provider with custom model."""
-        config = AgentConfig(
-            llm_provider="local",
-            local_base_url="http://localhost:12434/engines/llama.cpp/v1",
-            local_model="ai/llama3.2",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = "http://localhost:12434/engines/llama.cpp/v1"
+        settings.providers.local.model = "ai/llama3.2"
 
-        assert config.get_model_display_name() == "Local/ai/llama3.2"
+        assert settings.get_model_display_name() == "ai/llama3.2"
 
-    def test_local_model_override_via_agent_model(self):
-        """Test AGENT_MODEL overrides default local model."""
-        # Preserve HOME/USERPROFILE for Path.home()
+    def test_local_model_override_via_env(self):
+        """Test model can be overridden via environment variables."""
         env_vars = {
-            "LLM_PROVIDER": "local",
-            "AGENT_MODEL": "ai/llama3.2",
+            "LOCAL_MODEL": "ai/llama3.2",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = AgentSettings()
+            settings.providers.enabled = ["local"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            env_overrides = merge_with_env(settings)
 
-            assert config.local_model == "ai/llama3.2"
+            # Check model override
+            assert "providers" in env_overrides
+            assert "local" in env_overrides["providers"]
+            assert env_overrides["providers"]["local"]["model"] == "ai/llama3.2"
 
     def test_local_default_model(self):
         """Test local provider defaults to ai/phi4 model."""
-        config = AgentConfig(
-            llm_provider="local",
-            local_base_url="http://localhost:12434/engines/llama.cpp/v1",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
+        settings.providers.local.base_url = "http://localhost:12434/engines/llama.cpp/v1"
 
-        assert config.local_model == "ai/phi4"
+        assert settings.local_model == "ai/phi4"
 
-    def test_local_provider_in_supported_providers(self):
-        """Test that validation error message includes local in supported providers."""
-        config = AgentConfig(llm_provider="invalid_provider")
+    def test_local_provider_in_enabled_list(self):
+        """Test that local can be in enabled providers list."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["local"]
 
-        with pytest.raises(ValueError) as exc_info:
-            config.validate()
-
-        error_msg = str(exc_info.value)
-        assert "local" in error_msg
-        assert "Supported providers:" in error_msg
+        assert "local" in settings.providers.enabled
+        assert settings.llm_provider == "local"

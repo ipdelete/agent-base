@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 
 @pytest.mark.unit
@@ -17,19 +17,19 @@ class TestMemoryConfiguration:
 
     def test_config_memory_enabled_by_default(self):
         """Test memory is enabled by default for conversation context."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test")
 
         assert config.memory_enabled is True
 
     def test_config_memory_type_defaults_to_in_memory(self):
         """Test memory type defaults to in_memory."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test")
 
         assert config.memory_type == "in_memory"
 
     def test_config_memory_enabled_explicit(self):
         """Test memory can be explicitly enabled."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -39,7 +39,7 @@ class TestMemoryConfiguration:
 
     def test_config_memory_type_custom(self):
         """Test memory type can be customized."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -50,14 +50,14 @@ class TestMemoryConfiguration:
 
     def test_config_memory_dir_default(self):
         """Test memory_dir defaults to None."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test")
 
         assert config.memory_dir is None
 
     def test_config_memory_dir_custom(self):
         """Test memory_dir can be set."""
         custom_dir = Path("/custom/memory")
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_dir=custom_dir,
@@ -195,7 +195,7 @@ class TestMemoryConfiguration:
 
     def test_config_with_all_memory_settings(self):
         """Test config with all memory settings configured."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,

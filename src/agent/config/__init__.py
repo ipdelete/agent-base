@@ -10,7 +10,7 @@ from .editor import (
     validate_after_edit,
     wait_for_editor,
 )
-from .legacy import DEFAULT_GEMINI_MODEL, AgentConfig
+from .constants import DEFAULT_GEMINI_MODEL
 from .manager import (
     ConfigurationError,
     get_config_path,
@@ -22,8 +22,7 @@ from .manager import (
 from .schema import AgentSettings, MemoryConfig, ProviderConfig, TelemetryConfig
 
 __all__ = [
-    # Legacy
-    "AgentConfig",
+    # Constants
     "DEFAULT_GEMINI_MODEL",
     # Schema
     "AgentSettings",

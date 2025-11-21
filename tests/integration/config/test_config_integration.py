@@ -5,49 +5,47 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig, get_default_config, load_config, save_config
+from agent.config import get_default_config, load_config, merge_with_env, save_config
+from agent.config.schema import AgentSettings
 
 
 @pytest.mark.integration
 class TestConfigurationIntegration:
     """Test end-to-end configuration workflows."""
 
-    def test_config_file_to_agent_config(self, tmp_path):
-        """Test loading config file and creating AgentConfig."""
+    def test_config_file_to_agent_settings(self, tmp_path):
+        """Test loading config file and creating AgentSettings."""
         # Create a test config file
         config_path = tmp_path / "settings.json"
         settings = get_default_config()
         settings.providers.enabled = ["openai"]
         settings.providers.openai.api_key = "sk-test-123"
-        settings.providers.openai.enabled = True
 
         save_config(settings, config_path)
 
-        # Load into AgentConfig
-        agent_config = AgentConfig.from_file(config_path)
+        # Load settings from file
+        loaded_settings = load_config(config_path)
 
-        assert agent_config.llm_provider == "openai"
-        assert agent_config.openai_api_key == "sk-test-123"
-        assert agent_config.config_source == "file"
+        assert loaded_settings.llm_provider == "openai"
+        assert loaded_settings.openai_api_key == "sk-test-123"
 
-    def test_file_overrides_env_integration(self, tmp_path):
-        """Test that file settings override environment variables (FILE > ENV)."""
+    def test_file_with_env_overrides_integration(self, tmp_path):
+        """Test that environment variables can override file settings when merged."""
         # Create a test config file with OpenAI
         config_path = tmp_path / "settings.json"
         settings = get_default_config()
         settings.providers.enabled = ["openai"]
         settings.providers.openai.api_key = "file-key"
-        settings.providers.openai.enabled = True
 
         save_config(settings, config_path)
 
-        # Set environment variable (should be overridden by file)
+        # Set environment variable to override
         with patch.dict(os.environ, {"OPENAI_API_KEY": "env-key-override"}, clear=False):
-            agent_config = AgentConfig.from_combined(config_path)
+            loaded_settings = load_config(config_path)
+            merged_settings = merge_with_env(loaded_settings)
 
-        # File wins over env
-        assert agent_config.openai_api_key == "file-key"
-        assert agent_config.config_source == "combined"
+        # Env overrides file when explicitly merged
+        assert merged_settings.openai_api_key == "env-key-override"
 
     def test_multiple_providers_enabled(self, tmp_path):
         """Test enabling multiple providers."""
@@ -57,13 +55,12 @@ class TestConfigurationIntegration:
         # Enable multiple providers
         settings.providers.enabled = ["local", "openai"]
         settings.providers.openai.api_key = "sk-test"
-        settings.providers.openai.enabled = True
 
         save_config(settings, config_path)
-        agent_config = AgentConfig.from_file(config_path)
+        loaded_settings = load_config(config_path)
 
-        assert agent_config.enabled_providers == ["local", "openai"]
-        assert agent_config.llm_provider == "local"  # First in list
+        assert loaded_settings.providers.enabled == ["local", "openai"]
+        assert loaded_settings.llm_provider == "local"  # First in list
 
     def test_provider_enable_disable_workflow(self, tmp_path):
         """Test enabling and disabling a provider."""
@@ -75,56 +72,49 @@ class TestConfigurationIntegration:
 
         # Enable local provider first
         settings.providers.enabled.append("local")
-        settings.providers.local.enabled = True
 
         # Then enable OpenAI
         settings.providers.enabled.append("openai")
         settings.providers.openai.api_key = "sk-test"
-        settings.providers.openai.enabled = True
         save_config(settings, config_path)
 
         # Verify enabled
         loaded = load_config(config_path)
         assert "openai" in loaded.providers.enabled
-        assert loaded.providers.openai.enabled is True
 
         # Disable OpenAI
         loaded.providers.enabled.remove("openai")
-        loaded.providers.openai.enabled = False
         save_config(loaded, config_path)
 
         # Verify disabled
         final = load_config(config_path)
         assert "openai" not in final.providers.enabled
-        assert final.providers.openai.enabled is False
 
-    def test_from_combined_with_no_file(self, tmp_path):
-        """Test from_combined() with no file and LLM_PROVIDER env var."""
+    def test_load_config_with_no_file_uses_defaults(self, tmp_path):
+        """Test load_config() with non-existent file returns defaults."""
         # Point to non-existent file
         config_path = tmp_path / "nonexistent.json"
 
-        # Need LLM_PROVIDER env var when no file exists
-        with patch.dict(os.environ, {"LLM_PROVIDER": "local"}, clear=False):
-            agent_config = AgentConfig.from_combined(config_path)
+        # Should return default configuration
+        settings = load_config(config_path)
 
-        # Should use env var
-        assert agent_config.llm_provider == "local"
+        # Should have default providers (empty list)
+        assert settings.providers.enabled == []
 
-    def test_backward_compatibility_env_only(self):
-        """Test that from_env() still works (backward compatibility)."""
+    def test_env_variables_integration(self):
+        """Test that environment variables work with the system."""
         with patch.dict(
             os.environ,
             {
-                "LLM_PROVIDER": "anthropic",
                 "ANTHROPIC_API_KEY": "sk-ant-test",
             },
             clear=False,
         ):
-            agent_config = AgentConfig.from_env()
+            settings = AgentSettings()
+            settings.providers.enabled = ["anthropic"]
+            merged = merge_with_env(settings)
 
-        assert agent_config.llm_provider == "anthropic"
-        assert agent_config.anthropic_api_key == "sk-ant-test"
-        assert agent_config.config_source == "env"
+        assert merged.anthropic_api_key == "sk-ant-test"
 
     def test_telemetry_config_integration(self, tmp_path):
         """Test telemetry configuration."""
@@ -137,10 +127,10 @@ class TestConfigurationIntegration:
         settings.telemetry.otlp_endpoint = "http://custom:4318"
         save_config(settings, config_path)
 
-        agent_config = AgentConfig.from_file(config_path)
+        loaded_settings = load_config(config_path)
 
-        assert agent_config.enable_otel is True
-        assert agent_config.otlp_endpoint == "http://custom:4318"
+        assert loaded_settings.telemetry.enabled is True
+        assert loaded_settings.telemetry.otlp_endpoint == "http://custom:4318"
 
     def test_memory_config_integration(self, tmp_path):
         """Test memory configuration."""
@@ -154,16 +144,16 @@ class TestConfigurationIntegration:
         settings.memory.mem0.org_id = "org-123"
         save_config(settings, config_path)
 
-        agent_config = AgentConfig.from_file(config_path)
+        loaded_settings = load_config(config_path)
 
-        assert agent_config.memory_type == "mem0"
-        assert agent_config.mem0_api_key == "mem0-key"
-        assert agent_config.mem0_org_id == "org-123"
+        assert loaded_settings.memory.type == "mem0"
+        assert loaded_settings.memory.mem0.api_key == "mem0-key"
+        assert loaded_settings.memory.mem0.org_id == "org-123"
 
 
 @pytest.mark.integration
 class TestConfigPrecedence:
-    """Test configuration precedence: CLI > file > env > defaults."""
+    """Test configuration precedence: file + env overrides."""
 
     def test_file_overrides_defaults(self, tmp_path):
         """Test that file settings override defaults."""
@@ -171,52 +161,46 @@ class TestConfigPrecedence:
         settings = get_default_config()
         settings.providers.enabled = ["anthropic"]
         settings.providers.anthropic.api_key = "file-key"
-        settings.providers.anthropic.enabled = True
 
         save_config(settings, config_path)
-        agent_config = AgentConfig.from_file(config_path)
+        loaded_settings = load_config(config_path)
 
         # File explicitly sets provider
-        assert agent_config.llm_provider == "anthropic"
+        assert loaded_settings.llm_provider == "anthropic"
 
-    def test_env_as_fallback(self, tmp_path):
-        """Test that environment variables serve as fallback when file doesn't have values."""
+    def test_env_as_override(self, tmp_path):
+        """Test that environment variables can override file values when merged."""
         config_path = tmp_path / "settings.json"
         settings = get_default_config()
         settings.providers.enabled = ["openai"]
-        # File has openai enabled but no API key set
-        settings.providers.openai.api_key = None
+        settings.providers.openai.api_key = "file-key"
 
         save_config(settings, config_path)
 
         with patch.dict(
             os.environ,
-            {"OPENAI_API_KEY": "env-fallback-key"},
+            {"OPENAI_API_KEY": "env-override-key"},
             clear=False,
         ):
-            agent_config = AgentConfig.from_combined(config_path)
+            loaded_settings = load_config(config_path)
+            merged_settings = merge_with_env(loaded_settings)
 
-        # Env used as fallback when file has null value
-        assert agent_config.llm_provider == "openai"
-        assert agent_config.openai_api_key == "env-fallback-key"
+        # Env used to override file value when merged
+        assert loaded_settings.openai_api_key == "file-key"  # File value without merge
+        assert merged_settings.openai_api_key == "env-override-key"  # Env overrides after merge
 
-    def test_file_priority_over_env(self, tmp_path):
-        """Test that file values take priority over environment variables."""
+    def test_file_values_persist(self, tmp_path):
+        """Test that file values are preserved in configuration."""
         config_path = tmp_path / "settings.json"
         settings = get_default_config()
-        settings.providers.enabled = ["local"]  # Enable local provider
-        settings.telemetry.enabled = False  # Explicitly disabled in file
-        settings.memory.history_limit = 10  # Explicitly set in file
+        settings.providers.enabled = ["local"]
+        settings.telemetry.enabled = False
+        settings.memory.history_limit = 10
 
         save_config(settings, config_path)
 
-        env_vars = {
-            "ENABLE_OTEL": "true",  # Env says enable
-            "MEMORY_HISTORY_LIMIT": "50",  # Env says 50
-        }
-        with patch.dict(os.environ, env_vars, clear=False):
-            agent_config = AgentConfig.from_combined(config_path)
+        loaded_settings = load_config(config_path)
 
-        # File values win over env
-        assert agent_config.enable_otel is False  # File wins
-        assert agent_config.memory_history_limit == 10  # File wins
+        # File values are loaded
+        assert loaded_settings.telemetry.enabled is False
+        assert loaded_settings.memory.history_limit == 10

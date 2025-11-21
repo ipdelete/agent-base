@@ -3,7 +3,7 @@
 import pytest
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.hello import HelloTools
 
 
@@ -12,31 +12,31 @@ from agent.tools.hello import HelloTools
 class TestAgent:
     """Tests for Agent class."""
 
-    def test_agent_initialization_with_config(self, mock_config, mock_chat_client):
+    def test_agent_initialization_with_config(self, mock_settings, mock_chat_client):
         """Test Agent initializes with config and chat client."""
-        agent = Agent(config=mock_config, chat_client=mock_chat_client)
+        agent = Agent(settings=mock_settings, chat_client=mock_chat_client)
 
-        assert agent.config == mock_config
+        assert agent.config == mock_settings
         assert agent.chat_client == mock_chat_client
 
-    def test_agent_initialization_defaults_to_hello_tools(self, mock_config, mock_chat_client):
+    def test_agent_initialization_defaults_to_hello_tools(self, mock_settings, mock_chat_client):
         """Test Agent defaults to HelloTools and FileSystemTools if no toolsets provided."""
-        agent = Agent(config=mock_config, chat_client=mock_chat_client)
+        agent = Agent(settings=mock_settings, chat_client=mock_chat_client)
 
         # Default toolsets: HelloTools + FileSystemTools
         assert len(agent.toolsets) == 2
         assert isinstance(agent.toolsets[0], HelloTools)
 
-    def test_agent_collects_tools_from_toolsets(self, mock_config, mock_chat_client):
+    def test_agent_collects_tools_from_toolsets(self, mock_settings, mock_chat_client):
         """Test Agent collects all tools from toolsets."""
-        agent = Agent(config=mock_config, chat_client=mock_chat_client)
+        agent = Agent(settings=mock_settings, chat_client=mock_chat_client)
 
         # Default: HelloTools (2) + FileSystemTools (7) = 9 tools
         assert len(agent.tools) == 9
 
-    def test_agent_creates_agent_with_tools(self, mock_config, mock_chat_client):
+    def test_agent_creates_agent_with_tools(self, mock_settings, mock_chat_client):
         """Test Agent creates agent with tools via chat client."""
-        Agent(config=mock_config, chat_client=mock_chat_client)
+        Agent(settings=mock_settings, chat_client=mock_chat_client)
 
         # Check that create_agent was called
         assert len(mock_chat_client.created_agents) == 1
@@ -46,21 +46,21 @@ class TestAgent:
         # Default toolsets: HelloTools (2) + FileSystemTools (7) = 9 tools
         assert len(created["tools"]) == 9
 
-    def test_agent_with_custom_toolsets(self, mock_config, mock_chat_client):
+    def test_agent_with_custom_toolsets(self, mock_settings, mock_chat_client):
         """Test Agent with custom toolsets."""
-        hello_tools = HelloTools(mock_config)
+        hello_tools = HelloTools(mock_settings)
 
-        agent = Agent(config=mock_config, chat_client=mock_chat_client, toolsets=[hello_tools])
+        agent = Agent(settings=mock_settings, chat_client=mock_chat_client, toolsets=[hello_tools])
 
         assert len(agent.toolsets) == 1
         assert agent.toolsets[0] == hello_tools
 
-    def test_agent_with_multiple_toolsets(self, mock_config, mock_chat_client):
+    def test_agent_with_multiple_toolsets(self, mock_settings, mock_chat_client):
         """Test Agent with multiple toolsets."""
-        tools1 = HelloTools(mock_config)
-        tools2 = HelloTools(mock_config)
+        tools1 = HelloTools(mock_settings)
+        tools2 = HelloTools(mock_settings)
 
-        agent = Agent(config=mock_config, chat_client=mock_chat_client, toolsets=[tools1, tools2])
+        agent = Agent(settings=mock_settings, chat_client=mock_chat_client, toolsets=[tools1, tools2])
 
         assert len(agent.toolsets) == 2
         # Should have 4 tools (2 from each HelloTools)
@@ -90,11 +90,11 @@ class TestAgent:
         agent = Agent(chat_client=mock_chat_client)
 
         assert agent.config is not None
-        assert isinstance(agent.config, AgentConfig)
+        assert isinstance(agent.config, AgentSettings)
 
     def test_create_chat_client_raises_for_unknown_provider(self):
         """Test _create_chat_client raises ValueError for unknown provider."""
-        config = AgentConfig(llm_provider="invalid_provider", openai_api_key="test")
+        config = AgentSettings(llm_provider="invalid_provider", openai_api_key="test")
 
         with pytest.raises(ValueError, match="Unknown provider: invalid_provider"):
             Agent(config=config)
@@ -152,9 +152,9 @@ class TestAgent:
 class TestAgentSystemPrompt:
     """Integration tests for agent creation with different prompt configurations."""
 
-    def test_agent_uses_default_prompt(self, mock_config, mock_chat_client):
+    def test_agent_uses_default_prompt(self, mock_settings, mock_chat_client):
         """Test agent gets default prompt when no custom file specified."""
-        Agent(config=mock_config, chat_client=mock_chat_client)
+        Agent(settings=mock_settings, chat_client=mock_chat_client)
 
         # Verify agent was created with default prompt
         assert len(mock_chat_client.created_agents) == 1
@@ -198,14 +198,14 @@ class TestAgentSystemPrompt:
         assert "openai" in instructions
 
     def test_agent_creation_succeeds_on_prompt_load_failure(
-        self, mock_config, mock_chat_client, caplog
+        self, mock_settings, mock_chat_client, caplog
     ):
         """Test agent creation succeeds even if prompt loading fails."""
         # Set invalid custom prompt file
-        mock_config.system_prompt_file = "/nonexistent/prompt.md"
+        mock_settings.system_prompt_file = "/nonexistent/prompt.md"
 
         # Agent should still be created (using fallback)
-        Agent(config=mock_config, chat_client=mock_chat_client)
+        Agent(settings=mock_settings, chat_client=mock_chat_client)
 
         assert len(mock_chat_client.created_agents) == 1
         created = mock_chat_client.created_agents[0]
@@ -217,11 +217,11 @@ class TestAgentSystemPrompt:
         assert "Failed to load system prompt from AGENT_SYSTEM_PROMPT" in caplog.text
 
     def test_multiple_agents_with_different_configs(
-        self, mock_config, custom_prompt_config, mock_chat_client
+        self, mock_settings, custom_prompt_config, mock_chat_client
     ):
         """Test multiple agents can have different prompt configurations."""
         # Create agent with default config
-        Agent(config=mock_config, chat_client=mock_chat_client)
+        Agent(settings=mock_settings, chat_client=mock_chat_client)
 
         # Create agent with custom config
         Agent(config=custom_prompt_config, chat_client=mock_chat_client)

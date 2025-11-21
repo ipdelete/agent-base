@@ -6,7 +6,7 @@ This module provides the default in-memory storage for agent memories.
 import logging
 from datetime import datetime
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory.manager import MemoryManager
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class InMemoryStore(MemoryManager):
         >>> await store.add([{"role": "user", "content": "Hello"}])
     """
 
-    def __init__(self, config: AgentConfig):
+    def __init__(self, config: AgentSettings):
         """Initialize in-memory store.
 
         Args:

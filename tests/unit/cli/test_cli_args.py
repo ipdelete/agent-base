@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 
 @pytest.mark.unit

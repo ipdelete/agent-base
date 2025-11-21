@@ -21,7 +21,7 @@ from agent.cli.error_handler import (
     format_provider_rate_limit_error,
     format_provider_timeout_error,
 )
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.exceptions import (
     ProviderAPIError,
     ProviderAuthError,
@@ -39,7 +39,7 @@ from agent.exceptions import (
 @pytest.fixture
 def mock_anthropic_config():
     """Mock AgentConfig for Anthropic provider."""
-    config = Mock(spec=AgentConfig)
+    config = Mock(spec=AgentSettings)
     config.llm_provider = "anthropic"
     config.anthropic_model = "claude-3-5-sonnet-20241022"
     return config
@@ -48,7 +48,7 @@ def mock_anthropic_config():
 @pytest.fixture
 def mock_openai_config():
     """Mock AgentConfig for OpenAI provider."""
-    config = Mock(spec=AgentConfig)
+    config = Mock(spec=AgentSettings)
     config.llm_provider = "openai"
     config.openai_model = "gpt-4o"
     return config
@@ -57,7 +57,7 @@ def mock_openai_config():
 @pytest.fixture
 def mock_azure_config():
     """Mock AgentConfig for Azure OpenAI provider."""
-    config = Mock(spec=AgentConfig)
+    config = Mock(spec=AgentSettings)
     config.llm_provider = "azure"
     config.azure_openai_deployment = "gpt-4o-deployment"
     return config
@@ -66,7 +66,7 @@ def mock_azure_config():
 @pytest.fixture
 def mock_github_config():
     """Mock AgentConfig for GitHub Models provider."""
-    config = Mock(spec=AgentConfig)
+    config = Mock(spec=AgentSettings)
     config.llm_provider = "github"
     config.github_model = "gpt-4o"
     return config
@@ -75,7 +75,7 @@ def mock_github_config():
 @pytest.fixture
 def mock_gemini_config():
     """Mock AgentConfig for Gemini provider."""
-    config = Mock(spec=AgentConfig)
+    config = Mock(spec=AgentSettings)
     config.llm_provider = "gemini"
     config.gemini_model = "gemini-1.5-pro"
     return config

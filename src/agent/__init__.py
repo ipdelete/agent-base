@@ -13,6 +13,6 @@ except PackageNotFoundError:
 __author__ = "Daniel Scholl"
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config import AgentSettings
 
-__all__ = ["Agent", "AgentConfig", "__version__"]
+__all__ = ["Agent", "AgentSettings", "__version__"]

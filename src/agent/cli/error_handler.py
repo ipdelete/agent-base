@@ -7,7 +7,7 @@ with actionable troubleshooting steps.
 
 import logging
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.exceptions import (
     AgentError,
     ProviderAPIError,
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def classify_anthropic_error(
-    error: Exception, config: AgentConfig | None = None
+    error: Exception, config: AgentSettings | None = None
 ) -> AgentError | None:
     """Classify Anthropic SDK exceptions into our exception types.
 
@@ -103,7 +103,7 @@ def classify_anthropic_error(
     return None
 
 
-def classify_openai_error(error: Exception, config: AgentConfig | None = None) -> AgentError | None:
+def classify_openai_error(error: Exception, config: AgentSettings | None = None) -> AgentError | None:
     """Classify OpenAI SDK exceptions into our exception types.
 
     Args:
@@ -179,7 +179,7 @@ def classify_openai_error(error: Exception, config: AgentConfig | None = None) -
     return None
 
 
-def classify_gemini_error(error: Exception, config: AgentConfig | None = None) -> AgentError | None:
+def classify_gemini_error(error: Exception, config: AgentSettings | None = None) -> AgentError | None:
     """Classify Google Gemini exceptions into our exception types.
 
     Args:
@@ -245,7 +245,7 @@ def classify_gemini_error(error: Exception, config: AgentConfig | None = None) -
 
 
 def classify_provider_error(
-    error: Exception, config: AgentConfig | None = None
+    error: Exception, config: AgentSettings | None = None
 ) -> AgentError | None:
     """Classify any provider exception into our exception types.
 

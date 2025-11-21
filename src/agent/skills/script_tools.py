@@ -32,7 +32,7 @@ class ScriptToolset(AgentToolset):
         """Initialize script toolset.
 
         Args:
-            config: AgentConfig with script execution settings
+            config: AgentSettings with script execution settings
             scripts: Dict mapping skill names to script metadata lists
                      Format: {skill_name: [{"name": str, "path": Path}, ...]}
         """

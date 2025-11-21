@@ -332,7 +332,7 @@ def config_init() -> None:
 
 def config_show() -> None:
     """Display current effective configuration."""
-    from agent.config import AgentConfig
+    from agent.config import load_config
 
     config_path = get_config_path()
 
@@ -358,7 +358,7 @@ def config_show() -> None:
 
         if llm_provider_env:
             # Show config from environment
-            agent_config = AgentConfig.from_env()
+            agent_config = load_config()
             console.print(
                 f"[yellow]No configuration file at {config_path}[/yellow]\n"
                 f"[dim]Using environment variable: LLM_PROVIDER={llm_provider_env}[/dim]\n"
@@ -810,11 +810,11 @@ def config_memory() -> None:
 
         # Check provider compatibility first
         try:
-            from agent.config import AgentConfig
+            from agent.config import load_config
             from agent.memory.mem0_utils import SUPPORTED_PROVIDERS, is_provider_compatible
 
             # Load current provider from settings
-            current_config = AgentConfig.from_combined()
+            current_config = load_config()
             is_compatible, reason = is_provider_compatible(current_config)
 
             if not is_compatible:

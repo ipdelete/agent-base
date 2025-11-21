@@ -3,7 +3,7 @@
 import pytest
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.hello import HelloTools
 from tests.mocks.mock_client import MockChatClient
 
@@ -14,7 +14,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.tools]
 @pytest.mark.asyncio
 async def test_agent_with_hello_tools():
     """Test full agent integration with HelloTools."""
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
         openai_model="gpt-5-mini",
@@ -40,7 +40,7 @@ async def test_agent_with_hello_tools():
 @pytest.mark.asyncio
 async def test_agent_run_stream_integration():
     """Test agent streaming with HelloTools."""
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
     )
@@ -62,7 +62,7 @@ async def test_agent_run_stream_integration():
 @pytest.mark.asyncio
 async def test_hello_tools_directly():
     """Test HelloTools can be instantiated and called directly."""
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
     )
@@ -86,7 +86,7 @@ async def test_agent_with_multiple_provider_configs():
     mock_client = MockChatClient(response="Test")
 
     # OpenAI config
-    openai_config = AgentConfig(
+    openai_config = AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
     )
@@ -94,7 +94,7 @@ async def test_agent_with_multiple_provider_configs():
     assert agent_openai.config.llm_provider == "openai"
 
     # Anthropic config
-    anthropic_config = AgentConfig(
+    anthropic_config = AgentSettings(
         llm_provider="anthropic",
         anthropic_api_key="test-key",
     )
@@ -102,7 +102,7 @@ async def test_agent_with_multiple_provider_configs():
     assert agent_anthropic.config.llm_provider == "anthropic"
 
     # Azure OpenAI config
-    azure_openai_config = AgentConfig(
+    azure_openai_config = AgentSettings(
         llm_provider="azure",
         azure_openai_endpoint="https://test.openai.azure.com",
         azure_openai_deployment="gpt-5-codex",
@@ -111,7 +111,7 @@ async def test_agent_with_multiple_provider_configs():
     assert agent_azure_openai.config.llm_provider == "azure"
 
     # Azure AI Foundry config
-    azure_config = AgentConfig(
+    azure_config = AgentSettings(
         llm_provider="foundry",
         azure_project_endpoint="https://test.ai.azure.com",
         azure_model_deployment="gpt-4o",
@@ -124,7 +124,7 @@ async def test_agent_with_multiple_provider_configs():
 async def test_full_stack_config_to_agent_to_tools():
     """Test complete flow from config loading to agent execution."""
     # 1. Load config
-    config = AgentConfig(
+    config = AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
     )
@@ -153,7 +153,7 @@ async def test_full_stack_config_to_agent_to_tools():
 @pytest.mark.asyncio
 async def test_tool_error_handling_integration():
     """Test tool error handling through full stack."""
-    config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+    config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
     tools = HelloTools(config)
 
     # Test error case
@@ -171,11 +171,11 @@ async def test_provider_switching_with_mock():
 
     # Test all 4 providers with same mock client
     providers = [
-        ("openai", AgentConfig(llm_provider="openai", openai_api_key="test")),
-        ("anthropic", AgentConfig(llm_provider="anthropic", anthropic_api_key="test")),
+        ("openai", AgentSettings(llm_provider="openai", openai_api_key="test")),
+        ("anthropic", AgentSettings(llm_provider="anthropic", anthropic_api_key="test")),
         (
             "azure",
-            AgentConfig(
+            AgentSettings(
                 llm_provider="azure",
                 azure_openai_endpoint="https://test.openai.azure.com",
                 azure_openai_deployment="gpt-5-codex",
@@ -183,7 +183,7 @@ async def test_provider_switching_with_mock():
         ),
         (
             "foundry",
-            AgentConfig(
+            AgentSettings(
                 llm_provider="foundry",
                 azure_project_endpoint="https://test.ai.azure.com",
                 azure_model_deployment="gpt-4o",

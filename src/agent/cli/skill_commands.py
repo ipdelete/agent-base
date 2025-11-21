@@ -35,7 +35,7 @@ def _get_toolset_tools(manifest: SkillManifest, skill_path: Path) -> list[tuple[
     import importlib.util
     import sys
 
-    from agent.config import AgentConfig
+    from agent.config import load_config
     from agent.utils.tokens import count_tokens
 
     tools_info: list[tuple[str, int]] = []
@@ -69,7 +69,7 @@ def _get_toolset_tools(manifest: SkillManifest, skill_path: Path) -> list[tuple[
                 toolset_class = getattr(module, class_name, None)
                 if toolset_class:
                     # Create minimal config for toolset instantiation
-                    config = AgentConfig.from_combined()
+                    config = load_config()
                     toolset_instance = toolset_class(config)
 
                     # Get tools from toolset

@@ -9,7 +9,7 @@ import logging
 import re
 from datetime import UTC, datetime
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory.manager import MemoryManager
 from agent.memory.mem0_utils import create_memory_instance
 
@@ -43,7 +43,7 @@ class Mem0Store(MemoryManager):
         >>> await store.add([{"role": "user", "content": "My name is Alice"}])
     """
 
-    def __init__(self, config: AgentConfig):
+    def __init__(self, config: AgentSettings):
         """Initialize mem0 store with configuration.
 
         Args:

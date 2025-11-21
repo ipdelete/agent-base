@@ -24,7 +24,7 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.toolset import AgentToolset
 
 logger = logging.getLogger(__name__)
@@ -41,21 +41,22 @@ class FileSystemTools(AgentToolset):
     - Size limits prevent resource exhaustion
 
     Example:
-        >>> config = AgentConfig.from_env()
-        >>> config.workspace_root = Path("/home/user/project")
-        >>> tools = FileSystemTools(config)
+        >>> from agent.config import load_config
+        >>> settings = load_config()
+        >>> settings.agent.workspace_root = Path("/home/user/project")
+        >>> tools = FileSystemTools(settings)
         >>> result = await tools.list_directory(".")
         >>> print(result)
         {'success': True, 'result': {'entries': [...], 'truncated': False}}
     """
 
-    def __init__(self, config: AgentConfig):
-        """Initialize FileSystemTools with configuration.
+    def __init__(self, settings: AgentSettings):
+        """Initialize FileSystemTools with settings.
 
         Args:
-            config: Agent configuration instance with workspace_root
+            settings: Agent settings instance with workspace_root
         """
-        super().__init__(config)
+        super().__init__(settings)
         self._workspace_root_cache: Path | None = None
 
     def get_tools(self) -> list:

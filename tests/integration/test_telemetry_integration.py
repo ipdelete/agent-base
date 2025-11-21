@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.observability import check_telemetry_endpoint
 from tests.mocks.mock_client import MockChatClient
 
@@ -117,7 +117,7 @@ class TestObservabilityIntegration:
     async def test_agent_with_observability_enabled(self):
         """Test agent execution with observability enabled."""
         # Setup config with observability
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test-key",
             enable_otel=False,  # Disabled to avoid real otel setup in tests
@@ -141,7 +141,7 @@ class TestObservabilityIntegration:
     async def test_agent_without_observability(self):
         """Test agent execution without observability."""
         # Setup config without observability
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test-key",
             enable_otel=False,
@@ -177,7 +177,7 @@ class TestTelemetryWorkflow:
         self,
         mock_execute,
         mock_logging,
-        mock_config_loader,
+        mock_settings_loader,
         mock_agent,
         mock_setup_otel,
         mock_check_endpoint,
@@ -186,13 +186,13 @@ class TestTelemetryWorkflow:
         from agent.cli.execution import run_single_prompt
 
         # Setup: endpoint available, config doesn't have explicit setting
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test-key",
             enable_otel=False,
             enable_otel_explicit=False,
         )
-        mock_config_loader.return_value = config
+        mock_settings_loader.return_value = config
         mock_check_endpoint.return_value = True
         mock_execute.return_value = "test response"
 
@@ -201,7 +201,7 @@ class TestTelemetryWorkflow:
 
         # Verify workflow
         # 1. Config loaded
-        mock_config_loader.assert_called_once()
+        mock_settings_loader.assert_called_once()
 
         # 2. Endpoint checked
         mock_check_endpoint.assert_called_once()
@@ -223,7 +223,7 @@ class TestTelemetryWorkflow:
         self,
         mock_execute,
         mock_logging,
-        mock_config_loader,
+        mock_settings_loader,
         mock_agent,
         mock_setup_otel,
         mock_check_endpoint,
@@ -232,13 +232,13 @@ class TestTelemetryWorkflow:
         from agent.cli.execution import run_single_prompt
 
         # Setup: explicitly enabled
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test-key",
             enable_otel=True,
             enable_otel_explicit=True,
         )
-        mock_config_loader.return_value = config
+        mock_settings_loader.return_value = config
         mock_execute.return_value = "test response"
 
         # Execute
@@ -261,7 +261,7 @@ class TestTelemetryWorkflow:
     async def test_interactive_auto_detection_workflow(
         self,
         mock_logging,
-        mock_config_loader,
+        mock_settings_loader,
         mock_session,
         mock_persistence,
         mock_setup_otel,
@@ -273,13 +273,13 @@ class TestTelemetryWorkflow:
         from agent.cli.interactive import run_chat_mode
 
         # Setup
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test-key",
             enable_otel=False,
             enable_otel_explicit=False,
         )
-        mock_config_loader.return_value = config
+        mock_settings_loader.return_value = config
         mock_check_endpoint.return_value = True
 
         # Mock prompt session to exit immediately

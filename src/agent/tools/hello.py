@@ -13,7 +13,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.tools.toolset import AgentToolset
 
 
@@ -43,8 +43,9 @@ class HelloTools(AgentToolset):
 
     **Usage:**
     ```python
-    >>> config = AgentConfig.from_env()
-    >>> tools = HelloTools(config)
+    >>> from agent.config import load_config
+    >>> settings = load_config()
+    >>> tools = HelloTools(settings)
     >>> result = await tools.hello_world("Alice")
     >>> print(result["result"])
     Hello, Alice! ◉‿◉
@@ -80,7 +81,7 @@ class HelloTools(AgentToolset):
 
     **Usage:**
     ```python
-    >>> tools = HelloTools(config)
+    >>> tools = HelloTools(settings)
     >>> result = await tools.greet_user("Alice", "es")
     >>> print(result["result"])
     ¡Hola, Alice! ◉‿◉
@@ -93,13 +94,13 @@ class HelloTools(AgentToolset):
     **Tests:** `tests/unit/tools/test_hello_tools.py`
     """
 
-    def __init__(self, config: AgentConfig):
-        """Initialize HelloTools with configuration.
+    def __init__(self, settings: AgentSettings):
+        """Initialize HelloTools with settings.
 
         Args:
-            config: Agent configuration instance
+            settings: Agent settings instance
         """
-        super().__init__(config)
+        super().__init__(settings)
 
     def get_tools(self) -> list:
         """Get list of hello tools.

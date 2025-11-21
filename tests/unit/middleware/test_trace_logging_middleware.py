@@ -88,9 +88,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "openai"
-        mock_config.openai_model = "gpt-4o-mini"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "openai"
+        mock_settings.openai_model = "gpt-4o-mini"
 
         # Create mock context with messages
         context = Mock(spec=["messages"])
@@ -106,7 +106,7 @@ class TestMiddlewareTraceLogging:
             ctx.result.usage_details = None
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Read trace log
@@ -135,9 +135,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "openai"
-        mock_config.openai_model = "gpt-4o-mini"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "openai"
+        mock_settings.openai_model = "gpt-4o-mini"
 
         context = Mock(spec=["messages"])
         context.messages = []
@@ -155,7 +155,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Read trace log
@@ -187,9 +187,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "openai"
-        mock_config.openai_model = "gpt-4o-mini"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "openai"
+        mock_settings.openai_model = "gpt-4o-mini"
 
         context = Mock(spec=["messages"])
         context.messages = [
@@ -204,7 +204,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Read trace log
@@ -321,9 +321,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "openai"
-        mock_config.openai_model = "gpt-4o-mini"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "openai"
+        mock_settings.openai_model = "gpt-4o-mini"
 
         # Messages with different serialization methods
         # Use to_dict
@@ -348,7 +348,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Verify messages were converted
@@ -374,9 +374,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "openai"
-        mock_config.openai_model = "gpt-4o-mini"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "openai"
+        mock_settings.openai_model = "gpt-4o-mini"
 
         context = Mock(spec=["messages"])
         context.messages = []
@@ -390,7 +390,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         log_entries = trace_file.read_text().strip().split("\n")
@@ -475,9 +475,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "anthropic"
-        mock_config.anthropic_model = "claude-haiku-4-5-20251001"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "anthropic"
+        mock_settings.anthropic_model = "claude-haiku-4-5-20251001"
 
         # Mock agent with chat_options
         chat_options = Mock()
@@ -505,7 +505,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Verify system instructions and tools captured
@@ -538,9 +538,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "openai"
-        mock_config.openai_model = "gpt-4o"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "openai"
+        mock_settings.openai_model = "gpt-4o"
 
         # Mock thread with usage in last message
         last_message = Mock()
@@ -566,7 +566,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Verify tokens extracted from thread
@@ -592,9 +592,9 @@ class TestMiddlewareTraceLogging:
         set_trace_logger(logger)
 
         # Mock config
-        mock_config = Mock()
-        mock_config.llm_provider = "gemini"
-        mock_config.gemini_model = "gemini-2.0-flash"
+        mock_settings = Mock()
+        mock_settings.llm_provider = "gemini"
+        mock_settings.gemini_model = "gemini-2.0-flash"
 
         # Mock thread with usage in content
         usage_content = Mock()
@@ -622,7 +622,7 @@ class TestMiddlewareTraceLogging:
             ctx.result = result
 
         with patch("agent.middleware.AgentConfig") as MockConfig:
-            MockConfig.from_env.return_value = mock_config
+            MockConfig.from_env.return_value = mock_settings
             await agent_run_logging_middleware(context, mock_next)
 
         # Verify tokens extracted from content

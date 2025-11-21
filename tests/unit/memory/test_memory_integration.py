@@ -4,7 +4,7 @@ import pytest
 from agent_framework import ChatMessage
 
 from agent.agent import Agent
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory import InMemoryStore, MemoryManager
 from agent.memory.context_provider import MemoryContextProvider
 
@@ -15,9 +15,9 @@ from agent.memory.context_provider import MemoryContextProvider
 class TestAgentMemoryIntegration:
     """Tests for Agent integration with memory manager."""
 
-    def test_agent_with_memory_disabled_has_no_manager(self, mock_config, mock_chat_client):
+    def test_agent_with_memory_disabled_has_no_manager(self, mock_settings, mock_chat_client):
         """Test Agent without memory enabled has no memory manager."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=False,
@@ -29,7 +29,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_with_memory_enabled_creates_manager(self, mock_chat_client):
         """Test Agent with memory enabled creates memory manager."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -42,10 +42,10 @@ class TestAgentMemoryIntegration:
         assert isinstance(agent.memory_manager, MemoryManager)
         assert isinstance(agent.memory_manager, InMemoryStore)
 
-    def test_agent_with_injected_memory_manager(self, mock_config, mock_chat_client, memory_store):
+    def test_agent_with_injected_memory_manager(self, mock_settings, mock_chat_client, memory_store):
         """Test Agent with injected memory manager."""
         agent = Agent(
-            config=mock_config,
+            settings=mock_settings,
             chat_client=mock_chat_client,
             memory_manager=memory_store,
         )
@@ -55,7 +55,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_memory_manager_uses_config(self, mock_chat_client):
         """Test Agent's memory manager uses the config."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -68,7 +68,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_with_memory_enabled_and_custom_type(self, mock_chat_client):
         """Test Agent with memory enabled and custom type."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -82,7 +82,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_with_memory_config_defaults_enabled(self, mock_chat_client):
         """Test Agent defaults to memory enabled for conversation context."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test")
 
         agent = Agent(config=config, chat_client=mock_chat_client)
 
@@ -90,7 +90,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_memory_manager_priority(self, mock_chat_client, memory_store):
         """Test injected memory manager takes priority over config."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,  # Config says enabled
@@ -104,7 +104,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_memory_manager_is_none_when_explicitly_injected(self, mock_chat_client):
         """Test Agent memory manager can be explicitly set to None."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,  # Config says enabled
@@ -120,7 +120,7 @@ class TestAgentMemoryIntegration:
     @pytest.mark.asyncio
     async def test_agent_with_memory_can_add_messages(self, mock_chat_client):
         """Test Agent with memory can add messages."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -138,7 +138,7 @@ class TestAgentMemoryIntegration:
     @pytest.mark.asyncio
     async def test_agent_with_memory_can_search_messages(self, mock_chat_client):
         """Test Agent with memory can search messages."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -156,7 +156,7 @@ class TestAgentMemoryIntegration:
     @pytest.mark.asyncio
     async def test_agent_with_memory_can_clear_messages(self, mock_chat_client):
         """Test Agent with memory can clear messages."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -173,12 +173,12 @@ class TestAgentMemoryIntegration:
 
     def test_multiple_agents_have_separate_memory_managers(self, mock_chat_client):
         """Test multiple agents have separate memory managers."""
-        config1 = AgentConfig(
+        config1 = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
         )
-        config2 = AgentConfig(
+        config2 = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -193,7 +193,7 @@ class TestAgentMemoryIntegration:
     @pytest.mark.asyncio
     async def test_multiple_agents_have_independent_memory(self, mock_chat_client):
         """Test multiple agents have independent memory storage."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,
@@ -211,7 +211,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_has_memory_manager_attribute(self, mock_chat_client):
         """Test Agent has memory_manager attribute."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test")
 
         agent = Agent(config=config, chat_client=mock_chat_client)
 
@@ -219,7 +219,7 @@ class TestAgentMemoryIntegration:
 
     def test_agent_memory_manager_type_annotation(self, mock_chat_client):
         """Test Agent memory_manager accepts Any type."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_enabled=True,

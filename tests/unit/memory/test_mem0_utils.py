@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory.mem0_utils import create_memory_instance, extract_llm_config, get_storage_path
 
 
@@ -17,7 +17,7 @@ class TestMem0Utils:
 
     def test_extract_llm_config_openai(self):
         """Test LLM config extraction for OpenAI provider."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_model="gpt-4o",
             openai_api_key="sk-test123",
@@ -31,7 +31,7 @@ class TestMem0Utils:
 
     def test_extract_llm_config_openai_default_model(self):
         """Test OpenAI config uses config's openai_model field."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="sk-test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="sk-test")
 
         llm_config = extract_llm_config(config)
 
@@ -40,7 +40,7 @@ class TestMem0Utils:
 
     def test_extract_llm_config_anthropic(self):
         """Test LLM config extraction for Anthropic provider."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="anthropic",
             anthropic_model="claude-3-opus-20240229",
             anthropic_api_key="sk-ant-test",
@@ -54,7 +54,7 @@ class TestMem0Utils:
 
     def test_extract_llm_config_azure(self):
         """Test LLM config extraction for Azure OpenAI provider."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="azure",
             azure_model_deployment="gpt-4o",
             azure_openai_api_key="test-key",
@@ -72,7 +72,7 @@ class TestMem0Utils:
 
     def test_extract_llm_config_gemini(self):
         """Test LLM config extraction for Gemini provider."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="gemini",
             gemini_model="gemini-pro",
             gemini_api_key="test-gemini-key",
@@ -86,14 +86,14 @@ class TestMem0Utils:
 
     def test_extract_llm_config_unknown_provider_raises_error(self):
         """Test unknown provider raises ValueError with strict validation."""
-        config = AgentConfig(llm_provider="unknown", openai_api_key="sk-test")
+        config = AgentSettings(llm_provider="unknown", openai_api_key="sk-test")
 
         with pytest.raises(ValueError, match="mem0 does not support 'unknown' provider"):
             extract_llm_config(config)
 
     def test_get_storage_path_custom(self):
         """Test get_storage_path uses custom path if provided."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             mem0_storage_path=Path("/custom/path"),
@@ -105,7 +105,7 @@ class TestMem0Utils:
 
     def test_get_storage_path_memory_dir(self):
         """Test get_storage_path uses memory_dir/chroma_db if no custom path."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_dir=Path("/tmp/memory"),
@@ -117,7 +117,7 @@ class TestMem0Utils:
 
     def test_get_storage_path_default(self):
         """Test get_storage_path falls back to agent_data_dir."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             agent_data_dir=Path("/tmp/agent"),
@@ -129,7 +129,7 @@ class TestMem0Utils:
 
     def test_create_memory_instance_local_mode(self):
         """Test create_memory_instance creates local Chroma instance."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="sk-test",
             memory_dir=Path("/tmp/memory"),
@@ -151,7 +151,7 @@ class TestMem0Utils:
 
     def test_create_memory_instance_cloud_mode(self):
         """Test create_memory_instance creates cloud instance when API keys provided."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="sk-test",
             mem0_api_key="mem0-key",
@@ -173,7 +173,7 @@ class TestMem0Utils:
 
     def test_create_memory_instance_missing_import_raises(self):
         """Test create_memory_instance raises clear error when mem0 not installed."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        config = AgentSettings(llm_provider="openai", openai_api_key="test")
 
         with patch("builtins.__import__", side_effect=ImportError("No module named 'mem0'")):
             with pytest.raises(ImportError, match="mem0ai package not installed"):
@@ -181,7 +181,7 @@ class TestMem0Utils:
 
     def test_create_memory_instance_reuses_agent_llm_config(self):
         """Test that mem0 uses the same LLM config as the agent."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="anthropic",
             anthropic_model="claude-3-5-sonnet-20241022",
             anthropic_api_key="sk-ant-test",

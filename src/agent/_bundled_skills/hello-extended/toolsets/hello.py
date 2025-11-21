@@ -20,7 +20,7 @@ class HelloExtended(AgentToolset):
     - Loaded into agent context (use for frequent operations)
 
     Example:
-        >>> from agent.config import AgentConfig
+        >>> from agent.config.schema import AgentSettings
         >>> config = AgentConfig.from_env()
         >>> toolset = HelloExtended(config)
         >>> tools = toolset.get_tools()

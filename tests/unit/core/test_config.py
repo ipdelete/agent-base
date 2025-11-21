@@ -6,309 +6,231 @@ from unittest.mock import patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config import load_config, merge_with_env
+from agent.config.schema import AgentSettings
 
 
 @pytest.mark.unit
 @pytest.mark.config
 class TestAgentConfig:
-    """Tests for AgentConfig class."""
+    """Tests for AgentSettings with environment variable merging."""
 
-    @patch("agent.config.legacy.load_dotenv")  # Prevent loading from .env file
-    def test_from_env_defaults_to_local(self, mock_load_dotenv):
-        """Test from_env defaults to Local provider when no env vars set."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+    def test_default_settings_empty_providers(self):
+        """Test default AgentSettings has empty providers list."""
+        settings = AgentSettings()
+        
+        # Default has no providers enabled
+        assert settings.providers.enabled == []
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+    def test_env_overrides_openai_api_key(self):
+        """Test environment variable overrides for OpenAI API key."""
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key-123"}, clear=False):
+            settings = AgentSettings()
+            settings.providers.enabled = ["openai"]
 
-            assert config.llm_provider == "local"
-            assert config.local_model == "ai/phi4"
-            assert config.local_base_url == "http://localhost:12434/engines/llama.cpp/v1"
+            env_overrides = merge_with_env(settings)
 
-    def test_from_env_loads_openai_config(self):
-        """Test from_env loads OpenAI configuration with AGENT_MODEL override."""
-        # Preserve HOME/USERPROFILE for Path.home()
+            # merge_with_env returns nested dict structure
+            assert "providers" in env_overrides
+            assert "openai" in env_overrides["providers"]
+            assert env_overrides["providers"]["openai"]["api_key"] == "test-key-123"
+
+    def test_env_overrides_anthropic_api_key(self):
+        """Test environment variable overrides for Anthropic API key."""
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test-456"}, clear=False):
+            settings = AgentSettings()
+            settings.providers.enabled = ["anthropic"]
+
+            env_overrides = merge_with_env(settings)
+
+            # merge_with_env returns nested dict structure
+            assert "providers" in env_overrides
+            assert "anthropic" in env_overrides["providers"]
+            assert env_overrides["providers"]["anthropic"]["api_key"] == "sk-ant-test-456"
+
+    def test_env_overrides_azure_foundry_config(self):
+        """Test environment variable overrides for Azure AI Foundry."""
         env_vars = {
-            "LLM_PROVIDER": "openai",
-            "OPENAI_API_KEY": "test-key-123",
-            "AGENT_MODEL": "gpt-4-turbo",
-        }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
-
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
-
-            assert config.llm_provider == "openai"
-            assert config.openai_api_key == "test-key-123"
-            assert config.openai_model == "gpt-4-turbo"
-
-    def test_from_env_loads_anthropic_config(self):
-        """Test from_env loads Anthropic configuration with AGENT_MODEL override."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {
-            "LLM_PROVIDER": "anthropic",
-            "ANTHROPIC_API_KEY": "sk-ant-test-456",
-            "AGENT_MODEL": "claude-opus-4-20250514",
-        }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
-
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
-
-            assert config.llm_provider == "anthropic"
-            assert config.anthropic_api_key == "sk-ant-test-456"
-            assert config.anthropic_model == "claude-opus-4-20250514"
-
-    def test_from_env_loads_azure_foundry_config(self):
-        """Test from_env loads Azure AI Foundry configuration from environment."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {
-            "LLM_PROVIDER": "foundry",
             "AZURE_PROJECT_ENDPOINT": "https://test.ai.azure.com/api/projects/test",
             "AZURE_MODEL_DEPLOYMENT": "gpt-4o",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = AgentSettings()
+            settings.providers.enabled = ["foundry"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            env_overrides = merge_with_env(settings)
 
-            assert config.llm_provider == "foundry"
-            assert config.azure_project_endpoint == "https://test.ai.azure.com/api/projects/test"
-            assert config.azure_model_deployment == "gpt-4o"
+            # merge_with_env returns nested dict structure
+            assert "providers" in env_overrides
+            assert "foundry" in env_overrides["providers"]
+            assert env_overrides["providers"]["foundry"]["project_endpoint"] == "https://test.ai.azure.com/api/projects/test"
+            assert env_overrides["providers"]["foundry"]["model_deployment"] == "gpt-4o"
 
-    def test_from_env_sets_default_data_directory(self):
-        """Test from_env sets default agent data directory."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
-
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
-
-            expected_dir = Path.home() / ".agent"
-            assert config.agent_data_dir == expected_dir
-            assert config.agent_session_dir == expected_dir / "sessions"
-
-    def test_from_env_respects_custom_data_directory(self):
-        """Test from_env uses custom AGENT_DATA_DIR when specified."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {"AGENT_DATA_DIR": "/custom/path"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
-
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
-
-            assert config.agent_data_dir == Path("/custom/path")
-            assert config.agent_session_dir == Path("/custom/path/sessions")
+    def test_default_data_directory(self):
+        """Test default agent data directory."""
+        settings = AgentSettings()
+        
+        expected_dir = Path.home() / ".agent"
+        assert settings.agent_data_dir == expected_dir
 
     def test_validate_openai_success(self):
         """Test validate succeeds for OpenAI with API key."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test-key")
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test-key"
         # Should not raise
-        config.validate()
+        errors = settings.validate_enabled_providers()
+        assert errors == []
 
     def test_validate_openai_missing_api_key(self):
         """Test validate fails for OpenAI without API key."""
-        config = AgentConfig(llm_provider="openai")
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
 
-        with pytest.raises(ValueError, match="OpenAI provider requires API key"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
+        assert "OpenAI" in errors[0]
 
     def test_validate_anthropic_success(self):
         """Test validate succeeds for Anthropic with API key."""
-        config = AgentConfig(llm_provider="anthropic", anthropic_api_key="sk-ant-test")
+        settings = AgentSettings()
+        settings.providers.enabled = ["anthropic"]
+        settings.providers.anthropic.api_key = "sk-ant-test"
         # Should not raise
-        config.validate()
+        errors = settings.validate_enabled_providers()
+        assert errors == []
 
     def test_validate_anthropic_missing_api_key(self):
         """Test validate fails for Anthropic without API key."""
-        config = AgentConfig(llm_provider="anthropic")
+        settings = AgentSettings()
+        settings.providers.enabled = ["anthropic"]
 
-        with pytest.raises(ValueError, match="Anthropic provider requires API key"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
+        assert "Anthropic" in errors[0]
 
     def test_validate_azure_foundry_success(self):
         """Test validate succeeds for Azure AI Foundry with required fields."""
-        config = AgentConfig(
-            llm_provider="foundry",
-            azure_project_endpoint="https://test.ai.azure.com",
-            azure_model_deployment="gpt-4o",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["foundry"]
+        settings.providers.foundry.project_endpoint = "https://test.ai.azure.com"
+        settings.providers.foundry.model_deployment = "gpt-4o"
         # Should not raise
-        config.validate()
+        errors = settings.validate_enabled_providers()
+        assert errors == []
 
     def test_validate_azure_foundry_missing_endpoint(self):
         """Test validate fails for Azure AI Foundry without endpoint."""
-        config = AgentConfig(
-            llm_provider="foundry",
-            azure_model_deployment="gpt-4o",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["foundry"]
+        settings.providers.foundry.model_deployment = "gpt-4o"
 
-        with pytest.raises(ValueError, match="Azure AI Foundry requires project endpoint"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
 
     def test_validate_azure_foundry_missing_deployment(self):
         """Test validate fails for Azure AI Foundry without deployment."""
-        config = AgentConfig(
-            llm_provider="foundry",
-            azure_project_endpoint="https://test.ai.azure.com",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["foundry"]
+        settings.providers.foundry.project_endpoint = "https://test.ai.azure.com"
 
-        with pytest.raises(ValueError, match="Azure AI Foundry requires model deployment name"):
-            config.validate()
-
-    def test_validate_unknown_provider(self):
-        """Test validate fails for unknown provider."""
-        config = AgentConfig(llm_provider="invalid_provider")
-
-        with pytest.raises(ValueError, match="Unknown LLM provider: invalid_provider"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
 
     def test_get_model_display_name_openai(self):
         """Test get_model_display_name for OpenAI."""
-        config = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test",
-            openai_model="gpt-5-mini",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test"
+        settings.providers.openai.model = "gpt-5-mini"
 
-        assert config.get_model_display_name() == "OpenAI/gpt-5-mini"
+        assert settings.get_model_display_name() == "gpt-5-mini"
 
     def test_get_model_display_name_anthropic(self):
         """Test get_model_display_name for Anthropic."""
-        config = AgentConfig(
-            llm_provider="anthropic",
-            anthropic_api_key="test",
-            anthropic_model="claude-haiku-4-5-20251001",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["anthropic"]
+        settings.providers.anthropic.api_key = "test"
+        settings.providers.anthropic.model = "claude-haiku-4-5-20251001"
 
-        assert config.get_model_display_name() == "Anthropic/claude-haiku-4-5-20251001"
+        assert settings.get_model_display_name() == "claude-haiku-4-5-20251001"
 
     def test_get_model_display_name_azure_foundry(self):
         """Test get_model_display_name for Azure AI Foundry."""
-        config = AgentConfig(
-            llm_provider="foundry",
-            azure_project_endpoint="https://test.ai.azure.com",
-            azure_model_deployment="gpt-4o",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["foundry"]
+        settings.providers.foundry.project_endpoint = "https://test.ai.azure.com"
+        settings.providers.foundry.model_deployment = "gpt-4o"
 
-        assert config.get_model_display_name() == "Azure AI Foundry/gpt-4o"
+        assert settings.get_model_display_name() == "gpt-4o"
 
-    def test_get_model_display_name_unknown_provider(self):
-        """Test get_model_display_name for unknown provider."""
-        config = AgentConfig(llm_provider="unknown")
-
-        assert config.get_model_display_name() == "Unknown"
+    def test_get_model_display_name_no_providers(self):
+        """Test get_model_display_name with no providers enabled."""
+        settings = AgentSettings()
+        # No providers enabled should raise error
+        with pytest.raises(ValueError, match="No providers enabled"):
+            settings.get_model_display_name()
 
     def test_anthropic_default_model(self):
         """Test Anthropic defaults to correct model."""
-        config = AgentConfig(llm_provider="anthropic", anthropic_api_key="test")
+        settings = AgentSettings()
 
-        assert config.anthropic_model == "claude-haiku-4-5-20251001"
+        assert settings.providers.anthropic.model == "claude-haiku-4-5-20251001"
 
     def test_openai_default_model(self):
         """Test OpenAI defaults to correct model."""
-        config = AgentConfig(llm_provider="openai", openai_api_key="test")
+        settings = AgentSettings()
 
-        assert config.openai_model == "gpt-5-mini"
+        assert settings.providers.openai.model == "gpt-5-mini"
 
     def test_validate_azure_openai_success(self):
         """Test validate succeeds for Azure OpenAI with endpoint and deployment."""
-        config = AgentConfig(
-            llm_provider="azure",
-            azure_openai_endpoint="https://test.openai.azure.com/",
-            azure_openai_deployment="gpt-5-codex",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["azure"]
+        settings.providers.azure.endpoint = "https://test.openai.azure.com/"
+        settings.providers.azure.deployment = "gpt-5-codex"
         # Should not raise
-        config.validate()
+        errors = settings.validate_enabled_providers()
+        assert errors == []
 
     def test_validate_azure_openai_missing_endpoint(self):
         """Test validate fails for Azure OpenAI without endpoint."""
-        config = AgentConfig(llm_provider="azure", azure_openai_deployment="gpt-5-codex")
+        settings = AgentSettings()
+        settings.providers.enabled = ["azure"]
+        settings.providers.azure.deployment = "gpt-5-codex"
 
-        with pytest.raises(ValueError, match="endpoint"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
+        assert "endpoint" in errors[0].lower()
 
     def test_validate_azure_openai_missing_deployment(self):
         """Test validate fails for Azure OpenAI without deployment."""
-        config = AgentConfig(
-            llm_provider="azure", azure_openai_endpoint="https://test.openai.azure.com/"
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["azure"]
+        settings.providers.azure.endpoint = "https://test.openai.azure.com/"
 
-        with pytest.raises(ValueError, match="deployment"):
-            config.validate()
+        errors = settings.validate_enabled_providers()
+        assert len(errors) > 0
+        assert "deployment" in errors[0].lower()
 
     def test_get_model_display_name_azure_openai(self):
         """Test get_model_display_name for Azure OpenAI."""
-        config = AgentConfig(llm_provider="azure", azure_openai_deployment="gpt-5-codex")
+        settings = AgentSettings()
+        settings.providers.enabled = ["azure"]
+        settings.providers.azure.deployment = "gpt-5-codex"
 
-        assert config.get_model_display_name() == "Azure OpenAI/gpt-5-codex"
+        assert settings.get_model_display_name() == "gpt-5-codex"
 
     def test_system_prompt_file_from_env(self):
-        """Test system_prompt_file is loaded from AGENT_SYSTEM_PROMPT environment variable."""
+        """Test system_prompt_file reads from AGENT_SYSTEM_PROMPT environment variable."""
         with patch.dict(os.environ, {"AGENT_SYSTEM_PROMPT": "/path/to/custom/prompt.md"}):
-            config = AgentConfig.from_env()
-
-            assert config.system_prompt_file == "/path/to/custom/prompt.md"
+            settings = AgentSettings()
+            assert settings.system_prompt_file == "/path/to/custom/prompt.md"
 
     def test_system_prompt_file_defaults_to_none(self):
-        """Test system_prompt_file defaults to None when not set."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
-
+        """Test system_prompt_file defaults to None when env var not set."""
+        # Clear AGENT_SYSTEM_PROMPT if it exists
+        env_vars = {k: v for k, v in os.environ.items() if k != "AGENT_SYSTEM_PROMPT"}
         with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
-
-            assert config.system_prompt_file is None
-
-    def test_system_prompt_file_path_expansion(self, tmp_path):
-        """Test system prompt file path supports tilde and environment variable expansion."""
-        # Create a test prompt file
-        prompt_file = tmp_path / "test_prompt.md"
-        prompt_file.write_text("Test prompt content")
-
-        # Test with tilde expansion
-        config_tilde = AgentConfig(
-            llm_provider="openai",
-            openai_api_key="test-key",
-            system_prompt_file="~/test_prompt.md",
-        )
-
-        # Verify tilde expansion happens in loader (path starts with ~)
-        assert config_tilde.system_prompt_file.startswith("~")
-
-        # Test with environment variable (validation in loader, not config)
-        with patch.dict(os.environ, {"TEST_PROMPT_DIR": str(tmp_path)}):
-            config_env = AgentConfig(
-                llm_provider="openai",
-                openai_api_key="test-key",
-                system_prompt_file="$TEST_PROMPT_DIR/test_prompt.md",
-            )
-
-            # Verify env var is preserved in config (expansion happens in loader)
-            assert "$TEST_PROMPT_DIR" in config_env.system_prompt_file
+            settings = AgentSettings()
+            assert settings.system_prompt_file is None

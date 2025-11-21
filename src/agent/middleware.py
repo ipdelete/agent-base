@@ -29,7 +29,7 @@ from agent_framework import (
     FunctionMiddleware,
 )
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 if TYPE_CHECKING:
     from agent.trace_logger import TraceLogger
@@ -59,7 +59,7 @@ def get_trace_logger() -> "TraceLogger | None":
     return _trace_logger
 
 
-def _extract_model_from_config(config: AgentConfig) -> str | None:
+def _extract_model_from_config(config: AgentSettings) -> str | None:
     """Extract model name from config based on provider.
 
     Args:
@@ -414,7 +414,7 @@ async def logging_function_middleware(
     from agent_framework.observability import OtelAttr, get_meter, get_tracer
     from opentelemetry import trace as ot_trace
 
-    from agent.config import AgentConfig
+    from agent.config.schema import AgentSettings
     from agent.display import (
         ToolCompleteEvent,
         ToolErrorEvent,

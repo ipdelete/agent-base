@@ -6,7 +6,7 @@ with sensible defaults, making tests more readable and maintainable.
 
 from typing import Any
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 
 
 def build_test_config(
@@ -54,7 +54,7 @@ def build_test_config(
     provider_defaults = defaults.get(llm_provider, defaults["openai"])
     config_dict = {**provider_defaults, **kwargs}
 
-    return AgentConfig(**config_dict)
+    return AgentSettings(**config_dict)
 
 
 def build_success_response(result: Any, message: str = "") -> dict[str, Any]:

@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.utils.responses import create_error_response, create_success_response
 
 
@@ -19,7 +19,7 @@ class AgentToolset(ABC):
     Toolsets encapsulate related tools with shared dependencies.
     This avoids global state and enables dependency injection for testing.
 
-    Each toolset receives an AgentConfig instance with all necessary
+    Each toolset receives an AgentSettings instance with all necessary
     configuration, making it easy to mock in tests.
 
     Example:
@@ -34,17 +34,20 @@ class AgentToolset(ABC):
         ...         )
     """
 
-    def __init__(self, config: AgentConfig):
-        """Initialize toolset with configuration.
+    def __init__(self, settings: AgentSettings):
+        """Initialize toolset with settings.
 
         Args:
-            config: Agent configuration with LLM settings and paths
+            settings: Agent settings with provider and agent configuration
 
         Example:
-            >>> config = AgentConfig.from_env()
-            >>> tools = HelloTools(config)
+            >>> from agent.config import load_config
+            >>> settings = load_config()
+            >>> tools = HelloTools(settings)
         """
-        self.config = config
+        self.settings = settings
+        # Legacy alias for compatibility
+        self.config = settings
 
     @abstractmethod
     def get_tools(self) -> list[Callable]:

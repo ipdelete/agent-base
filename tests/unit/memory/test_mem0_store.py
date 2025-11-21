@@ -4,14 +4,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory.mem0_store import Mem0Store
 
 
 @pytest.fixture
 def mem0_config():
     """Create test configuration for mem0."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="openai",
         openai_api_key="sk-test",
         memory_type="mem0",
@@ -53,7 +53,7 @@ class TestMem0Store:
 
     def test_initialization_without_project_id(self):
         """Test namespace without project_id."""
-        config = AgentConfig(
+        config = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_type="mem0",
@@ -346,13 +346,13 @@ class TestMem0Store:
     @pytest.mark.asyncio
     async def test_namespace_isolation(self):
         """Test that different users have isolated namespaces."""
-        config1 = AgentConfig(
+        config1 = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_type="mem0",
             mem0_user_id="alice",
         )
-        config2 = AgentConfig(
+        config2 = AgentSettings(
             llm_provider="openai",
             openai_api_key="test",
             memory_type="mem0",

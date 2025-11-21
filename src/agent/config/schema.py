@@ -432,3 +432,281 @@ class AgentSettings(BaseModel):
                 pass
 
         return errors
+
+    @property
+    def llm_provider(self) -> str:
+        """Get the primary LLM provider (first enabled provider).
+
+        Returns:
+            Primary provider name from enabled list
+
+        Raises:
+            ValueError: If no providers are enabled
+
+        Example:
+            >>> settings = AgentSettings()
+            >>> settings.providers.enabled = ["openai"]
+            >>> settings.llm_provider
+            'openai'
+        """
+        if not self.providers.enabled:
+            raise ValueError("No providers enabled in configuration")
+        return self.providers.enabled[0]
+
+    @property
+    def agent_data_dir(self) -> Path:
+        """Get agent data directory as Path object.
+
+        Returns:
+            Path to agent data directory (~/.agent by default)
+        """
+        return Path(self.agent.data_dir).expanduser()
+
+    @property
+    def agent_session_dir(self) -> Path:
+        """Get agent session directory as Path object.
+
+        Returns:
+            Path to agent session directory (data_dir/sessions)
+        """
+        return self.agent_data_dir / "sessions"
+
+    @property
+    def memory_enabled(self) -> bool:
+        """Get memory enabled status.
+
+        Returns:
+            True if memory is enabled
+        """
+        return self.memory.enabled
+
+    @property
+    def memory_type(self) -> str:
+        """Get memory type.
+
+        Returns:
+            Memory type ('in_memory' or 'mem0')
+        """
+        return self.memory.type
+
+    @property
+    def memory_history_limit(self) -> int:
+        """Get memory history limit.
+
+        Returns:
+            Maximum number of messages to keep in memory
+        """
+        return self.memory.history_limit
+
+    @property
+    def system_prompt_file(self) -> str | None:
+        """Get system prompt file path from environment.
+
+        Returns:
+            Path to custom system prompt file or None
+        """
+        import os
+        return os.getenv("AGENT_SYSTEM_PROMPT")
+
+    def get_model_display_name(self) -> str:
+        """Get display name for the current model.
+
+        Returns:
+            Model name for the primary provider
+
+        Example:
+            >>> settings = AgentSettings()
+            >>> settings.providers.enabled = ["openai"]
+            >>> settings.providers.openai.model = "gpt-5-mini"
+            >>> settings.get_model_display_name()
+            'gpt-5-mini'
+        """
+        provider = self.llm_provider
+
+        if provider == "openai":
+            return self.providers.openai.model
+        elif provider == "anthropic":
+            return self.providers.anthropic.model
+        elif provider == "azure":
+            return self.providers.azure.deployment or "unknown"
+        elif provider == "foundry":
+            return self.providers.foundry.model_deployment or "unknown"
+        elif provider == "gemini":
+            return self.providers.gemini.model
+        elif provider == "github":
+            return self.providers.github.model
+        elif provider == "local":
+            return self.providers.local.model
+        else:
+            return "unknown"
+
+    # Legacy compatibility aliases for smooth migration
+    @property
+    def openai_api_key(self) -> str | None:
+        """Legacy: Get OpenAI API key."""
+        return self.providers.openai.api_key
+
+    @property
+    def openai_model(self) -> str:
+        """Legacy: Get OpenAI model."""
+        return self.providers.openai.model
+
+    @property
+    def anthropic_api_key(self) -> str | None:
+        """Legacy: Get Anthropic API key."""
+        return self.providers.anthropic.api_key
+
+    @property
+    def anthropic_model(self) -> str:
+        """Legacy: Get Anthropic model."""
+        return self.providers.anthropic.model
+
+    @property
+    def azure_openai_endpoint(self) -> str | None:
+        """Legacy: Get Azure OpenAI endpoint."""
+        return self.providers.azure.endpoint
+
+    @property
+    def azure_openai_deployment(self) -> str | None:
+        """Legacy: Get Azure OpenAI deployment."""
+        return self.providers.azure.deployment
+
+    @property
+    def azure_openai_api_version(self) -> str:
+        """Legacy: Get Azure OpenAI API version."""
+        return self.providers.azure.api_version
+
+    @property
+    def azure_openai_api_key(self) -> str | None:
+        """Legacy: Get Azure OpenAI API key."""
+        return self.providers.azure.api_key
+
+    @property
+    def azure_project_endpoint(self) -> str | None:
+        """Legacy: Get Azure AI Foundry project endpoint."""
+        return self.providers.foundry.project_endpoint
+
+    @property
+    def azure_model_deployment(self) -> str | None:
+        """Legacy: Get Azure AI Foundry model deployment."""
+        return self.providers.foundry.model_deployment
+
+    @property
+    def gemini_api_key(self) -> str | None:
+        """Legacy: Get Gemini API key."""
+        return self.providers.gemini.api_key
+
+    @property
+    def gemini_model(self) -> str:
+        """Legacy: Get Gemini model."""
+        return self.providers.gemini.model
+
+    @property
+    def gemini_project_id(self) -> str | None:
+        """Legacy: Get Gemini project ID."""
+        return self.providers.gemini.project_id
+
+    @property
+    def gemini_location(self) -> str | None:
+        """Legacy: Get Gemini location."""
+        return self.providers.gemini.location
+
+    @property
+    def gemini_use_vertexai(self) -> bool:
+        """Legacy: Get Gemini Vertex AI usage flag."""
+        return self.providers.gemini.use_vertexai
+
+    @property
+    def github_token(self) -> str | None:
+        """Legacy: Get GitHub token."""
+        return self.providers.github.token
+
+    @property
+    def github_model(self) -> str:
+        """Legacy: Get GitHub model."""
+        return self.providers.github.model
+
+    @property
+    def github_endpoint(self) -> str:
+        """Legacy: Get GitHub endpoint."""
+        return self.providers.github.endpoint
+
+    @property
+    def github_org(self) -> str | None:
+        """Legacy: Get GitHub organization."""
+        return self.providers.github.org
+
+    @property
+    def local_base_url(self) -> str:
+        """Legacy: Get local base URL."""
+        return self.providers.local.base_url
+
+    @property
+    def local_model(self) -> str:
+        """Legacy: Get local model."""
+        return self.providers.local.model
+
+    @property
+    def workspace_root(self) -> Path | None:
+        """Legacy: Get workspace root for filesystem tools."""
+        return self.agent.workspace_root
+
+    @workspace_root.setter
+    def workspace_root(self, value: Path | None) -> None:
+        """Legacy: Set workspace root for filesystem tools."""
+        self.agent.workspace_root = value
+
+    @property
+    def filesystem_writes_enabled(self) -> bool:
+        """Legacy: Get filesystem writes enabled flag."""
+        return self.agent.filesystem_writes_enabled
+
+    @filesystem_writes_enabled.setter
+    def filesystem_writes_enabled(self, value: bool) -> None:
+        """Legacy: Set filesystem writes enabled flag."""
+        self.agent.filesystem_writes_enabled = value
+
+    @property
+    def filesystem_max_read_bytes(self) -> int:
+        """Legacy: Get filesystem max read bytes."""
+        return self.agent.filesystem_max_read_bytes
+
+    @filesystem_max_read_bytes.setter
+    def filesystem_max_read_bytes(self, value: int) -> None:
+        """Legacy: Set filesystem max read bytes."""
+        self.agent.filesystem_max_read_bytes = value
+
+    @property
+    def filesystem_max_write_bytes(self) -> int:
+        """Legacy: Get filesystem max write bytes."""
+        return self.agent.filesystem_max_write_bytes
+
+    @filesystem_max_write_bytes.setter
+    def filesystem_max_write_bytes(self, value: int) -> None:
+        """Legacy: Set filesystem max write bytes."""
+        self.agent.filesystem_max_write_bytes = value
+
+    @property
+    def mem0_user_id(self) -> str | None:
+        """Legacy: Get Mem0 user ID."""
+        return self.memory.mem0.user_id
+
+    @property
+    def mem0_project_id(self) -> str | None:
+        """Legacy: Get Mem0 project ID."""
+        return self.memory.mem0.project_id
+
+    @property
+    def mem0_storage_path(self) -> str | None:
+        """Legacy: Get Mem0 storage path."""
+        return self.memory.mem0.storage_path
+
+    @property
+    def mem0_api_key(self) -> str | None:
+        """Legacy: Get Mem0 API key."""
+        return self.memory.mem0.api_key
+
+    @property
+    def mem0_org_id(self) -> str | None:
+        """Legacy: Get Mem0 organization ID."""
+        return self.memory.mem0.org_id

@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent.config import AgentConfig
+from agent.config.schema import AgentSettings
 from agent.memory import InMemoryStore, create_memory_manager
 from agent.memory.persistence import MemoryPersistence
 
@@ -10,7 +10,7 @@ from agent.memory.persistence import MemoryPersistence
 @pytest.fixture
 def memory_config():
     """Create config with memory enabled."""
-    return AgentConfig(
+    return AgentSettings(
         llm_provider="openai",
         openai_api_key="test-key",
         memory_enabled=True,

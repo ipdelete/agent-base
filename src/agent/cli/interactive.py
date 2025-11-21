@@ -55,7 +55,8 @@ from agent.cli.utils import (
     hide_connection_string_if_otel_disabled,
     set_model_span_attributes,
 )
-from agent.config import AgentConfig
+from agent.config import load_config
+from agent.config.schema import AgentSettings
 from agent.display import DisplayMode, set_execution_context
 from agent.persistence import ThreadPersistence
 from agent.utils.keybindings import ClearPromptHandler, KeybindingManager
@@ -105,7 +106,7 @@ async def _execute_interactive_query(
             raise
 
 
-def _render_startup_banner(config: AgentConfig, console: Console) -> None:
+def _render_startup_banner(config: AgentSettings, console: Console) -> None:
     """Render startup banner with branding.
 
     Args:
@@ -280,8 +281,12 @@ async def run_chat_mode(
         perf_start = time.perf_counter()
 
         # Load configuration
-        config = AgentConfig.from_combined()
-        config.validate()
+        config = load_config()
+        errors = config.validate_enabled_providers()
+        if errors:
+            for error in errors:
+                console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(ExitCodes.CONFIG_ERROR)
         logger.info(
             f"[PERF] Interactive mode - config loaded: {(time.perf_counter() - perf_start)*1000:.1f}ms"
         )
