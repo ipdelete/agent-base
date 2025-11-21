@@ -29,12 +29,10 @@ def openai_agent():
     if not os.getenv("OPENAI_API_KEY"):
         pytest.skip("OPENAI_API_KEY not set - skipping real LLM test")
 
-    config = AgentSettings(
-        llm_provider="openai",
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
-        # Use env var if set, otherwise use same default as main config
-        openai_model=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
-    )
+    config = AgentSettings()
+    config.providers.enabled = ["openai"]
+    config.providers.openai.api_key = os.getenv("OPENAI_API_KEY")
+    config.providers.openai.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
     return Agent(settings=config)
 
@@ -54,12 +52,10 @@ def anthropic_agent():
     if not os.getenv("ANTHROPIC_API_KEY"):
         pytest.skip("ANTHROPIC_API_KEY not set - skipping real LLM test")
 
-    config = AgentSettings(
-        llm_provider="anthropic",
-        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-        # Use env var if set, otherwise use same default as main config
-        anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
-    )
+    config = AgentSettings()
+    config.providers.enabled = ["anthropic"]
+    config.providers.anthropic.api_key = os.getenv("ANTHROPIC_API_KEY")
+    config.providers.anthropic.model = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
     return Agent(settings=config)
 
@@ -79,14 +75,15 @@ def azure_openai_agent():
     if not os.getenv("AZURE_OPENAI_ENDPOINT"):
         pytest.skip("Azure OpenAI credentials not set - skipping real LLM test")
 
-    config = AgentSettings(
-        llm_provider="azure",
-        azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        # Support both naming conventions, default to gpt-5-codex
-        azure_openai_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        or os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-codex"),
-        azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION")
-        or os.getenv("AZURE_OPENAI_VERSION", "2025-03-01-preview"),
+    config = AgentSettings()
+    config.providers.enabled = ["azure"]
+    config.providers.azure.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    # Support both naming conventions, default to gpt-5-codex
+    config.providers.azure.deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT") or os.getenv(
+        "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-codex"
+    )
+    config.providers.azure.api_version = os.getenv("AZURE_OPENAI_API_VERSION") or os.getenv(
+        "AZURE_OPENAI_VERSION", "2025-03-01-preview"
     )
 
     return Agent(settings=config)
@@ -114,12 +111,11 @@ def foundry_agent():
     if not os.getenv("AZURE_PROJECT_ENDPOINT"):
         pytest.skip("Azure AI Foundry credentials not set - skipping real LLM test")
 
-    config = AgentSettings(
-        llm_provider="foundry",
-        azure_project_endpoint=os.getenv("AZURE_PROJECT_ENDPOINT"),
-        # Use gpt-5-mini as default (supports tools and matches main config)
-        azure_model_deployment=os.getenv("AZURE_MODEL_DEPLOYMENT", "gpt-5-mini"),
-    )
+    config = AgentSettings()
+    config.providers.enabled = ["foundry"]
+    config.providers.foundry.project_endpoint = os.getenv("AZURE_PROJECT_ENDPOINT")
+    # Use gpt-5-mini as default (supports tools and matches main config)
+    config.providers.foundry.model_deployment = os.getenv("AZURE_MODEL_DEPLOYMENT", "gpt-5-mini")
 
     return Agent(settings=config)
 
@@ -141,12 +137,10 @@ def gemini_agent():
 
     from agent.config import DEFAULT_GEMINI_MODEL
 
-    config = AgentSettings(
-        llm_provider="gemini",
-        gemini_api_key=os.getenv("GEMINI_API_KEY"),
-        # Use env var if set, otherwise use same default as main config
-        gemini_model=os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
-    )
+    config = AgentSettings()
+    config.providers.enabled = ["gemini"]
+    config.providers.gemini.api_key = os.getenv("GEMINI_API_KEY")
+    config.providers.gemini.model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
 
     return Agent(settings=config)
 
@@ -178,12 +172,10 @@ def local_agent():
     except (requests.RequestException, ConnectionError) as e:
         pytest.skip(f"Local models not available at {base_url} - {e}")
 
-    config = AgentSettings(
-        llm_provider="local",
-        local_base_url=base_url,
-        # Use env var if set, otherwise use same default as main config
-        local_model=os.getenv("LOCAL_MODEL", "ai/phi4"),
-    )
+    config = AgentSettings()
+    config.providers.enabled = ["local"]
+    config.providers.local.base_url = base_url
+    config.providers.local.model = os.getenv("LOCAL_MODEL", "ai/phi4")
 
     return Agent(settings=config)
 
