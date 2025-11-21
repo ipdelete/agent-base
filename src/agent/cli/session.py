@@ -22,6 +22,7 @@ def setup_session_logging(
     """Setup session-specific logging to file (not console).
 
     Follows copilot pattern: ~/.agent/logs/session-{name}.log
+    Also creates trace log file if trace logging is enabled.
 
     Args:
         session_name: Session identifier (timestamp or custom name)
@@ -70,6 +71,25 @@ def setup_session_logging(
         force=True,  # Reconfigure if already configured
     )
 
+    # Setup trace logging if log level is trace
+    if log_level == "TRACE":
+        from agent.middleware import set_trace_logger
+        from agent.trace_logger import TraceLogger
+
+        # Create trace log file path
+        trace_log_file = log_dir / f"session-{session_name}-trace.log"
+
+        # Create and set trace logger
+        # Include messages only if ENABLE_SENSITIVE_DATA is set
+        include_messages = config.enable_sensitive_data
+        trace_logger = TraceLogger(trace_file=trace_log_file, include_messages=include_messages)
+        set_trace_logger(trace_logger)
+
+        logger.info(
+            f"Trace logging enabled: {trace_log_file} "
+            f"(include_messages={include_messages}, sensitive_data={config.enable_sensitive_data})"
+        )
+
     return str(log_file)
 
 
@@ -82,6 +102,7 @@ async def auto_save_session(
     console: Console | None = None,
     session_name: str | None = None,
     agent: Agent | None = None,
+    log_dir: Path | None = None,
 ) -> None:
     """Auto-save session on exit if it has messages.
 
@@ -94,6 +115,7 @@ async def auto_save_session(
         console: Console for output (optional)
         session_name: Optional session name (if not provided, generates timestamp)
         agent: Optional Agent instance for memory saving
+        log_dir: Optional log directory path (avoids path reconstruction)
     """
     import time
 
@@ -136,6 +158,22 @@ async def auto_save_session(
                 except Exception as e:
                     if not quiet and console:
                         console.print(f"[yellow]Warning: Failed to save memory: {e}[/yellow]")
+
+            # Copy trace log file if it exists
+            # Use provided log_dir or reconstruct from persistence storage dir
+            if log_dir is None:
+                log_dir = persistence.storage_dir.parent / "logs"
+            trace_log_file = log_dir / f"session-{session_name}-trace.log"
+            if trace_log_file.exists():
+                try:
+                    import shutil
+
+                    # Copy trace log to session directory
+                    session_trace_log = persistence.storage_dir / f"{session_name}-trace.log"
+                    shutil.copy2(trace_log_file, session_trace_log)
+                    logger.debug(f"Copied trace log to session directory: {session_trace_log}")
+                except Exception as e:
+                    logger.warning(f"Failed to copy trace log: {e}")
 
             # Save as last session for --continue
             _save_last_session(session_name)

@@ -14,10 +14,14 @@ Event Emission:
     execution tree display without coupling tools to display logic.
 """
 
+import json
 import logging
 import time
+import uuid
 from collections.abc import Awaitable, Callable
-from typing import Any, cast
+
+# TYPE_CHECKING import for forward reference
+from typing import TYPE_CHECKING, Any, cast
 
 from agent_framework import (
     AgentRunContext,
@@ -25,7 +29,61 @@ from agent_framework import (
     FunctionMiddleware,
 )
 
+from agent.config import AgentConfig
+
+if TYPE_CHECKING:
+    from agent.trace_logger import TraceLogger
+
 logger = logging.getLogger(__name__)
+
+# Global trace logger instance (set by session setup)
+_trace_logger: "TraceLogger | None" = None
+
+
+def set_trace_logger(trace_logger: "TraceLogger | None") -> None:
+    """Set the global trace logger instance.
+
+    Args:
+        trace_logger: TraceLogger instance or None
+    """
+    global _trace_logger
+    _trace_logger = trace_logger
+
+
+def get_trace_logger() -> "TraceLogger | None":
+    """Get the current trace logger instance.
+
+    Returns:
+        TraceLogger instance or None
+    """
+    return _trace_logger
+
+
+def _extract_model_from_config(config: AgentConfig) -> str | None:
+    """Extract model name from config based on provider.
+
+    Args:
+        config: Agent configuration
+
+    Returns:
+        Model name or None
+    """
+    provider = config.llm_provider
+    if provider == "openai":
+        return config.openai_model
+    elif provider == "anthropic":
+        return config.anthropic_model
+    elif provider == "azure":
+        return config.azure_openai_deployment
+    elif provider == "gemini":
+        return config.gemini_model
+    elif provider == "github":
+        return config.github_model
+    elif provider == "local":
+        return config.local_model
+    elif provider == "foundry":
+        return config.azure_model_deployment
+    return None
 
 
 # ============================================================================
@@ -43,6 +101,7 @@ async def agent_run_logging_middleware(
     - Logs agent execution start/complete
     - Emits LLMRequestEvent before LLM call
     - Emits LLMResponseEvent after LLM call with duration
+    - Captures trace-level LLM request/response data (if enabled)
     - Only emits events if should_show_visualization() is True
 
     Args:
@@ -62,6 +121,13 @@ async def agent_run_logging_middleware(
 
     logger.debug("Agent run starting...")
 
+    # Generate request ID for trace logging
+    request_id = str(uuid.uuid4())
+
+    # Load config for trace logging if enabled (reused for request and response)
+    trace_logger = get_trace_logger()
+    config = AgentConfig.from_env() if trace_logger else None
+
     # Emit LLM request event
     llm_event_id = None
     if should_show_visualization():
@@ -71,11 +137,93 @@ async def agent_run_logging_middleware(
         get_event_emitter().emit(event)
         logger.debug(f"Emitted LLM request event with {message_count} messages")
 
+    # Trace logging: Log request data with full context
+    if trace_logger:
+        try:
+            # Extract conversation messages
+            messages = []
+            if hasattr(context, "messages"):
+                for msg in context.messages:
+                    if hasattr(msg, "to_dict"):
+                        messages.append(msg.to_dict())
+                    elif hasattr(msg, "model_dump"):
+                        messages.append(msg.model_dump())
+                    elif hasattr(msg, "dict"):
+                        messages.append(msg.dict())
+                    else:
+                        messages.append({"content": str(msg)})
+
+            # Get model and provider from config (already loaded at middleware start)
+            assert config is not None, "Config should be loaded when trace logger is enabled"
+            provider = config.llm_provider
+            model = _extract_model_from_config(config)
+
+            # Extract FULL payload info if include_messages is enabled
+            system_instructions: str | None = None
+            tools_summary: dict[str, Any] | None = None
+
+            if trace_logger.include_messages:
+                if hasattr(context, "agent"):
+                    agent = context.agent
+
+                    # Get system instructions and tools from chat_options
+                    if hasattr(agent, "chat_options"):
+                        chat_options = agent.chat_options
+
+                        # Get instructions
+                        if hasattr(chat_options, "instructions") and chat_options.instructions:
+                            system_instructions = chat_options.instructions
+
+                        # Get tools
+                        if hasattr(chat_options, "tools") and chat_options.tools:
+                            tools = chat_options.tools
+                            tools_data = []
+                            for tool in tools:
+                                tool_dict = (
+                                    tool.to_dict()
+                                    if hasattr(tool, "to_dict")
+                                    else {"name": str(tool)}
+                                )
+                                tool_json = json.dumps(tool_dict, default=str)
+                                tools_data.append(
+                                    {
+                                        "name": tool_dict.get("name", "unknown"),
+                                        "description": (
+                                            tool_dict.get("description", "")[:100]
+                                            if tool_dict.get("description")
+                                            else ""
+                                        ),
+                                        "estimated_tokens": len(tool_json) // 4,
+                                    }
+                                )
+
+                            tools_summary = {
+                                "count": len(tools),
+                                "tools": tools_data,
+                                "total_estimated_tokens": sum(
+                                    t["estimated_tokens"] for t in tools_data
+                                ),
+                            }
+
+            # Log request using TraceLogger
+            trace_logger.log_request(
+                request_id=request_id,
+                messages=messages,
+                model=model,
+                provider=provider,
+                system_instructions=system_instructions,
+                tools_summary=tools_summary,
+            )
+
+        except Exception as e:
+            logger.debug(f"Failed to log trace request: {e}")
+
     start_time = time.time()
 
     try:
         await next(context)
         duration = time.time() - start_time
+        latency_ms = duration * 1000
         logger.debug("Agent run completed successfully")
 
         # Emit LLM response event
@@ -84,8 +232,116 @@ async def agent_run_logging_middleware(
             get_event_emitter().emit(response_event)
             logger.debug(f"Emitted LLM response event ({duration:.2f}s)")
 
+        # Trace logging: Log response data with token usage
+        if trace_logger:
+            try:
+                # Extract response content and token usage from result
+                response_content = ""
+                input_tokens = None
+                output_tokens = None
+                total_tokens = None
+
+                if hasattr(context, "result") and context.result:
+                    result = context.result
+                    # Extract content
+                    if hasattr(result, "text"):
+                        response_content = str(result.text)
+                    elif hasattr(result, "content"):
+                        response_content = str(result.content)
+                    elif hasattr(result, "data"):
+                        response_content = str(result.data)
+                    else:
+                        response_content = str(result)
+
+                    # Extract token usage from result.usage_details
+                    if hasattr(result, "usage_details") and result.usage_details:
+                        usage = result.usage_details
+                        if hasattr(usage, "input_token_count"):
+                            input_tokens = usage.input_token_count
+                        if hasattr(usage, "output_token_count"):
+                            output_tokens = usage.output_token_count
+                        if hasattr(usage, "total_token_count"):
+                            total_tokens = usage.total_token_count
+
+                # Try to extract token usage from various locations
+                # Check thread for usage info (agent-framework stores it in thread messages)
+                if hasattr(context, "thread") and context.thread:
+                    thread = context.thread
+                    if hasattr(thread, "messages") and thread.messages:
+                        # Check last message (assistant response) for usage
+                        last_msg = thread.messages[-1]
+
+                        # Check for usage in message
+                        if hasattr(last_msg, "usage") and last_msg.usage:
+                            usage = last_msg.usage
+                            if hasattr(usage, "input_token_count"):
+                                input_tokens = usage.input_token_count
+                            if hasattr(usage, "output_token_count"):
+                                output_tokens = usage.output_token_count
+                            if hasattr(usage, "total_token_count"):
+                                total_tokens = usage.total_token_count
+
+                        # Also check contents for UsageContent
+                        if hasattr(last_msg, "contents") and last_msg.contents:
+                            for content in last_msg.contents:
+                                # UsageContent has usage attribute
+                                if hasattr(content, "usage") and content.usage:
+                                    usage = content.usage
+                                    if hasattr(usage, "input_token_count"):
+                                        input_tokens = usage.input_token_count
+                                    if hasattr(usage, "output_token_count"):
+                                        output_tokens = usage.output_token_count
+                                    if hasattr(usage, "total_token_count"):
+                                        total_tokens = usage.total_token_count
+
+                # Also check metadata for usage info
+                if hasattr(context, "metadata") and context.metadata:
+                    metadata = context.metadata
+                    if "usage" in metadata:
+                        usage = metadata["usage"]
+                        if isinstance(usage, dict):
+                            input_tokens = usage.get("input_token_count") or usage.get(
+                                "input_tokens"
+                            )
+                            output_tokens = usage.get("output_token_count") or usage.get(
+                                "output_tokens"
+                            )
+                            total_tokens = usage.get("total_token_count") or usage.get(
+                                "total_tokens"
+                            )
+
+                # Get model from config (loaded once at middleware start)
+                model = _extract_model_from_config(config) if config else None
+
+                trace_logger.log_response(
+                    request_id=request_id,
+                    response_content=response_content,
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=total_tokens,
+                    latency_ms=latency_ms,
+                )
+            except Exception as e:
+                logger.debug(f"Failed to log trace response: {e}")
+
     except Exception as e:
         logger.error(f"Agent run failed: {e}")
+
+        # Trace logging: Log error
+        if trace_logger:
+            try:
+                duration = time.time() - start_time
+                latency_ms = duration * 1000
+                trace_logger.log_response(
+                    request_id=request_id,
+                    response_content="",
+                    latency_ms=latency_ms,
+                    error=str(e),
+                )
+            except Exception as log_err:
+                logger.debug(f"Failed to log trace error: {log_err}")
+
         raise
 
 
