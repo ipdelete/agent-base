@@ -189,6 +189,8 @@ def show_tool_configuration(console: Console | None = None) -> None:
         console = get_console()
 
     try:
+        from agent.config import load_config
+
         config = load_config()
 
         from pathlib import Path

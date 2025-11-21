@@ -38,6 +38,7 @@ def setup_session_logging(
     # Load config if not provided
     if config is None:
         from agent.config import load_config
+
         config = load_config()
 
     # Create logs directory

@@ -388,9 +388,7 @@ def config_show() -> None:
                     f"[red]Environment variable LLM_PROVIDER={llm_provider_env} is set, "
                     f"but provider configuration is incomplete.[/red]\n"
                 )
-                console.print(
-                    "[dim]💡 Run 'agent config init' to configure your provider.[/dim]"
-                )
+                console.print("[dim]💡 Run 'agent config init' to configure your provider.[/dim]")
         else:
             # No config file, no LLM_PROVIDER - auto-run init
             console.print("[yellow]No configuration found.[/yellow]")

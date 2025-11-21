@@ -187,7 +187,9 @@ def get_storage_path(config: AgentSettings) -> Path:
         >>> # /Users/daniel/.agent/mem0_data/chroma_db
     """
     if config.mem0_storage_path:
-        return config.mem0_storage_path
+        from pathlib import Path
+
+        return Path(config.mem0_storage_path)
 
     # Default to memory_dir/chroma_db
     if config.memory_dir:
