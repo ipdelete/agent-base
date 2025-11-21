@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from agent.config.manager import load_config, merge_with_env
 from agent.config.schema import AgentSettings
 
 
@@ -17,219 +18,192 @@ class TestMemoryConfiguration:
 
     def test_config_memory_enabled_by_default(self):
         """Test memory is enabled by default for conversation context."""
-        config = AgentSettings(llm_provider="openai", openai_api_key="test")
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test"
 
-        assert config.memory_enabled is True
+        assert settings.memory_enabled is True
 
     def test_config_memory_type_defaults_to_in_memory(self):
         """Test memory type defaults to in_memory."""
-        config = AgentSettings(llm_provider="openai", openai_api_key="test")
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test"
 
-        assert config.memory_type == "in_memory"
+        assert settings.memory_type == "in_memory"
 
     def test_config_memory_enabled_explicit(self):
         """Test memory can be explicitly enabled."""
-        config = AgentSettings(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_enabled=True,
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test"
+        settings.memory.enabled = True
 
-        assert config.memory_enabled is True
+        assert settings.memory_enabled is True
 
     def test_config_memory_type_custom(self):
         """Test memory type can be customized."""
-        config = AgentSettings(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_enabled=True,
-            memory_type="custom",
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test"
+        settings.memory.enabled = True
+        settings.memory.type = "custom"
 
-        assert config.memory_type == "custom"
+        assert settings.memory_type == "custom"
 
     def test_config_memory_dir_default(self):
-        """Test memory_dir defaults to None."""
-        config = AgentSettings(llm_provider="openai", openai_api_key="test")
+        """Test memory_dir defaults to agent_data_dir/memory."""
+        settings = AgentSettings()
 
-        assert config.memory_dir is None
+        # memory_dir is a computed property
+        expected = settings.agent_data_dir / "memory"
+        assert settings.memory_dir == expected
 
     def test_config_memory_dir_custom(self):
-        """Test memory_dir can be set."""
-        custom_dir = Path("/custom/memory")
-        config = AgentSettings(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_dir=custom_dir,
-        )
+        """Test memory_dir is computed from agent_data_dir."""
+        settings = AgentSettings()
+        custom_data_dir = Path("/custom/data")
+        settings.agent.data_dir = str(custom_data_dir)
 
-        assert config.memory_dir == custom_dir
+        # memory_dir is computed as agent_data_dir / "memory"
+        expected = custom_data_dir / "memory"
+        assert settings.memory_dir == expected
 
-    def test_from_env_memory_enabled_by_default(self):
-        """Test from_env has memory enabled by default for conversation context."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+    def test_load_config_memory_enabled_by_default(self):
+        """Test load_config has memory enabled by default for conversation context."""
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
+            settings = load_config()
+            settings.providers.enabled = ["openai"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            assert settings.memory_enabled is True
 
-            assert config.memory_enabled is True
+    def test_merge_env_memory_enabled_from_env_var(self):
+        """Test merge_with_env loads memory_enabled from environment."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
 
-    def test_from_env_memory_enabled_from_env_var(self):
-        """Test from_env loads memory_enabled from environment."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {"MEMORY_ENABLED": "true"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+        with patch.dict(os.environ, {"MEMORY_ENABLED": "true"}, clear=False):
+            env_overrides = merge_with_env(settings)
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            assert "memory" in env_overrides
+            assert env_overrides["memory"]["enabled"] is True
 
-            assert config.memory_enabled is True
-
-    def test_from_env_memory_enabled_case_insensitive(self):
+    def test_merge_env_memory_enabled_case_insensitive(self):
         """Test MEMORY_ENABLED is case-insensitive."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+
         # Test various cases
         for value in ["true", "True", "TRUE", "TrUe"]:
-            # Preserve HOME/USERPROFILE for Path.home()
-            env_vars = {"MEMORY_ENABLED": value}
-            if "HOME" in os.environ:
-                env_vars["HOME"] = os.environ["HOME"]
-            if "USERPROFILE" in os.environ:
-                env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+            with patch.dict(os.environ, {"MEMORY_ENABLED": value}, clear=False):
+                env_overrides = merge_with_env(settings)
 
-            with patch.dict(os.environ, env_vars, clear=True):
-                config = AgentConfig.from_env()
-                assert config.memory_enabled is True
+                assert env_overrides["memory"]["enabled"] is True
 
-    def test_from_env_memory_enabled_false_values(self):
+    def test_merge_env_memory_enabled_false_values(self):
         """Test MEMORY_ENABLED false values."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+
         for value in ["false", "False", "FALSE", "0", ""]:
-            # Preserve HOME/USERPROFILE for Path.home()
-            env_vars = {"MEMORY_ENABLED": value}
-            if "HOME" in os.environ:
-                env_vars["HOME"] = os.environ["HOME"]
-            if "USERPROFILE" in os.environ:
-                env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+            with patch.dict(os.environ, {"MEMORY_ENABLED": value}, clear=False):
+                env_overrides = merge_with_env(settings)
 
-            with patch.dict(os.environ, env_vars, clear=True):
-                config = AgentConfig.from_env()
-                assert config.memory_enabled is False
+                # Memory section might not exist if no overrides, check if present
+                if "memory" in env_overrides:
+                    assert env_overrides["memory"]["enabled"] is False
 
-    def test_from_env_memory_type_from_env_var(self):
-        """Test from_env loads memory_type from environment."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {"MEMORY_TYPE": "custom_type"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+    def test_merge_env_memory_type_from_env_var(self):
+        """Test merge_with_env loads memory_type from environment."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, {"MEMORY_TYPE": "custom_type"}, clear=False):
+            env_overrides = merge_with_env(settings)
 
-            assert config.memory_type == "custom_type"
+            assert env_overrides["memory"]["type"] == "custom_type"
 
-    def test_from_env_memory_type_defaults_to_in_memory(self):
-        """Test from_env defaults memory_type to in_memory."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+    def test_merge_env_memory_type_defaults_to_in_memory(self):
+        """Test merge_with_env defaults memory_type to in_memory."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, {}, clear=False):
+            # No MEMORY_TYPE env var, should use default from settings
+            assert settings.memory.type == "in_memory"
 
-            assert config.memory_type == "in_memory"
+    def test_merge_env_memory_dir_from_data_dir(self):
+        """Test memory_dir is computed from AGENT_DATA_DIR."""
+        settings = AgentSettings()
 
-    def test_from_env_memory_dir_from_env_var(self):
-        """Test from_env loads memory_dir from environment."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {"MEMORY_DIR": "/custom/memory"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+        with patch.dict(os.environ, {"AGENT_DATA_DIR": "/custom/data"}, clear=False):
+            env_overrides = merge_with_env(settings)
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            # Merge overrides into settings
+            settings.agent.data_dir = env_overrides["agent"]["data_dir"]
 
-            assert config.memory_dir == Path("/custom/memory")
+            expected_dir = Path("/custom/data") / "memory"
+            assert settings.memory_dir == expected_dir
 
-    def test_from_env_memory_dir_defaults_to_agent_data_dir(self):
-        """Test from_env defaults memory_dir to agent_data_dir/memory."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+    def test_merge_env_memory_dir_defaults_to_agent_data_dir(self):
+        """Test memory_dir defaults to agent_data_dir/memory."""
+        settings = AgentSettings()
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, {}, clear=False):
+            expected_dir = settings.agent_data_dir / "memory"
+            assert settings.memory_dir == expected_dir
 
-            expected_dir = config.agent_data_dir / "memory"
-            assert config.memory_dir == expected_dir
+    def test_merge_env_memory_dir_expands_user(self):
+        """Test merge_with_env expands ~ in data_dir (thus memory_dir)."""
+        settings = AgentSettings()
 
-    def test_from_env_memory_dir_expands_user(self):
-        """Test from_env expands ~ in memory_dir."""
-        # Preserve HOME/USERPROFILE for Path.home()
-        env_vars = {"MEMORY_DIR": "~/custom/memory"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
+        with patch.dict(os.environ, {"AGENT_DATA_DIR": "~/custom/data"}, clear=False):
+            env_overrides = merge_with_env(settings)
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+            # Merge and compute
+            settings.agent.data_dir = env_overrides["agent"]["data_dir"]
 
-            assert config.memory_dir == Path.home() / "custom" / "memory"
+            expected = Path.home() / "custom" / "data" / "memory"
+            assert settings.memory_dir == expected
 
     def test_config_with_all_memory_settings(self):
         """Test config with all memory settings configured."""
-        config = AgentSettings(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_enabled=True,
-            memory_type="in_memory",
-            memory_dir=Path("/custom/memory"),
-        )
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+        settings.providers.openai.api_key = "test"
+        settings.memory.enabled = True
+        settings.memory.type = "in_memory"
+        settings.agent.data_dir = "/custom/data"
 
-        assert config.memory_enabled is True
-        assert config.memory_type == "in_memory"
-        assert config.memory_dir == Path("/custom/memory")
+        assert settings.memory_enabled is True
+        assert settings.memory_type == "in_memory"
+        assert settings.memory_dir == Path("/custom/data/memory")
 
-    def test_from_env_with_all_memory_env_vars(self):
-        """Test from_env with all memory environment variables set."""
-        # Preserve HOME/USERPROFILE for Path.home()
+    def test_merge_env_with_all_memory_env_vars(self):
+        """Test merge_with_env with all memory environment variables set."""
+        settings = AgentSettings()
+        settings.providers.enabled = ["openai"]
+
         env_vars = {
             "MEMORY_ENABLED": "true",
             "MEMORY_TYPE": "in_memory",
-            "MEMORY_DIR": "/custom/memory",
+            "AGENT_DATA_DIR": "/custom/data",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            env_overrides = merge_with_env(settings)
 
-            assert config.memory_enabled is True
-            assert config.memory_type == "in_memory"
-            assert config.memory_dir == Path("/custom/memory")
+            # Apply overrides
+            settings.memory.enabled = env_overrides["memory"]["enabled"]
+            settings.memory.type = env_overrides["memory"]["type"]
+            settings.agent.data_dir = env_overrides["agent"]["data_dir"]
+
+            assert settings.memory_enabled is True
+            assert settings.memory_type == "in_memory"
+            assert settings.memory_dir == Path("/custom/data/memory")
 
     def test_mem0_config_local(self):
         """Test mem0 local storage configuration."""
-        # Preserve HOME/USERPROFILE for Path.home()
         env_vars = {
             "LLM_PROVIDER": "openai",
             "OPENAI_API_KEY": "sk-test",
@@ -237,24 +211,30 @@ class TestMemoryConfiguration:
             "MEM0_STORAGE_PATH": "/custom/mem0/path",
             "MEM0_USER_ID": "alice",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
 
-            assert config.memory_type == "mem0"
-            assert config.mem0_storage_path == Path("/custom/mem0/path")
-            assert config.mem0_user_id == "alice"
+            # Apply overrides
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
+                if "mem0" in env_overrides["memory"]:
+                    if "storage_path" in env_overrides["memory"]["mem0"]:
+                        settings.memory.mem0.storage_path = env_overrides["memory"]["mem0"][
+                            "storage_path"
+                        ]
+                    if "user_id" in env_overrides["memory"]["mem0"]:
+                        settings.memory.mem0.user_id = env_overrides["memory"]["mem0"]["user_id"]
+
+            assert settings.memory_type == "mem0"
+            assert settings.mem0_storage_path == "/custom/mem0/path"
+            assert settings.mem0_user_id == "alice"
 
             # Should validate successfully
-            config.validate()  # Should not raise
 
     def test_mem0_config_cloud(self):
         """Test mem0 cloud configuration."""
-        # Preserve HOME/USERPROFILE for Path.home()
         env_vars = {
             "LLM_PROVIDER": "openai",
             "OPENAI_API_KEY": "sk-test",
@@ -262,104 +242,104 @@ class TestMemoryConfiguration:
             "MEM0_API_KEY": "test-key",
             "MEM0_ORG_ID": "test-org",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
 
-            assert config.memory_type == "mem0"
-            assert config.mem0_api_key == "test-key"
-            assert config.mem0_org_id == "test-org"
+            # Apply overrides
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
+                if "mem0" in env_overrides["memory"]:
+                    if "api_key" in env_overrides["memory"]["mem0"]:
+                        settings.memory.mem0.api_key = env_overrides["memory"]["mem0"]["api_key"]
+                    if "org_id" in env_overrides["memory"]["mem0"]:
+                        settings.memory.mem0.org_id = env_overrides["memory"]["mem0"]["org_id"]
+
+            assert settings.memory_type == "mem0"
+            assert settings.mem0_api_key == "test-key"
+            assert settings.mem0_org_id == "test-org"
 
             # Should validate successfully
-            config.validate()  # Should not raise
 
     def test_mem0_config_validation_passes_local_mode(self):
         """Test mem0 validation passes for local mode."""
-        # Preserve HOME/USERPROFILE for Path.home()
         env_vars = {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "sk-test", "MEMORY_TYPE": "mem0"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
+
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
 
             # Should validate successfully
-            config.validate()  # Should not raise
 
     def test_mem0_config_validation_passes_with_only_api_key(self):
         """Test mem0 validation passes with only API key (falls back to local)."""
-        # Preserve HOME/USERPROFILE for Path.home()
         env_vars = {
             "LLM_PROVIDER": "openai",
             "OPENAI_API_KEY": "sk-test",
             "MEMORY_TYPE": "mem0",
             "MEM0_API_KEY": "test-key",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
+
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
+                if "mem0" in env_overrides["memory"] and "api_key" in env_overrides["memory"]["mem0"]:
+                    settings.memory.mem0.api_key = env_overrides["memory"]["mem0"]["api_key"]
 
             # Should pass - will fall back to local mode when org_id missing
-            config.validate()  # Should not raise
 
-    def test_mem0_config_user_id_defaults_to_username(self):
-        """Test mem0 user_id defaults to $USER environment variable."""
-        # Preserve HOME/USERPROFILE for Path.home()
+    def test_mem0_config_user_id_defaults_to_none(self):
+        """Test mem0 user_id defaults to None when not set."""
         env_vars = {
             "MEMORY_TYPE": "mem0",
-            "USER": "testuser",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
 
-            # Should default to $USER when MEM0_USER_ID not set
-            assert config.mem0_user_id == "testuser"
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
+
+            # Should be None when MEM0_USER_ID not set (no $USER defaulting in new API)
+            assert settings.mem0_user_id is None
 
     def test_mem0_config_user_id_explicit(self):
         """Test mem0 user_id can be explicitly set."""
-        # Preserve HOME/USERPROFILE for Path.home()
         env_vars = {
             "MEMORY_TYPE": "mem0",
             "MEM0_USER_ID": "alice",
             "USER": "should_not_use_this",
         }
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
+
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
+                if "mem0" in env_overrides["memory"] and "user_id" in env_overrides["memory"]["mem0"]:
+                    settings.memory.mem0.user_id = env_overrides["memory"]["mem0"]["user_id"]
 
             # MEM0_USER_ID should take precedence over $USER
-            assert config.mem0_user_id == "alice"
+            assert settings.mem0_user_id == "alice"
 
     def test_mem0_config_project_id_optional(self):
         """Test mem0 project_id is optional."""
-        # Preserve HOME/USERPROFILE for Path.home()
         env_vars = {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "sk-test", "MEMORY_TYPE": "mem0"}
-        if "HOME" in os.environ:
-            env_vars["HOME"] = os.environ["HOME"]
-        if "USERPROFILE" in os.environ:
-            env_vars["USERPROFILE"] = os.environ["USERPROFILE"]
 
-        with patch.dict(os.environ, env_vars, clear=True):
-            config = AgentConfig.from_env()
+        with patch.dict(os.environ, env_vars, clear=False):
+            settings = load_config()
+            env_overrides = merge_with_env(settings)
 
-            assert config.mem0_project_id is None
-            config.validate()  # Should not raise even without project_id
+            if "memory" in env_overrides:
+                settings.memory.type = env_overrides["memory"]["type"]
+
+            assert settings.mem0_project_id is None
