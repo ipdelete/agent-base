@@ -10,7 +10,6 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 
 from agent.agent import Agent
-from agent.config import load_config
 from agent.config.schema import AgentSettings
 from agent.persistence import ThreadPersistence
 
@@ -38,7 +37,8 @@ def setup_session_logging(
     """
     # Load config if not provided
     if config is None:
-        config = load_config()  # noqa: F823
+        from agent.config import load_config
+        config = load_config()
 
     # Create logs directory
     log_dir = config.agent_data_dir or Path.home() / ".agent"

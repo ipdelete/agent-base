@@ -35,7 +35,7 @@ def temp_workspace(tmp_path):
 
 @pytest.fixture
 def config_with_workspace(temp_workspace):
-    """Create AgentConfig with workspace_root configured."""
+    """Create AgentSettings with workspace_root configured."""
     config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
     # Add filesystem configuration attributes (not in dataclass definition yet)
     config.workspace_root = temp_workspace
@@ -47,7 +47,7 @@ def config_with_workspace(temp_workspace):
 
 @pytest.fixture
 def config_with_writes(temp_workspace):
-    """Create AgentConfig with writes enabled."""
+    """Create AgentSettings with writes enabled."""
     config = AgentSettings(llm_provider="openai", openai_api_key="test-key")
     # Add filesystem configuration attributes
     config.workspace_root = temp_workspace

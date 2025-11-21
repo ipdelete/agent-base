@@ -37,7 +37,7 @@ from agent.exceptions import (
 
 @pytest.fixture
 def mock_anthropic_config():
-    """Mock AgentConfig for Anthropic provider."""
+    """Mock AgentSettings for Anthropic provider."""
     config = Mock(spec=AgentSettings)
     config.llm_provider = "anthropic"
     config.anthropic_model = "claude-3-5-sonnet-20241022"
@@ -46,7 +46,7 @@ def mock_anthropic_config():
 
 @pytest.fixture
 def mock_openai_config():
-    """Mock AgentConfig for OpenAI provider."""
+    """Mock AgentSettings for OpenAI provider."""
     config = Mock(spec=AgentSettings)
     config.llm_provider = "openai"
     config.openai_model = "gpt-4o"
@@ -55,7 +55,7 @@ def mock_openai_config():
 
 @pytest.fixture
 def mock_azure_config():
-    """Mock AgentConfig for Azure OpenAI provider."""
+    """Mock AgentSettings for Azure OpenAI provider."""
     config = Mock(spec=AgentSettings)
     config.llm_provider = "azure"
     config.azure_openai_deployment = "gpt-4o-deployment"
@@ -64,7 +64,7 @@ def mock_azure_config():
 
 @pytest.fixture
 def mock_github_config():
-    """Mock AgentConfig for GitHub Models provider."""
+    """Mock AgentSettings for GitHub Models provider."""
     config = Mock(spec=AgentSettings)
     config.llm_provider = "github"
     config.github_model = "gpt-4o"
@@ -73,7 +73,7 @@ def mock_github_config():
 
 @pytest.fixture
 def mock_gemini_config():
-    """Mock AgentConfig for Gemini provider."""
+    """Mock AgentSettings for Gemini provider."""
     config = Mock(spec=AgentSettings)
     config.llm_provider = "gemini"
     config.gemini_model = "gemini-1.5-pro"

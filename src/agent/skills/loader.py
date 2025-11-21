@@ -28,8 +28,8 @@ class SkillLoader:
     and script metadata collection.
 
     Example:
-        >>> from agent.config.schema import AgentSettings
-        >>> config = AgentConfig.from_env()
+        >>> from agent.config import load_config
+        >>> config = load_config()
         >>> loader = SkillLoader(config)
         >>> toolsets, script_tools, skill_instructions = loader.load_enabled_skills()
     """

@@ -7,8 +7,8 @@ through git-based skill packages. Skills support both:
 
 Example:
     >>> from agent.skills import SkillLoader
-    >>> from agent.config.schema import AgentSettings
-    >>> config = AgentConfig.from_env()
+    >>> from agent.config import load_config
+    >>> config = load_config()
     >>> loader = SkillLoader(config)
     >>> skill_toolsets, script_tools, skill_instructions = loader.load_enabled_skills()
 """

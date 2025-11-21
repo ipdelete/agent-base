@@ -11,7 +11,7 @@ from agent.skills.manifest import SkillManifest
 
 @pytest.fixture
 def mock_settings():
-    """Create mock AgentConfig with proper skills structure."""
+    """Create mock AgentSettings with proper skills structure."""
     config = Mock()
     # Mock skills config with proper structure
     config.skills = Mock()

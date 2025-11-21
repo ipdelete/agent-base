@@ -8,7 +8,7 @@ from agent.tools.hello import HelloTools
 
 @pytest.fixture
 def mock_settings():
-    """Create mock AgentConfig for testing."""
+    """Create mock AgentSettings for testing."""
     return AgentSettings(llm_provider="openai", openai_api_key="test-key")
 
 

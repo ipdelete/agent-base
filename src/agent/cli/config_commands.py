@@ -727,7 +727,7 @@ def config_memory() -> None:
 
     # Load or create config
     if config_path.exists():
-        settings = load_config(config_path)  # noqa: F823
+        settings = load_config(config_path)
     else:
         console.print("[yellow]No configuration file found. Creating new one...[/yellow]")
         settings = get_default_config()
@@ -825,7 +825,6 @@ def config_memory() -> None:
 
         # Check provider compatibility first
         try:
-            from agent.config import load_config
             from agent.memory.mem0_utils import SUPPORTED_PROVIDERS, is_provider_compatible
 
             # Load current provider from settings
