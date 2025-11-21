@@ -105,7 +105,7 @@ class SkillContextProvider(ContextProvider):
             else:
                 # No triggers defined yet → use registry for LLM discovery
                 logger.debug(
-                    f"No skill match - injecting full registry (no skills have structured triggers)"
+                    "No skill match - injecting full registry (no skills have structured triggers)"
                 )
                 return self._inject_skill_registry()
         else:
@@ -311,10 +311,10 @@ class SkillContextProvider(ContextProvider):
                 # Handle list of content items
                 texts = []
                 for item in content:
-                    if hasattr(item, 'text'):
+                    if hasattr(item, "text"):
                         texts.append(str(item.text))
-                    elif isinstance(item, dict) and 'text' in item:
-                        texts.append(str(item['text']))
+                    elif isinstance(item, dict) and "text" in item:
+                        texts.append(str(item["text"]))
                 return " ".join(texts) if texts else ""
             else:
                 return str(content)

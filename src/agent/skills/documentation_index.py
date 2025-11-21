@@ -46,7 +46,7 @@ class SkillDocumentationIndex:
         >>> metadata = skill_docs.get_all_metadata()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._skills: dict[str, SkillDocumentation] = {}
 
     def add_skill(self, name: str, manifest: SkillManifest) -> None:

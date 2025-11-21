@@ -91,7 +91,10 @@ async def test_injects_documentation_for_matched_skills(provider):
     assert result.instructions
     assert "## Relevant Skill Documentation" in result.instructions
     assert "hello-extended" in result.instructions
-    assert "Multi-language greetings" in result.instructions or "greeting functionality" in result.instructions
+    assert (
+        "Multi-language greetings" in result.instructions
+        or "greeting functionality" in result.instructions
+    )
 
 
 @pytest.mark.asyncio
@@ -339,7 +342,7 @@ async def test_hybrid_fallback_no_triggers_uses_registry():
         name="skill1",
         description="Test skill 1",
         instructions="Skill 1 documentation",
-        triggers=SkillTriggers()  # Empty - no keywords, verbs, or patterns
+        triggers=SkillTriggers(),  # Empty - no keywords, verbs, or patterns
     )
     # Clear the implicit skill name that model_post_init adds
     manifest1.triggers.keywords = []
@@ -349,7 +352,7 @@ async def test_hybrid_fallback_no_triggers_uses_registry():
         name="skill2",
         description="Test skill 2",
         instructions="Skill 2 documentation",
-        triggers=SkillTriggers()  # Empty
+        triggers=SkillTriggers(),  # Empty
     )
     manifest2.triggers.keywords = []
     skill_docs.add_skill("skill2", manifest2)

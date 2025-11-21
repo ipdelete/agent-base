@@ -675,7 +675,9 @@ class TestLoadEnabledSkills:
         # Skill with no instructions (empty after frontmatter)
         skill1 = bundled_dir / "api-skill"
         skill1.mkdir()
-        (skill1 / "SKILL.md").write_text("---\nname: api-skill\ndescription: API client skill\n---\n")
+        (skill1 / "SKILL.md").write_text(
+            "---\nname: api-skill\ndescription: API client skill\n---\n"
+        )
 
         mock_config.skills.disabled_bundled = []
         mock_config.skills.bundled_dir = str(bundled_dir)

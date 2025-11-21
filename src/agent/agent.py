@@ -375,7 +375,7 @@ Be helpful, concise, and clear in your responses."""
         instructions = self._load_system_prompt()
 
         # Create context providers for dynamic injection
-        context_providers = []
+        context_providers: list[Any] = []
 
         # Add memory context provider if enabled
         if self.memory_manager:
@@ -402,7 +402,9 @@ Be helpful, concise, and clear in your responses."""
         # IMPORTANT: Pass middleware as a list, not dict
         # Agent Framework automatically categorizes middleware by signature
         # Converting to dict breaks middleware invocation
-        logger.info(f"Creating agent with {len(context_providers)} context providers: {[type(p).__name__ for p in context_providers]}")
+        logger.info(
+            f"Creating agent with {len(context_providers)} context providers: {[type(p).__name__ for p in context_providers]}"
+        )
         return self.chat_client.create_agent(
             name="Agent",
             instructions=instructions,

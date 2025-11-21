@@ -7,13 +7,16 @@ and dynamic toolset importing.
 import importlib.util
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent.skills.errors import SkillManifestError
 from agent.skills.manifest import SkillManifest, parse_skill_manifest
 from agent.skills.registry import SkillRegistry
 from agent.skills.security import normalize_script_name, normalize_skill_name
 from agent.tools.toolset import AgentToolset
+
+if TYPE_CHECKING:
+    from agent.skills.documentation_index import SkillDocumentationIndex
 
 logger = logging.getLogger(__name__)
 
