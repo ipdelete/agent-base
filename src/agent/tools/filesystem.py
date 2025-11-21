@@ -221,7 +221,6 @@ class FileSystemTools(AgentToolset):
                 message=f"Failed to resolve path: {relative_path}. Error: {str(e)}",
             )
 
-    # Model Sees 119 Tokens
     """
     {
       "name": "get_path_info",
@@ -320,9 +319,6 @@ class FileSystemTools(AgentToolset):
                 error="os_error", message=f"OS error accessing {path}: {str(e)}"
             )
 
-    # Model Sees 233 Tokens
-    ######################################
-    # Model Sees 233 Tokens
     """
     {
       "name": "list_directory",
@@ -500,7 +496,6 @@ class FileSystemTools(AgentToolset):
                 error="os_error", message=f"OS error listing directory {path}: {str(e)}"
             )
 
-    # Model Sees 192 Tokens
     """
     {
       "name": "read_file",
@@ -639,7 +634,6 @@ class FileSystemTools(AgentToolset):
                 error="os_error", message=f"Error reading file {path}: {str(e)}"
             )
 
-    # Model Sees 286 Tokens
     """
     {
       "name": "search_text",
@@ -837,7 +831,6 @@ class FileSystemTools(AgentToolset):
             message=f"Found {len(matches)} matches in {files_searched} files",
         )
 
-    # Model Sees 189 Tokens
     """
     {
       "name": "write_file",
@@ -944,7 +937,6 @@ class FileSystemTools(AgentToolset):
                 error="os_error", message=f"Error writing to {path}: {str(e)}"
             )
 
-    # Model Sees 238 Tokens
     """
     {
       "name": "apply_text_edit",
@@ -1113,7 +1105,6 @@ class FileSystemTools(AgentToolset):
                 error="os_error", message=f"Error writing to {path}: {str(e)}"
             )
 
-    # Model Sees 168 Tokens
     """
     {
       "name": "create_directory",

@@ -33,7 +33,6 @@ class HelloExtended(AgentToolset):
             self.greet_multiple,
         ]
 
-    # Model Sees 152 Tokens
     """
     {
       "name": "greet_in_language",
@@ -84,7 +83,6 @@ class HelloExtended(AgentToolset):
             result=greeting, message=f"Generated greeting in {language}"
         )
 
-    # Model Sees 150 Tokens
     """
     {
       "name": "greet_multiple",

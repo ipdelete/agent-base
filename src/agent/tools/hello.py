@@ -109,7 +109,6 @@ class HelloTools(AgentToolset):
         """
         return [self.hello_world, self.greet_user]
 
-    # Model Sees 102 Tokens
     """
     {
       "name": "hello_world",
@@ -135,7 +134,6 @@ class HelloTools(AgentToolset):
         greeting = f"Hello, {name}! ◉‿◉"
         return self._create_success_response(result=greeting, message=f"Greeted {name}")
 
-    # Model Sees 145 Tokens
     """
     {
       "name": "greet_user",

@@ -58,7 +58,6 @@ class ScriptToolset(AgentToolset):
         """Get total number of scripts across all skills."""
         return sum(len(scripts) for scripts in self.scripts.values())
 
-    # Model Sees 129 Tokens
     """
     {
       "name": "script_list",
@@ -123,7 +122,6 @@ class ScriptToolset(AgentToolset):
                 error="execution_failed", message=f"Failed to list scripts: {e}"
             )
 
-    # Model Sees ~164 Tokens
     """
     {
       "name": "script_help",
@@ -204,7 +202,6 @@ class ScriptToolset(AgentToolset):
                 error="execution_failed", message=f"Failed to get script help: {e}"
             )
 
-    # Model Sees ~224 Tokens
     """
     {
       "name": "script_run",
