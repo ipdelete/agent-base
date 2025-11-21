@@ -712,7 +712,7 @@ def config_memory() -> None:
 
     # Load or create config
     if config_path.exists():
-        settings = load_config(config_path)
+        settings = load_config(config_path)  # noqa: F823
     else:
         console.print("[yellow]No configuration file found. Creating new one...[/yellow]")
         settings = get_default_config()

@@ -38,7 +38,7 @@ def setup_session_logging(
     """
     # Load config if not provided
     if config is None:
-        config = load_config()
+        config = load_config()  # noqa: F823
 
     # Create logs directory
     log_dir = config.agent_data_dir or Path.home() / ".agent"

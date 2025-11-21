@@ -12,7 +12,7 @@ from agent.config.schema import AgentSettings
 def build_test_config(
     llm_provider: str = "openai",
     **kwargs: Any,
-) -> AgentConfig:
+) -> AgentSettings:
     """Build a test configuration with sensible defaults.
 
     Args:
@@ -20,7 +20,7 @@ def build_test_config(
         **kwargs: Additional configuration overrides
 
     Returns:
-        AgentConfig instance configured for testing
+        AgentSettings instance configured for testing
 
     Example:
         >>> config = build_test_config()
