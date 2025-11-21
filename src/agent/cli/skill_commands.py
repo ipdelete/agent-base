@@ -14,11 +14,80 @@ from agent.config import (
 )
 from agent.config.schema import PluginSkillSource
 from agent.skills.manager import SkillManager
+from agent.skills.manifest import SkillManifest
 from agent.skills.registry import SkillRegistry
 from agent.skills.security import normalize_skill_name
 
 console = get_console()
 logger = logging.getLogger(__name__)
+
+
+def _get_toolset_tools(manifest: SkillManifest, skill_path: Path) -> list[tuple[str, int]]:
+    """Extract tools from skill's toolsets with their token counts.
+
+    Args:
+        manifest: Parsed skill manifest
+        skill_path: Path to skill directory
+
+    Returns:
+        List of (tool_name, token_count) tuples
+    """
+    import importlib.util
+    import sys
+
+    from agent.config import AgentConfig
+    from agent.utils.tokens import count_tokens
+
+    tools_info: list[tuple[str, int]] = []
+
+    if not manifest.toolsets:
+        return tools_info
+
+    for toolset_spec in manifest.toolsets:
+        try:
+            # Parse "module:Class" format
+            if ":" not in toolset_spec:
+                continue
+
+            module_name, class_name = toolset_spec.split(":", 1)
+
+            # Load module from skill directory
+            module_path = skill_path / f"{module_name.replace('.', '/')}.py"
+            if not module_path.exists():
+                continue
+
+            # Import module dynamically
+            spec = importlib.util.spec_from_file_location(
+                f"_skill_{skill_path.name}_{module_name}", module_path
+            )
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = module
+                spec.loader.exec_module(module)
+
+                # Get toolset class and instantiate
+                toolset_class = getattr(module, class_name, None)
+                if toolset_class:
+                    # Create minimal config for toolset instantiation
+                    config = AgentConfig.from_combined()
+                    toolset_instance = toolset_class(config)
+
+                    # Get tools from toolset
+                    tools = toolset_instance.get_tools()
+
+                    # Extract docstrings and count tokens
+                    for tool in tools:
+                        docstring = tool.__doc__ or ""
+                        first_line = docstring.strip().split("\n")[0] if docstring.strip() else ""
+                        token_count = count_tokens(first_line) if first_line else 0
+                        tools_info.append((tool.__name__, token_count))
+
+        except Exception as e:
+            # Silently skip failed toolset loads
+            logger.debug(f"Failed to load toolset {toolset_spec}: {e}")
+            continue
+
+    return tools_info
 
 
 def _get_repo_paths() -> tuple[Path, str]:
@@ -244,6 +313,19 @@ def show_skills() -> None:
                 console.print(
                     f"  {status_icon} {skill_name} [dim]({location})[/dim] · [dim]{token_count} tokens[/dim]"
                 )
+
+                # Display tools if skill has toolsets
+                try:
+                    tools_info = _get_toolset_tools(manifest, skill_dir)
+                    if tools_info:
+                        console.print("    [dim]Tools:[/dim]")
+                        for tool_name, tool_tokens in tools_info:
+                            console.print(
+                                f"      [dim]• {tool_name}[/dim] · [dim]{tool_tokens} tokens[/dim]"
+                            )
+                except Exception:
+                    # Silently skip if tool extraction fails
+                    pass
         else:
             console.print("[bold]Bundled:[/bold] [dim]None found[/dim]")
 
@@ -285,6 +367,22 @@ def show_skills() -> None:
                 console.print(
                     f"  {status_icon} {plugin.name} [dim]({source_info})[/dim] · [dim]{token_count} tokens[/dim]"
                 )
+
+                # Display tools if skill has toolsets
+                try:
+                    if entry.installed_path and Path(entry.installed_path).exists():
+                        skill_path = Path(entry.installed_path)
+                        manifest = parse_skill_manifest(skill_path)
+                        tools_info = _get_toolset_tools(manifest, skill_path)
+                        if tools_info:
+                            console.print("    [dim]Tools:[/dim]")
+                            for tool_name, tool_tokens in tools_info:
+                                console.print(
+                                    f"      [dim]• {tool_name}[/dim] · [dim]{tool_tokens} tokens[/dim]"
+                                )
+                except Exception:
+                    # Silently skip if tool extraction fails
+                    pass
         else:
             console.print("[bold]Plugins:[/bold] [dim]None installed[/dim]")
 
