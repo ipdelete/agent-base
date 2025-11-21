@@ -190,7 +190,9 @@ class TestConfigPrecedence:
         # Env used to override file value when merged
         assert loaded_settings.openai_api_key == "file-key"  # File value without merge
         # merge_with_env returns dict of overrides
-        assert env_overrides["providers"]["openai"]["api_key"] == "env-override-key"  # Env overrides after merge
+        assert (
+            env_overrides["providers"]["openai"]["api_key"] == "env-override-key"
+        )  # Env overrides after merge
 
     def test_file_values_persist(self, tmp_path):
         """Test that file values are preserved in configuration."""
