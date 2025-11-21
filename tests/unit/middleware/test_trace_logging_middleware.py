@@ -87,10 +87,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=False)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "openai"
         mock_settings.openai_model = "gpt-4o-mini"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["openai"]
 
         # Create mock context with messages
         context = Mock(spec=["messages"])
@@ -134,10 +136,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=False)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "openai"
         mock_settings.openai_model = "gpt-4o-mini"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["openai"]
 
         context = Mock(spec=["messages"])
         context.messages = []
@@ -186,10 +190,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=True)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "openai"
         mock_settings.openai_model = "gpt-4o-mini"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["openai"]
 
         context = Mock(spec=["messages"])
         context.messages = [
@@ -320,10 +326,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=True)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "openai"
         mock_settings.openai_model = "gpt-4o-mini"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["openai"]
 
         # Messages with different serialization methods
         # Use to_dict
@@ -373,10 +381,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=True)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "openai"
         mock_settings.openai_model = "gpt-4o-mini"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["openai"]
 
         context = Mock(spec=["messages"])
         context.messages = []
@@ -474,10 +484,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=True)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "anthropic"
         mock_settings.anthropic_model = "claude-haiku-4-5-20251001"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["anthropic"]
 
         # Mock agent with chat_options
         chat_options = Mock()
@@ -591,10 +603,12 @@ class TestMiddlewareTraceLogging:
         logger = TraceLogger(trace_file=trace_file, include_messages=False)
         set_trace_logger(logger)
 
-        # Mock config
+        # Mock config with proper provider structure
         mock_settings = Mock()
         mock_settings.llm_provider = "gemini"
         mock_settings.gemini_model = "gemini-2.0-flash"
+        mock_settings.providers = Mock()
+        mock_settings.providers.enabled = ["gemini"]
 
         # Mock thread with usage in content
         usage_content = Mock()
