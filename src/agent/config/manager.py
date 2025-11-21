@@ -26,42 +26,57 @@ def get_config_path() -> Path:
 
 
 def load_config(config_path: Path | None = None) -> AgentSettings:
-    """Load configuration from JSON file.
+    """Load configuration from JSON file with environment variable overrides.
+
+    Merges configuration from three sources (in precedence order):
+    1. Environment variables (highest priority)
+    2. Configuration file (~/.agent/settings.json)
+    3. Default values (lowest priority)
 
     Args:
         config_path: Optional path to config file. Defaults to ~/.agent/settings.json
 
     Returns:
-        AgentSettings instance loaded from file, or default settings if file doesn't exist
+        AgentSettings instance with merged configuration
 
     Raises:
         ConfigurationError: If file exists but is invalid JSON or fails validation
 
     Example:
         >>> settings = load_config()
-        >>> settings.providers.enabled
-        ['local']
+        >>> settings.providers.enabled  # From file or env (LLM_PROVIDER)
+        ['openai']
     """
     if config_path is None:
         config_path = get_config_path()
 
-    # Return defaults if file doesn't exist
-    if not config_path.exists():
-        return AgentSettings()
+    # Start with base settings (from file or defaults)
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                data = json.load(f)
+            settings = AgentSettings(**data)
+        except json.JSONDecodeError as e:
+            raise ConfigurationError(
+                f"Invalid JSON in configuration file {config_path}: {e}"
+            ) from e
+        except ValidationError as e:
+            raise ConfigurationError(
+                f"Configuration validation failed for {config_path}:\n{e}"
+            ) from e
+        except Exception as e:
+            raise ConfigurationError(f"Failed to load configuration from {config_path}: {e}") from e
+    else:
+        # No config file - start with defaults
+        settings = AgentSettings()
 
-    try:
-        with open(config_path) as f:
-            data = json.load(f)
+    # Apply environment variable overrides
+    env_overrides = merge_with_env(settings)
+    if env_overrides:
+        merged_dict = deep_merge(settings.model_dump(), env_overrides)
+        settings = AgentSettings(**merged_dict)
 
-        # Validate and load into Pydantic model
-        return AgentSettings(**data)
-
-    except json.JSONDecodeError as e:
-        raise ConfigurationError(f"Invalid JSON in configuration file {config_path}: {e}") from e
-    except ValidationError as e:
-        raise ConfigurationError(f"Configuration validation failed for {config_path}:\n{e}") from e
-    except Exception as e:
-        raise ConfigurationError(f"Failed to load configuration from {config_path}: {e}") from e
+    return settings
 
 
 def save_config(settings: AgentSettings, config_path: Path | None = None) -> None:
@@ -131,8 +146,14 @@ def merge_with_env(settings: AgentSettings) -> dict[str, Any]:
     """
     env_overrides: dict[str, Any] = {}
 
-    # Note: LLM_PROVIDER is read directly in from_combined(), not via merge
+    # Check if LLM_PROVIDER environment variable is set
     llm_provider = os.getenv("LLM_PROVIDER")
+
+    # If LLM_PROVIDER is set and not already in enabled list, add it
+    if llm_provider and llm_provider not in settings.providers.enabled:
+        # Add provider to enabled list (env takes precedence)
+        enabled_list = [llm_provider] + settings.providers.enabled
+        env_overrides.setdefault("providers", {})["enabled"] = enabled_list
 
     # OpenAI overrides
     if os.getenv("OPENAI_API_KEY"):
