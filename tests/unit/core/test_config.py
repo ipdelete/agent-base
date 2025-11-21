@@ -144,7 +144,7 @@ class TestAgentConfig:
         settings.providers.openai.api_key = "test"
         settings.providers.openai.model = "gpt-5-mini"
 
-        assert settings.get_model_display_name() == "gpt-5-mini"
+        assert settings.get_model_display_name() == "OpenAI/gpt-5-mini"
 
     def test_get_model_display_name_anthropic(self):
         """Test get_model_display_name for Anthropic."""
@@ -153,7 +153,7 @@ class TestAgentConfig:
         settings.providers.anthropic.api_key = "test"
         settings.providers.anthropic.model = "claude-haiku-4-5-20251001"
 
-        assert settings.get_model_display_name() == "claude-haiku-4-5-20251001"
+        assert settings.get_model_display_name() == "Anthropic/claude-haiku-4-5-20251001"
 
     def test_get_model_display_name_azure_foundry(self):
         """Test get_model_display_name for Azure AI Foundry."""
@@ -162,7 +162,7 @@ class TestAgentConfig:
         settings.providers.foundry.project_endpoint = "https://test.ai.azure.com"
         settings.providers.foundry.model_deployment = "gpt-4o"
 
-        assert settings.get_model_display_name() == "gpt-4o"
+        assert settings.get_model_display_name() == "Azure AI Foundry/gpt-4o"
 
     def test_get_model_display_name_no_providers(self):
         """Test get_model_display_name with no providers enabled."""
@@ -219,7 +219,7 @@ class TestAgentConfig:
         settings.providers.enabled = ["azure"]
         settings.providers.azure.deployment = "gpt-5-codex"
 
-        assert settings.get_model_display_name() == "gpt-5-codex"
+        assert settings.get_model_display_name() == "Azure OpenAI/gpt-5-codex"
 
     def test_system_prompt_file_from_env(self):
         """Test system_prompt_file reads from AGENT_SYSTEM_PROMPT environment variable."""
