@@ -94,7 +94,8 @@ class TestAgent:
 
     def test_create_chat_client_raises_for_unknown_provider(self):
         """Test _create_chat_client raises ValueError for unknown provider."""
-        config = AgentSettings(llm_provider="invalid_provider", openai_api_key="test")
+        config = AgentSettings()
+        config.providers.enabled = ["invalid_provider"]
 
         with pytest.raises(ValueError, match="Unknown provider: invalid_provider"):
             Agent(settings=config)
@@ -202,7 +203,7 @@ class TestAgentSystemPrompt:
     ):
         """Test agent creation succeeds even if prompt loading fails."""
         # Set invalid custom prompt file
-        mock_settings.system_prompt_file = "/nonexistent/prompt.md"
+        mock_settings.agent.system_prompt_file = "/nonexistent/prompt.md"
 
         # Agent should still be created (using fallback)
         Agent(settings=mock_settings, chat_client=mock_chat_client)

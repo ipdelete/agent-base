@@ -144,11 +144,10 @@ class TestCreateMemoryManager:
         """Test factory routes to Mem0Store when memory_type is mem0."""
         from agent.memory.mem0_store import Mem0Store
 
-        config = AgentSettings(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test"
+        config.memory.type = "mem0"
 
         with patch("agent.memory.mem0_store.create_memory_instance") as mock_create:
             mock_create.return_value = Mock()
@@ -159,11 +158,10 @@ class TestCreateMemoryManager:
 
     def test_create_memory_manager_mem0_fallback_on_error(self):
         """Test factory falls back to InMemoryStore when Mem0Store fails."""
-        config = AgentSettings(
-            llm_provider="openai",
-            openai_api_key="test",
-            memory_type="mem0",
-        )
+        config = AgentSettings()
+        config.providers.enabled = ["openai"]
+        config.providers.openai.api_key = "test"
+        config.memory.type = "mem0"
 
         with patch("agent.memory.mem0_store.create_memory_instance") as mock_create:
             mock_create.side_effect = Exception("Connection failed")
