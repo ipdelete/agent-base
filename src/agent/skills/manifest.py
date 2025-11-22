@@ -188,13 +188,18 @@ class SkillRegistryEntry(BaseModel):
     trusted: bool = False
     installed_at: datetime = Field(default_factory=datetime.now)
 
-    class Config:
-        """Pydantic config for custom types."""
+    model_config = {"arbitrary_types_allowed": True}
 
-        json_encoders = {
-            Path: str,
-            datetime: lambda v: v.isoformat(),
-        }
+    def model_dump(self, **kwargs):
+        """Custom serialization to handle Path and datetime objects."""
+        data = super().model_dump(**kwargs)
+        # Convert Path to string
+        if "installed_path" in data and isinstance(data["installed_path"], Path):
+            data["installed_path"] = str(data["installed_path"])
+        # Convert datetime to ISO format
+        if "installed_at" in data and isinstance(data["installed_at"], datetime):
+            data["installed_at"] = data["installed_at"].isoformat()
+        return data
 
 
 def extract_yaml_frontmatter(content: str) -> tuple[dict[str, Any], str]:
