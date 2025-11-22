@@ -105,7 +105,7 @@ agent config provider openai      # Enable/configure OpenAI
 agent config memory               # Switch between in_memory and mem0
 ```
 
-See [config.md](config.md) for complete configuration.
+See [docs/design/config.md](docs/design/config.md) for complete configuration.
 
 ## Usage
 

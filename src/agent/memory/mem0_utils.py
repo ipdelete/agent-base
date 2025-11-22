@@ -5,6 +5,7 @@ from AgentConfig and creating mem0 Memory instances.
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -60,8 +61,6 @@ def extract_llm_config(config: AgentSettings) -> dict[str, Any]:
     # Map agent providers to mem0 providers
     if config.llm_provider == "openai":
         # Allow model override for mem0 (e.g., if project has limited model access)
-        import os
-
         openai_mem0_model = os.getenv("MEM0_LLM_MODEL", config.openai_model)
 
         return {
@@ -86,7 +85,6 @@ def extract_llm_config(config: AgentSettings) -> dict[str, Any]:
         # Azure OpenAI in mem0 doesn't accept azure_endpoint/api_version
         # Use minimal config with just model and api_key
         # Note: This may not work properly - recommend using OpenAI provider instead
-        import os
 
         # Check if user has OpenAI API key available
         openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -188,8 +186,6 @@ def _create_embedder_config(llm_config: dict[str, Any]) -> dict[str, Any]:
     if provider == "azure_openai":
         # Azure OpenAI embeddings in mem0 require special handling
         # Check if OpenAI API key is available for embeddings
-        import os
-
         openai_api_key = os.getenv("OPENAI_API_KEY")
 
         if openai_api_key:
