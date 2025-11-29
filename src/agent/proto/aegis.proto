@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package aegis.v1;
+
+service AegisController {
+  // Execute Python code and get output in a single response.
+  rpc Execute(ExecuteRequest) returns (ExecutionResponse);
+
+  // Execute code while streaming stdout/stderr as chunks.
+  rpc ExecuteStream(ExecuteRequest) returns (stream ExecutionChunk);
+
+  // Health check endpoint.
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message ExecuteRequest {
+  string code = 1;
+  uint32 timeout_secs = 2;
+  uint32 memory_mb = 3;
+  string request_id = 4;
+  map<string, string> labels = 5;
+}
+
+message ExecutionResponse {
+  string stdout = 1;
+  string stderr = 2;
+  int32 exit_code = 3;
+  bool success = 4;
+  ExecutionError error = 5;
+  string request_id = 6;
+  // True if stdout was truncated due to max_output_bytes limit.
+  bool stdout_truncated = 7;
+  // True if stderr was truncated due to max_output_bytes limit.
+  bool stderr_truncated = 8;
+}
+
+message ExecutionChunk {
+  enum ChunkType {
+    STDOUT = 0;
+    STDERR = 1;
+    EXIT_CODE = 2;
+    ERROR = 3;
+  }
+  ChunkType type = 1;
+  bytes data = 2;
+  int32 exit_code = 3;
+  ExecutionError error = 4;
+}
+
+message ExecutionError {
+  enum Code {
+    UNKNOWN = 0;
+    POOL_EXHAUSTED = 1;
+    TIMEOUT = 2;
+    OOM_KILLED = 3;
+    SYNTAX_ERROR = 4;
+    SYSCALL_VIOLATION = 5;
+    RATE_LIMITED = 6;
+    REQUEST_TOO_LARGE = 7;
+  }
+  Code code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  enum Status {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  Status status = 1;
+  string pool_size = 2;
+  map<string, int64> metrics = 3;
+}

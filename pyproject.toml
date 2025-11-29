@@ -37,6 +37,9 @@ dependencies = [
     "azure-monitor-opentelemetry-exporter>=1.0.0b44",
     "azure-ai-inference>=1.0.0b8",  # For GitHub Models provider
     "google-genai>=0.8.0",
+    # Aegis sandbox integration
+    "grpcio>=1.60.0",
+    "protobuf>=4.25.0",
 ]
 
 [project.optional-dependencies]

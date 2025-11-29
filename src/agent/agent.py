@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from agent.config import load_config
 from agent.config.schema import AgentSettings
+from agent.tools.aegis import AegisTools
 from agent.tools.filesystem import FileSystemTools
 from agent.tools.hello import HelloTools
 from agent.tools.toolset import AgentToolset
@@ -97,6 +98,11 @@ class Agent:
         # Initialize toolsets (avoid global state)
         if toolsets is None:
             toolsets = [HelloTools(self.settings), FileSystemTools(self.settings)]
+
+            # Add Aegis tools if endpoint is configured
+            if os.getenv("AEGIS_ENDPOINT") or os.getenv("AEGIS_API_KEY"):
+                toolsets.append(AegisTools(self.settings))
+                logger.info("Loaded AegisTools for secure code execution")
 
             # Load skills from settings
             try:

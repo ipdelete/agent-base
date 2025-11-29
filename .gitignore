@@ -79,3 +79,4 @@ kubeconfig
 .env
 .env.local
 .env.*.local
+AEGIS_INTEGRATION.md
